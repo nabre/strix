@@ -3876,7 +3876,7 @@ structure	Remove the member with its loads	Elimina l'asta con i suoi carichi
 structure	Remove the support	Elimina il vincolo
 structure	Roller	Carrello
 structure	Select	Seleziona
-structure	Select a node or a member, drag a node to move it	Seleziona un nodo o un'asta; trascina un nodo per spostarlo
+structure	Select nodes, members and loads (Shift+click, a window); drag to move them, a load slides along its member	Seleziona nodi, aste e carichi (Maiusc+clic, un riquadro); trascina per spostarli, un carico scorre lungo la sua asta
 	Select a structure in the document to draw and edit it, or insert one.	Seleziona una struttura nel documento per disegnarla e modificarla, o inseriscine una.
 structure	Shear	Taglio
 structure	Show the whole structure	Mostra tutta la struttura
@@ -3970,3 +3970,17 @@ structure	Write after the structure its solution as live calculations: the equil
 	Lengths in {unit} (or with their own unit: 2.5m, 30cm)	Lunghezze in {unit} (o con la loro unità: 2.5m, 30cm)
 	Type a size in any unit, such as 3 cm or 300 px.	Digita una misura in qualsiasi unità, per esempio 3 cm o 300 px.
 	No other Strix windows are open.	Non ci sono altre finestre di Strix aperte.
+	Edit\nStructure	Modifica\nstruttura
+	Stations	Progressive
+	Write the structure's dimensions, the slopes of inclined members and the angles inclined forces make with their members	Scrivi le quote della struttura, le inclinazioni delle aste inclinate e gli angoli che le forze inclinate formano con le loro aste
+	Mark on each diagram's axis where its notable values are: a load's position, a maximum, a zero, with the distance from the member's start	Segna sull'asse di ogni diagramma dove sono i valori notevoli (la posizione di un carico, un massimo, uno zero) con la distanza dall'inizio dell'asta
+structure	Structure Editor	Editor struttura
+structure	Close Editor	Chiudi editor
+structure	Back to the page (Esc with nothing selected)	Torna alla pagina (Esc senza nulla selezionato)
+structure	Edit in Full Page	Modifica a tutta pagina
+structure	Open the structure in its editor, in place of the page (or double-click the structure)	Apri la struttura nel suo editor, al posto della pagina (oppure fai doppio clic sulla struttura)
+structure	{n} selected · Del removes · arrows move	{n} selezionati · Canc elimina · frecce spostano
+structure	{n} items selected	{n} elementi selezionati
+structure	Drag one of them to move them together; the arrow keys move them by the grid (Shift: ten times); Delete removes them.	Trascinane uno per spostarli insieme; le frecce li spostano di un passo di griglia (Maiusc: dieci volte); Canc li elimina.
+structure	Remove Selected	Elimina selezionati
+structure	Click a node, a member or a load to see its properties; Shift+click or a window adds to the selection.	Fai clic su un nodo, un'asta o un carico per vederne le proprietà; Maiusc+clic o un riquadro aggiungono alla selezione.

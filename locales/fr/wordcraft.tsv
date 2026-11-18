@@ -3824,7 +3824,7 @@ structure	Remove the member with its loads	Supprimer la barre avec ses charges
 structure	Remove the support	Supprimer l’appui
 structure	Roller	Appui à rouleau
 structure	Select	Sélectionner
-structure	Select a node or a member, drag a node to move it	Sélectionnez un nœud ou une barre ; faites glisser un nœud pour le déplacer
+structure	Select nodes, members and loads (Shift+click, a window); drag to move them, a load slides along its member	Sélectionner nœuds, barres et charges (Maj+clic, une fenêtre) ; faire glisser pour les déplacer, une charge glisse le long de sa barre
 structure	Select a structure in the document to draw and edit it, or insert one.	Sélectionnez une structure dans le document pour la dessiner et la modifier, ou insérez-en une.
 structure	Shear	Effort tranchant
 structure	Show the whole structure	Afficher toute la structure
@@ -3886,3 +3886,17 @@ structure	x from {a} to {b}	x de {a} à {b}
 	x from the member's first node; N positive in tension, T positive turning clockwise, M positive stretching the reference fibres.	x depuis le premier nœud de la barre ; N positif en traction, T positif s’il fait tourner dans le sens horaire, M positif s’il tend les fibres de référence.
 	x from {a} to {b}	x de {a} à {b}
 plot	Fit	Régression
+	Edit\nStructure	Modifier la\nstructure
+	Stations	Abscisses
+	Write the structure's dimensions, the slopes of inclined members and the angles inclined forces make with their members	Écrire les cotes de la structure, les pentes des barres inclinées et les angles que les forces inclinées font avec leurs barres
+	Mark on each diagram's axis where its notable values are: a load's position, a maximum, a zero, with the distance from the member's start	Marquer sur l'axe de chaque diagramme où sont ses valeurs remarquables (la position d'une charge, un maximum, un zéro) avec la distance depuis le début de la barre
+structure	Structure Editor	Éditeur de structure
+structure	Close Editor	Fermer l'éditeur
+structure	Back to the page (Esc with nothing selected)	Revenir à la page (Échap sans rien de sélectionné)
+structure	Edit in Full Page	Modifier en pleine page
+structure	Open the structure in its editor, in place of the page (or double-click the structure)	Ouvrir la structure dans son éditeur, à la place de la page (ou double-cliquer sur la structure)
+structure	{n} selected · Del removes · arrows move	{n} sélectionnés · Suppr supprime · flèches déplacent
+structure	{n} items selected	{n} éléments sélectionnés
+structure	Drag one of them to move them together; the arrow keys move them by the grid (Shift: ten times); Delete removes them.	Faites glisser l'un d'eux pour les déplacer ensemble ; les flèches les déplacent d'un pas de grille (Maj : dix fois) ; Suppr les supprime.
+structure	Remove Selected	Supprimer la sélection
+structure	Click a node, a member or a load to see its properties; Shift+click or a window adds to the selection.	Cliquez sur un nœud, une barre ou une charge pour voir ses propriétés ; Maj+clic ou une fenêtre ajoutent à la sélection.

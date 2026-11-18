@@ -18,13 +18,16 @@ pub enum PlotAnchor {
     MiddleRight,
 }
 
-/// Paper-millimetre drawing primitive (`(0, 0)` at top-left, `y` down).
+/// Paper-millimetre drawing primitive (`(0, 0)` at top-left, `y` down). `TextAt` is text centred
+/// on `at` (both ways), turned `angle` degrees counter-clockwise about it (a structure's value
+/// written across its diagram, a dimension along a vertical line).
 #[derive(Debug, Clone, PartialEq)]
 pub enum PlotPrim {
     Rect { rect: [f64; 4], fill: Option<[u8; 3]>, stroke: Option<([u8; 3], f64)> },
     Path { pts: Vec<(f64, f64)>, closed: bool, stroke: Option<([u8; 3], f64)>, fill: Option<[u8; 3]>, dash: Vec<f64> },
     Dot { at: (f64, f64), r: f64, fill: [u8; 3], stroke: Option<([u8; 3], f64)> },
     Text { at: (f64, f64), text: String, height: f64, bold: bool, anchor: PlotAnchor, color: [u8; 3] },
+    TextAt { at: (f64, f64), text: String, height: f64, angle: f64, color: [u8; 3] },
 }
 
 /// Rendered plot primitives, viewport rectangle and mathematical summary.

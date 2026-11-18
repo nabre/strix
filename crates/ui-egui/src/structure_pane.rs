@@ -32,26 +32,41 @@ enum Tool {
     Erase,
 }
 
-/// What is selected on the sheet.
+/// Something selected on the sheet.
 #[derive(Clone, Debug, PartialEq)]
-enum Sel {
+pub(crate) enum Sel {
     Node(String),
     Member(String),
+    /// A load, by its index.
+    Load(usize),
+}
+
+/// What a drag with the primary button is doing.
+#[derive(Clone, Debug, PartialEq)]
+enum Gesture {
+    /// Moving the selected nodes (and the ends of the selected members): the world point grabbed
+    /// and where it is now.
+    Move { from: (f64, f64), to: (f64, f64) },
+    /// Sliding a load along its member: its index and where along the member it is now.
+    Slide { load: usize, at: f64 },
+    /// A selection window, screen corners.
+    Window { from: Pos2, to: Pos2 },
 }
 
 /// The editor's state between frames.
 #[derive(Clone, Debug)]
 struct State {
     tool: Tool,
-    sel: Option<Sel>,
+    /// The selection, in the order it was made.
+    sel: Vec<Sel>,
+    /// The drag under way.
+    gesture: Option<Gesture>,
     /// The world point at the sheet's centre and pixels per unit; `None`: fit on the next frame.
     view: Option<(f64, f64, f64)>,
     /// The structure the view was fitted to (a new one fits again).
     fitted_for: String,
     /// A member being drawn: its first point.
     start: Option<(f64, f64)>,
-    /// A node being dragged and where it is now.
-    drag: Option<(String, (f64, f64))>,
     grid: f64,
     snap: bool,
     /// The coordinates typed.
@@ -62,14 +77,56 @@ impl Default for State {
     fn default() -> Self {
         State {
             tool: Tool::Select,
-            sel: None,
+            sel: Vec::new(),
+            gesture: None,
             view: None,
             fitted_for: String::new(),
             start: None,
-            drag: None,
             grid: 0.5,
             snap: true,
             typed: String::new(),
+        }
+    }
+}
+
+impl State {
+    /// The one thing selected, when only one is.
+    fn primary(&self) -> Option<&Sel> {
+        match self.sel.as_slice() {
+            [one] => Some(one),
+            _ => None,
+        }
+    }
+
+    fn select(&mut self, s: Sel) {
+        self.sel = vec![s];
+    }
+
+    fn has(&self, s: &Sel) -> bool {
+        self.sel.contains(s)
+    }
+
+    /// Adds `s` to the selection, or takes it out (Shift or Ctrl and a click).
+    fn toggle(&mut self, s: Sel) {
+        match self.sel.iter().position(|x| *x == s) {
+            Some(i) => {
+                self.sel.remove(i);
+            }
+            None => self.sel.push(s),
+        }
+    }
+
+    /// What no longer exists leaves the selection.
+    fn prune(&mut self, st: &Structure) {
+        self.sel.retain(|s| match s {
+            Sel::Node(id) => st.node(id).is_some(),
+            Sel::Member(id) => st.member(id).is_some(),
+            Sel::Load(k) => *k < st.loads.len(),
+        });
+        if let Some(Gesture::Slide { load, .. }) = &self.gesture
+            && *load >= st.loads.len()
+        {
+            self.gesture = None;
         }
     }
 }
@@ -105,20 +162,19 @@ pub(crate) fn pane(app: &mut WordApp, ui: &mut Ui) {
         return;
     };
     let mut state = ui.data(|d| d.get_temp::<State>(state_id())).unwrap_or_default();
-    // A selection that no longer exists goes.
-    if let Some(Sel::Node(id)) = &state.sel
-        && st.node(id).is_none()
-    {
-        state.sel = None;
-    }
-    if let Some(Sel::Member(id)) = &state.sel
-        && st.member(id).is_none()
-    {
-        state.sel = None;
-    }
+    state.prune(&st);
     status_line(ui, &info);
+    if ui
+        .button(ts("Edit in Full Page"))
+        .on_hover_text(ts("Open the structure in its editor, in place of the page (or double-click the structure)"))
+        .clicked()
+    {
+        ui.data_mut(|d| d.insert_temp(state_id(), state.clone()));
+        let _ = app.run("ui.structureEdit", json!({}));
+    }
     toolbar(ui, &mut state);
-    sheet(app, ui, &st, &mut state);
+    let h = (ui.available_height() * 0.45).clamp(220.0, 460.0);
+    sheet(app, ui, &src, &st, &mut state, h);
     typed_point(app, ui, &st, &mut state);
     egui::ScrollArea::vertical().id_salt("structure_pane_scroll").show(ui, |ui| {
         if ui
@@ -133,6 +189,106 @@ pub(crate) fn pane(app: &mut WordApp, ui: &mut Ui) {
         tables(app, ui, &src, &st, &mut state);
     });
     ui.data_mut(|d| d.insert_temp(state_id(), state));
+}
+
+/// The structure editor in place of the page (double-click a structure, Structures › Edit
+/// Structure, `ui.structureEdit`): the sheet as large as the window, the selection's properties
+/// and the tables at the right. Esc with nothing selected, or Close Editor, goes back to the page.
+pub(crate) fn editor(app: &mut WordApp, ui: &mut Ui) {
+    let Some(info) = info(app, ui) else {
+        // The structure is gone (undone, deleted) or no longer selected.
+        close(app);
+        return;
+    };
+    let (Ok(src), Ok(st)) =
+        (serde_json::from_value::<Structure>(info["structure"].clone()), serde_json::from_value::<Structure>(info["resolved"].clone()))
+    else {
+        close(app);
+        return;
+    };
+    let mut state = ui.data(|d| d.get_temp::<State>(state_id())).unwrap_or_default();
+    state.prune(&st);
+    let full = ui.available_rect_before_wrap();
+    let side_w = 360.0_f32.min(full.width() * 0.4);
+    let main = Rect::from_min_max(full.min, pos2(full.max.x - side_w, full.max.y));
+    let side = Rect::from_min_max(pos2(full.max.x - side_w, full.min.y), full.max);
+    let mut close_now = false;
+    ui.scope_builder(egui::UiBuilder::new().max_rect(main.shrink(8.0)).layout(egui::Layout::top_down(egui::Align::Min)), |ui| {
+        ui.horizontal(|ui| {
+            ui.label(RichText::new(ts("Structure Editor")).heading().strong());
+            ui.add_space(12.0);
+            status_line(ui, &info);
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                if ui.button(ts("Close Editor")).on_hover_text(ts("Back to the page (Esc with nothing selected)")).clicked() {
+                    close_now = true;
+                }
+                if ui.button(ts("Write Working")).clicked() {
+                    close_now = true;
+                    let _ = app.run("structure.working", working_labels());
+                }
+            });
+        });
+        toolbar(ui, &mut state);
+        let h = ui.available_height() - 34.0;
+        sheet(app, ui, &src, &st, &mut state, h);
+        typed_point(app, ui, &st, &mut state);
+    });
+    ui.painter().vline(side.min.x, side.y_range(), Stroke::new(1.0, Color32::from_gray(200)));
+    ui.scope_builder(egui::UiBuilder::new().max_rect(side.shrink(8.0)).layout(egui::Layout::top_down(egui::Align::Min)), |ui| {
+        egui::ScrollArea::vertical().id_salt("structure_editor_side").show(ui, |ui| {
+            selection(app, ui, &src, &st, &mut state);
+            ui.add_space(6.0);
+            tables(app, ui, &src, &st, &mut state);
+        });
+    });
+    // Esc with nothing to cancel or deselect leaves the editor.
+    let idle = state.sel.is_empty() && state.gesture.is_none() && state.start.is_none() && state.tool == Tool::Select;
+    let typing = ui.ctx().memory(|m| m.focused().is_some());
+    if idle && !typing && ui.input(|i| i.key_pressed(egui::Key::Escape)) && !egui::Popup::is_any_open(ui.ctx()) {
+        close_now = true;
+    }
+    ui.data_mut(|d| d.insert_temp(state_id(), state));
+    if close_now {
+        close(app);
+    }
+}
+
+/// Opens the full-page editor on the selected structure.
+pub(crate) fn open(app: &mut WordApp) -> Result<(), String> {
+    if !wordcraft_engine::cmd::structure::is_selected(&app.session) {
+        return Err("select a structure first".into());
+    }
+    if app.cad.is_some() {
+        return Err("close the CAD drawing first".into());
+    }
+    if app.structure_edit.is_none() {
+        app.structure_edit = Some(app.ui.tab.clone());
+    }
+    app.ui.tab = "Structures".to_string();
+    Ok(())
+}
+
+/// Back to the page, on the tab that was open.
+pub(crate) fn close(app: &mut WordApp) {
+    if let Some(tab) = app.structure_edit.take() {
+        app.ui.tab = tab;
+    }
+}
+
+/// UI commands (`ui.structure*`): `ui.structureEdit` opens the full-page editor,
+/// `ui.structureClose` closes it.
+pub(crate) fn command(app: &mut WordApp, id: &str) -> Result<Value, String> {
+    match id {
+        "ui.structureEdit" => {
+            open(app)?;
+            Ok(json!({"open": true}))
+        }
+        "ui.structureClose" => {
+            close(app);
+            Ok(json!({"open": false}))
+        }
+        _ => Err(format!("unknown command {id}")),
+    }
 }
 
 fn empty_state(app: &mut WordApp, ui: &mut Ui) {
@@ -194,7 +350,7 @@ fn status_line(ui: &mut Ui, info: &Value) {
 
 fn toolbar(ui: &mut Ui, state: &mut State) {
     let tools: [(Tool, &str, &str); 13] = [
-        (Tool::Select, "Select", "Select a node or a member, drag a node to move it"),
+        (Tool::Select, "Select", "Select nodes, members and loads (Shift+click, a window); drag to move them, a load slides along its member"),
         (Tool::Node, "Node", "Click to add a node"),
         (Tool::Member, "Member", "Click two points to draw a member; it goes on from its end (Esc or a right click stops)"),
         (Tool::Support(SupportKind::Fixed), "Fixed", "Click a node to fix it (incastro)"),
@@ -319,9 +475,8 @@ fn round_at(at: f64, len: f64, state: &State) -> f64 {
     r.clamp(0.0, len)
 }
 
-fn sheet(app: &mut WordApp, ui: &mut Ui, st: &Structure, state: &mut State) {
-    let h = (ui.available_height() * 0.45).clamp(220.0, 460.0);
-    let (rect, resp) = ui.allocate_exact_size(vec2(ui.available_width(), h), Sense::click_and_drag());
+fn sheet(app: &mut WordApp, ui: &mut Ui, src: &Structure, st: &Structure, state: &mut State, h: f32) {
+    let (rect, resp) = ui.allocate_exact_size(vec2(ui.available_width(), h.max(120.0)), Sense::click_and_drag());
     let key = st.nodes.iter().map(|n| n.id.as_str()).collect::<Vec<_>>().join(",");
     if state.view.is_none() || (state.fitted_for.is_empty() && !key.is_empty()) {
         state.view = Some(fit(st, rect));
@@ -346,42 +501,133 @@ fn sheet(app: &mut WordApp, ui: &mut Ui, st: &Structure, state: &mut State) {
         v.cy += f64::from(d.y) / v.s;
     }
     state.view = Some((v.cx, v.cy, v.s));
+    let mods = ui.input(|i| i.modifiers);
+    let adding = mods.shift || mods.command;
+
+    // Dragging with Select: move the selection, slide a load, or draw a selection window.
+    if state.tool == Tool::Select {
+        if resp.drag_started_by(egui::PointerButton::Primary)
+            && let Some(p) = resp.interact_pointer_pos()
+        {
+            // The press, not where the pointer is once the drag is recognised.
+            let p = ui.input(|i| i.pointer.press_origin()).unwrap_or(p);
+            state.gesture = match pick(st, v, p) {
+                Some(Sel::Load(k)) => {
+                    if !state.has(&Sel::Load(k)) {
+                        state.select(Sel::Load(k));
+                    }
+                    load_on_member(st, k).map(|(_, at)| Gesture::Slide { load: k, at })
+                }
+                Some(hit) => {
+                    if !state.has(&hit) {
+                        if adding {
+                            state.sel.push(hit);
+                        } else {
+                            state.select(hit);
+                        }
+                    }
+                    let w = v.to_world(p);
+                    Some(Gesture::Move { from: w, to: w })
+                }
+                None => {
+                    if !adding {
+                        state.sel.clear();
+                    }
+                    Some(Gesture::Window { from: p, to: p })
+                }
+            };
+        }
+        if resp.dragged_by(egui::PointerButton::Primary)
+            && let Some(p) = resp.interact_pointer_pos()
+        {
+            let (snap_on, grid) = (state.snap, state.grid);
+            match &mut state.gesture {
+                Some(Gesture::Move { to, .. }) => *to = v.to_world(p),
+                Some(Gesture::Slide { load, at }) => {
+                    if let Some((a, len)) = along(st, *load, v, p) {
+                        let r = if snap_on && grid > 0.0 { (a / grid).round() * grid } else { (a * 1000.0).round() / 1000.0 };
+                        *at = r.clamp(0.0, len);
+                    }
+                }
+                Some(Gesture::Window { to, .. }) => *to = p,
+                None => {}
+            }
+        }
+        if resp.drag_stopped_by(egui::PointerButton::Primary)
+            && let Some(g) = state.gesture.take()
+        {
+            match g {
+                Gesture::Move { from, to } => {
+                    let (dx, dy) = step(from, to, state);
+                    if dx != 0.0 || dy != 0.0 {
+                        let moved = moved(src, &moved_nodes(st, &state.sel), dx, dy);
+                        let _ = app.run("structure.set", json!({"structure": moved}));
+                    }
+                }
+                Gesture::Slide { load, at } => {
+                    if let Some(l) = src.loads.get(load) {
+                        let mut lj = serde_json::to_value(l).unwrap_or(Value::Null);
+                        if lj.is_object() {
+                            lj["at"] = json!(round(at));
+                            let _ = app.run("structure.load", json!({"index": load, "load": lj}));
+                        }
+                    }
+                }
+                Gesture::Window { from, to } => {
+                    let r = Rect::from_two_pos(from, to);
+                    for s in inside(st, v, r) {
+                        if !state.has(&s) {
+                            state.sel.push(s);
+                        }
+                    }
+                }
+            }
+        }
+    } else {
+        state.gesture = None;
+    }
 
     let painter = ui.painter_at(rect);
     painter.rect_filled(rect, 2.0, Color32::WHITE);
     grid_lines(&painter, v, state.grid);
-    // The structure as the document draws it (a dragged node where it is now).
+    // The structure as the document draws it, with the drag under way.
     let mut shown = st.clone();
-    if let Some((id, (x, y))) = &state.drag
-        && let Some(n) = shown.nodes.iter_mut().find(|n| &n.id == id)
-    {
-        n.x = Num::new(*x);
-        n.y = Num::new(*y);
+    match &state.gesture {
+        Some(Gesture::Move { from, to }) => {
+            let (dx, dy) = step(*from, *to, state);
+            let ids = moved_nodes(st, &state.sel);
+            for n in shown.nodes.iter_mut().filter(|n| ids.contains(&n.id)) {
+                n.x = Num::new(n.x.value + dx);
+                n.y = Num::new(n.y.value + dy);
+            }
+        }
+        Some(Gesture::Slide { load, at }) => {
+            if let Some(Load::Force { at: a, .. } | Load::Moment { at: a, .. }) = shown.loads.get_mut(*load) {
+                *a = Num::new(*at);
+            }
+        }
+        _ => {}
     }
     let origin = v.to_world(rect.min);
     let prims = shown.schema_prims(v.s / f64::from(PX_PER_MM), origin, strix_calc::Options::default());
     paint_prims(&painter, rect.min, &prims);
-    // The selection.
+    // The selection, and what the pointer is over.
     let accent = Color32::from_rgb(0xE0, 0x7B, 0x1F);
-    match &state.sel {
-        Some(Sel::Node(id)) => {
-            if let Some(n) = shown.node(id) {
-                painter.circle_stroke(v.to_screen(n.x.value, n.y.value), 6.0, Stroke::new(2.0, accent));
-            }
-        }
-        Some(Sel::Member(id)) => {
-            if let Some(m) = shown.member(id)
-                && let (Some(a), Some(b)) = (shown.node(&m.a), shown.node(&m.b))
-            {
-                painter.line_segment(
-                    [v.to_screen(a.x.value, a.y.value), v.to_screen(b.x.value, b.y.value)],
-                    Stroke::new(4.0, accent.linear_multiply(0.6)),
-                );
-            }
-        }
-        None => {}
-    }
     let hover = resp.hover_pos();
+    let hovered = hover.filter(|_| state.tool == Tool::Select && state.gesture.is_none()).and_then(|p| pick(&shown, v, p));
+    if let Some(h) = &hovered
+        && !state.has(h)
+    {
+        highlight(&painter, &shown, v, h, accent.linear_multiply(0.35));
+    }
+    for s in &state.sel {
+        highlight(&painter, &shown, v, s, accent);
+    }
+    if let Some(Gesture::Window { from, to }) = &state.gesture {
+        let r = Rect::from_two_pos(*from, *to);
+        painter.rect_filled(r, 0.0, Color32::from_rgba_unmultiplied(0x25, 0x63, 0xEB, 24));
+        painter.rect_stroke(r, 0.0, Stroke::new(1.0, Color32::from_rgb(0x25, 0x63, 0xEB)), egui::StrokeKind::Middle);
+    }
     let snapped = hover.map(|p| snap(st, v, p, state));
     // The member being drawn.
     if let (Some((x0, y0)), Some(((x, y), _))) = (state.start, &snapped) {
@@ -395,50 +641,321 @@ fn sheet(app: &mut WordApp, ui: &mut Ui, st: &Structure, state: &mut State) {
         painter.line_segment([p - vec2(6.0, 0.0), p + vec2(6.0, 0.0)], Stroke::new(1.0, c));
         painter.line_segment([p - vec2(0.0, 6.0), p + vec2(0.0, 6.0)], Stroke::new(1.0, c));
     }
-    if let Some(((x, y), _)) = &snapped {
-        let unit = st.length_unit.symbol();
+    let unit = st.length_unit.symbol();
+    let readout = match &state.gesture {
+        Some(Gesture::Move { from, to }) => {
+            let (dx, dy) = step(*from, *to, state);
+            Some(format!("Δx = {} {unit}   Δy = {} {unit}", short(dx), short(dy)))
+        }
+        Some(Gesture::Slide { at, .. }) => Some(format!("{} = {} {unit}", ts("at"), short(*at))),
+        _ => snapped.as_ref().map(|((x, y), _)| format!("x = {} {unit}   y = {} {unit}", short(*x), short(*y))),
+    };
+    if let Some(text) = readout {
+        painter.text(rect.left_bottom() + vec2(6.0, -6.0), Align2::LEFT_BOTTOM, text, FontId::proportional(11.0), Color32::DARK_GRAY);
+    }
+    if !state.sel.is_empty() {
+        let n = state.sel.len().to_string();
         painter.text(
-            rect.left_bottom() + vec2(6.0, -6.0),
-            Align2::LEFT_BOTTOM,
-            format!("x = {} {unit}   y = {} {unit}", short(*x), short(*y)),
+            rect.right_bottom() + vec2(-6.0, -6.0),
+            Align2::RIGHT_BOTTOM,
+            crate::i18n::fmt(ts("{n} selected · Del removes · arrows move"), &[("n", &n)]),
             FontId::proportional(11.0),
             Color32::DARK_GRAY,
         );
     }
-    if ui.input(|i| i.key_pressed(egui::Key::Escape)) || resp.secondary_clicked() {
+    if resp.secondary_clicked() {
         state.start = None;
-    }
-    // Dragging a node with Select.
-    if state.tool == Tool::Select {
-        if resp.drag_started_by(egui::PointerButton::Primary)
-            && let Some(p) = resp.interact_pointer_pos()
-            && let Some(id) = pick_node(st, v, p)
-        {
-            state.sel = Some(Sel::Node(id.clone()));
-            state.drag = Some((id, snap_free(v, p, state)));
-        }
-        if let (Some((id, _)), Some(p)) = (state.drag.clone(), resp.interact_pointer_pos())
-            && resp.dragged_by(egui::PointerButton::Primary)
-        {
-            state.drag = Some((id, snap_free(v, p, state)));
-        }
-        if resp.drag_stopped()
-            && let Some((id, (x, y))) = state.drag.take()
-        {
-            let _ = app.run("structure.node", json!({"id": id, "x": round(x), "y": round(y)}));
-        }
     }
     if resp.clicked()
         && let Some(p) = resp.interact_pointer_pos()
     {
-        click(app, st, v, p, state);
+        if state.tool == Tool::Select {
+            match pick(st, v, p) {
+                Some(hit) if adding => state.toggle(hit),
+                Some(hit) => state.select(hit),
+                None if adding => {}
+                None => state.sel.clear(),
+            }
+        } else {
+            click(app, st, v, p, state);
+        }
+    }
+    // Keys, while the pointer is over the sheet and no box is being typed in.
+    let typing = ui.ctx().memory(|m| m.focused().is_some());
+    if (resp.hovered() || resp.has_focus()) && !typing {
+        keys(app, ui, src, st, state);
     }
 }
 
-/// Where a dragged node goes: the grid, not the node itself.
-fn snap_free(v: View, p: Pos2, state: &State) -> (f64, f64) {
-    let (x, y) = v.to_world(p);
-    if state.snap && state.grid > 0.0 { ((x / state.grid).round() * state.grid, (y / state.grid).round() * state.grid) } else { (x, y) }
+/// Esc, Delete, the arrows and Select All on the sheet.
+fn keys(app: &mut WordApp, ui: &Ui, src: &Structure, st: &Structure, state: &mut State) {
+    let (esc, del, all, arrows, shift) = ui.input(|i| {
+        let a = |k: egui::Key| i.key_pressed(k);
+        let dir = (
+            f64::from(i32::from(a(egui::Key::ArrowRight)) - i32::from(a(egui::Key::ArrowLeft))),
+            f64::from(i32::from(a(egui::Key::ArrowUp)) - i32::from(a(egui::Key::ArrowDown))),
+        );
+        (a(egui::Key::Escape), a(egui::Key::Delete) || a(egui::Key::Backspace), i.modifiers.command && a(egui::Key::A), dir, i.modifiers.shift)
+    });
+    if esc {
+        if state.gesture.take().is_some() || state.start.take().is_some() {
+        } else if state.tool != Tool::Select {
+            state.tool = Tool::Select;
+        } else {
+            state.sel.clear();
+        }
+    }
+    if all {
+        state.sel = st.nodes.iter().map(|n| Sel::Node(n.id.clone())).chain(st.members.iter().map(|m| Sel::Member(m.id.clone()))).collect();
+    }
+    if del && !state.sel.is_empty() {
+        let kept = without(src, &state.sel);
+        if app.run("structure.set", json!({"structure": kept})).is_ok() {
+            state.sel.clear();
+        }
+    }
+    if arrows != (0.0, 0.0) && !state.sel.is_empty() {
+        let g = if state.grid > 0.0 { state.grid } else { 0.1 };
+        let k = if shift { 10.0 } else { 1.0 };
+        let ids = moved_nodes(st, &state.sel);
+        if !ids.is_empty() {
+            let moved = moved(src, &ids, arrows.0 * g * k, arrows.1 * g * k);
+            let _ = app.run("structure.set", json!({"structure": moved}));
+        }
+    }
+}
+
+/// The move from `from` to `to`, on the grid when snapping.
+fn step(from: (f64, f64), to: (f64, f64), state: &State) -> (f64, f64) {
+    let (dx, dy) = (to.0 - from.0, to.1 - from.1);
+    if state.snap && state.grid > 0.0 {
+        let g = state.grid;
+        ((dx / g).round() * g, (dy / g).round() * g)
+    } else {
+        (round(dx), round(dy))
+    }
+}
+
+/// The nodes a move takes: those selected and the ends of the selected members.
+fn moved_nodes(st: &Structure, sel: &[Sel]) -> Vec<String> {
+    let mut ids: Vec<String> = Vec::new();
+    let mut push = |id: &str| {
+        if !ids.iter().any(|x| x == id) {
+            ids.push(id.to_string());
+        }
+    };
+    for s in sel {
+        match s {
+            Sel::Node(id) => push(id),
+            Sel::Member(id) => {
+                if let Some(m) = st.member(id) {
+                    push(&m.a);
+                    push(&m.b);
+                }
+            }
+            Sel::Load(_) => {}
+        }
+    }
+    ids
+}
+
+/// A number moved by `d`: an expression stays one (`L` → `L + 0.5`).
+fn shifted(n: &Num, d: f64) -> Num {
+    if d == 0.0 {
+        return n.clone();
+    }
+    match &n.expr {
+        Some(e) => Num::expr(&format!("{e} {} {}", if d < 0.0 { "-" } else { "+" }, short(d.abs()))),
+        None => Num::new(round(n.value + d)),
+    }
+}
+
+/// `src` with nodes `ids` moved by `(dx, dy)`, as `structure.set` takes it.
+fn moved(src: &Structure, ids: &[String], dx: f64, dy: f64) -> Value {
+    let mut out = src.clone();
+    for n in out.nodes.iter_mut().filter(|n| ids.contains(&n.id)) {
+        n.x = shifted(&n.x, dx);
+        n.y = shifted(&n.y, dy);
+    }
+    serde_json::to_value(&out).unwrap_or(Value::Null)
+}
+
+/// `src` without the selection: a node goes with its members, support and loads, a member with
+/// its loads.
+fn without(src: &Structure, sel: &[Sel]) -> Value {
+    let nodes: Vec<&str> = sel.iter().filter_map(|s| if let Sel::Node(id) = s { Some(id.as_str()) } else { None }).collect();
+    let mut members: Vec<String> = sel.iter().filter_map(|s| if let Sel::Member(id) = s { Some(id.clone()) } else { None }).collect();
+    members.extend(src.members.iter().filter(|m| nodes.contains(&m.a.as_str()) || nodes.contains(&m.b.as_str())).map(|m| m.id.clone()));
+    let loads: Vec<usize> = sel.iter().filter_map(|s| if let Sel::Load(k) = s { Some(*k) } else { None }).collect();
+    let mut out = src.clone();
+    out.nodes.retain(|n| !nodes.contains(&n.id.as_str()));
+    out.members.retain(|m| !members.contains(&m.id));
+    out.supports.retain(|s| !nodes.contains(&s.node.as_str()));
+    let mut k = 0;
+    out.loads.retain(|l| {
+        let i = k;
+        k += 1;
+        let (node, member) = match l {
+            Load::Force { node, member, .. } | Load::Moment { node, member, .. } => (node.as_deref(), member.as_deref()),
+            Load::Distributed { member, .. } => (None, Some(member.as_str())),
+        };
+        !loads.contains(&i) && !node.is_some_and(|n| nodes.contains(&n)) && !member.is_some_and(|m| members.iter().any(|x| x == m))
+    });
+    serde_json::to_value(&out).unwrap_or(Value::Null)
+}
+
+/// A load placed on a member at a point (a force or a couple): the member and where.
+fn load_on_member(st: &Structure, k: usize) -> Option<(String, f64)> {
+    match st.loads.get(k)? {
+        Load::Force { member: Some(m), at, .. } | Load::Moment { member: Some(m), at, .. } => Some((m.clone(), at.value)),
+        _ => None,
+    }
+}
+
+/// Where along its member the pointer puts load `k`, and the member's length.
+fn along(st: &Structure, k: usize, v: View, p: Pos2) -> Option<(f64, f64)> {
+    let (id, _) = load_on_member(st, k)?;
+    let m = st.member(&id)?;
+    let (a, b) = (st.node(&m.a)?, st.node(&m.b)?);
+    let (pa, pb) = (v.to_screen(a.x.value, a.y.value), v.to_screen(b.x.value, b.y.value));
+    let ab = pb - pa;
+    let len2 = ab.length_sq();
+    if len2 <= 0.0 {
+        return None;
+    }
+    let len = st.length(m)?;
+    let t = ((p - pa).dot(ab) / len2).clamp(0.0, 1.0);
+    Some((f64::from(t) * len, len))
+}
+
+/// Screen pixels of a paper millimetre on the sheet's drawing.
+const MM: f32 = PX_PER_MM;
+
+/// Where load `k` is drawn on the sheet: its point and its arrow's tail (a force), its point (a
+/// couple), or the corners of its band (a distributed load).
+fn load_shape(st: &Structure, v: View, k: usize) -> Option<Vec<Pos2>> {
+    let at_point = |node: &Option<String>, member: &Option<String>, at: f64| -> Option<Pos2> {
+        if let Some(id) = member {
+            let m = st.member(id)?;
+            let (a, b) = (st.node(&m.a)?, st.node(&m.b)?);
+            let len = st.length(m)?;
+            let t = if len > 0.0 { (at / len).clamp(0.0, 1.0) } else { 0.0 };
+            return Some(v.to_screen(a.x.value + (b.x.value - a.x.value) * t, a.y.value + (b.y.value - a.y.value) * t));
+        }
+        let n = st.node(node.as_deref()?)?;
+        Some(v.to_screen(n.x.value, n.y.value))
+    };
+    match st.loads.get(k)? {
+        Load::Force { node, member, at, value, angle } => {
+            let p = at_point(node, member, at.value)?;
+            let a = angle.value.to_radians();
+            let s = if value.value < 0.0 { -1.0 } else { 1.0 };
+            let d = vec2((a.cos() * s) as f32, (-a.sin() * s) as f32);
+            Some(vec![p, p - d * 11.0 * MM])
+        }
+        Load::Moment { node, member, at, .. } => Some(vec![at_point(node, member, at.value)?]),
+        Load::Distributed { member, q1, q2, from, to, angle, axes, .. } => {
+            let m = st.member(member)?;
+            let (a, b) = (st.node(&m.a)?, st.node(&m.b)?);
+            let len = st.length(m).filter(|l| *l > 0.0)?;
+            let (c, s) = ((b.x.value - a.x.value) / len, (b.y.value - a.y.value) / len);
+            let (x0, x1) = (from.value.clamp(0.0, len), to.as_ref().map_or(len, |t| t.value).clamp(0.0, len));
+            let th = angle.value.to_radians();
+            let g = match axes {
+                strix_structure::LoadAxes::Global => (th.cos(), th.sin()),
+                strix_structure::LoadAxes::Local => (c * th.cos() - s * th.sin(), s * th.cos() + c * th.sin()),
+            };
+            let q = if q1.value != 0.0 { q1.value } else { q2.as_ref().map_or(1.0, |q| q.value) };
+            let sign = if q < 0.0 { -1.0 } else { 1.0 };
+            let off = vec2((-g.0 * sign) as f32, (g.1 * sign) as f32) * 8.0 * MM;
+            let p0 = v.to_screen(a.x.value + c * x0, a.y.value + s * x0);
+            let p1 = v.to_screen(a.x.value + c * x1, a.y.value + s * x1);
+            Some(vec![p0, p1, p1 + off, p0 + off])
+        }
+    }
+}
+
+fn seg_dist(p: Pos2, a: Pos2, b: Pos2) -> f32 {
+    let ab = b - a;
+    let len2 = ab.length_sq();
+    let t = if len2 > 0.0 { ((p - a).dot(ab) / len2).clamp(0.0, 1.0) } else { 0.0 };
+    (a + ab * t - p).length()
+}
+
+/// The load the pointer is on, the last drawn first.
+fn pick_load(st: &Structure, v: View, p: Pos2) -> Option<usize> {
+    (0..st.loads.len()).rev().find(|&k| match load_shape(st, v, k).as_deref() {
+        Some([a, b]) => seg_dist(p, *a, *b) <= PICK && (p - *a).length() > PICK * 0.6,
+        Some([c]) => ((p - *c).length() - 4.0 * MM).abs() <= PICK * 0.8,
+        Some([p0, p1, p2, p3]) => {
+            // Inside the band (with some slack), not on the member itself.
+            let poly = [*p0, *p1, *p2, *p3];
+            let inside = (0..4).all(|i| {
+                let (a, b) = (poly[i], poly[(i + 1) % 4]);
+                let cross = (b - a).x * (p - a).y - (b - a).y * (p - a).x;
+                let area = (p1.x - p0.x) * (p2.y - p0.y) - (p1.y - p0.y) * (p2.x - p0.x);
+                cross * area.signum() >= -PICK * (b - a).length()
+            });
+            inside && seg_dist(p, *p0, *p1) > PICK * 0.5
+        }
+        _ => false,
+    })
+}
+
+/// What the pointer is on: a node, else a load, else a member.
+fn pick(st: &Structure, v: View, p: Pos2) -> Option<Sel> {
+    pick_node(st, v, p).map(Sel::Node).or_else(|| pick_load(st, v, p).map(Sel::Load)).or_else(|| pick_member(st, v, p).map(|(id, _)| Sel::Member(id)))
+}
+
+/// What a selection window takes: the nodes in it, the members with both ends in it, the loads
+/// whose point (or band) is in it.
+fn inside(st: &Structure, v: View, r: Rect) -> Vec<Sel> {
+    let has = |x: f64, y: f64| r.contains(v.to_screen(x, y));
+    let mut out: Vec<Sel> = st.nodes.iter().filter(|n| has(n.x.value, n.y.value)).map(|n| Sel::Node(n.id.clone())).collect();
+    for m in &st.members {
+        if let (Some(a), Some(b)) = (st.node(&m.a), st.node(&m.b))
+            && has(a.x.value, a.y.value)
+            && has(b.x.value, b.y.value)
+        {
+            out.push(Sel::Member(m.id.clone()));
+        }
+    }
+    for k in 0..st.loads.len() {
+        if load_shape(st, v, k).is_some_and(|pts| pts.first().is_some_and(|p| r.contains(*p)) && pts.iter().all(|p| r.expand(PICK).contains(*p))) {
+            out.push(Sel::Load(k));
+        }
+    }
+    out
+}
+
+/// Marks `s` on the sheet in `c`.
+fn highlight(p: &egui::Painter, st: &Structure, v: View, s: &Sel, c: Color32) {
+    match s {
+        Sel::Node(id) => {
+            if let Some(n) = st.node(id) {
+                p.circle_stroke(v.to_screen(n.x.value, n.y.value), 6.0, Stroke::new(2.0, c));
+            }
+        }
+        Sel::Member(id) => {
+            if let Some(m) = st.member(id)
+                && let (Some(a), Some(b)) = (st.node(&m.a), st.node(&m.b))
+            {
+                p.line_segment([v.to_screen(a.x.value, a.y.value), v.to_screen(b.x.value, b.y.value)], Stroke::new(5.0, c.linear_multiply(0.6)));
+            }
+        }
+        Sel::Load(k) => match load_shape(st, v, *k).as_deref() {
+            Some([a, b]) => {
+                p.line_segment([*a, *b], Stroke::new(5.0, c.linear_multiply(0.6)));
+            }
+            Some([o]) => {
+                p.circle_stroke(*o, 4.0 * MM + 2.0, Stroke::new(3.0, c.linear_multiply(0.6)));
+            }
+            Some(pts) if pts.len() == 4 => {
+                p.add(Shape::closed_line(pts.to_vec(), Stroke::new(2.0, c)));
+            }
+            _ => {}
+        },
+    }
 }
 
 /// A number as typed back: rounded to a micro-unit, no binary noise.
@@ -518,6 +1035,17 @@ fn paint_prims(p: &egui::Painter, at: Pos2, prims: &[PlotPrim]) {
                     p.rect_stroke(r, 0.0, Stroke::new(w(*sw), rgb(*c)), egui::StrokeKind::Middle);
                 }
             }
+            PlotPrim::TextAt { at: (x, y), text, height, angle, color } => {
+                let size = (*height as f32 * PX_PER_MM / 0.7).clamp(6.0, 40.0);
+                let galley = p.layout_no_wrap(text.clone(), FontId::proportional(size), rgb(*color));
+                let rot = -(*angle as f32).to_radians();
+                let rot = if rot.is_finite() { rot } else { 0.0 };
+                // The galley's top left so that its centre lands on `at` once turned.
+                let half = galley.size() * 0.5;
+                let (s, c) = rot.sin_cos();
+                let off = vec2(c * half.x - s * half.y, s * half.x + c * half.y);
+                p.add(egui::epaint::TextShape::new(q(*x, *y) - off, galley, rgb(*color)).with_angle(rot));
+            }
             PlotPrim::Text { at: (x, y), text, height, bold: _, anchor, color } => {
                 let size = (*height as f32 * PX_PER_MM / 0.7).clamp(6.0, 40.0);
                 let align = match anchor {
@@ -549,20 +1077,22 @@ fn node_at(app: &mut WordApp, st: &Structure, (x, y): (f64, f64)) -> Option<Stri
 fn click(app: &mut WordApp, st: &Structure, v: View, p: Pos2, state: &mut State) {
     let (point, on_node) = snap(st, v, p, state);
     match state.tool {
-        Tool::Select => {
-            state.sel = pick_node(st, v, p).map(Sel::Node).or_else(|| pick_member(st, v, p).map(|(id, _)| Sel::Member(id)));
-        }
+        Tool::Select => match pick(st, v, p) {
+            Some(hit) => state.select(hit),
+            None => state.sel.clear(),
+        },
         Tool::Node => {
             if on_node.is_none() {
-                let id = node_at(app, st, point);
-                state.sel = id.map(Sel::Node);
+                if let Some(id) = node_at(app, st, point) {
+                    state.select(Sel::Node(id));
+                }
             }
         }
         Tool::Member => member_point(app, st, point, state),
         Tool::Support(kind) => {
             if let Some(id) = pick_node(st, v, p) {
                 let _ = app.run("structure.support", json!({"node": id, "kind": kind.name()}));
-                state.sel = Some(Sel::Node(id));
+                state.select(Sel::Node(id));
             }
         }
         Tool::Hinge => {
@@ -637,7 +1167,7 @@ fn typed_point(app: &mut WordApp, ui: &mut Ui, st: &Structure, state: &mut State
         };
         let nums: Vec<f64> = parts.iter().filter_map(|s| s.parse::<f64>().ok()).filter(|v| v.is_finite()).collect();
         let [x, y] = nums.as_slice() else { return };
-        let base = state.start.or_else(|| match &state.sel {
+        let base = state.start.or_else(|| match state.primary() {
             Some(Sel::Node(id)) => st.node(id).map(|n| (n.x.value, n.y.value)),
             _ => None,
         });
@@ -647,7 +1177,7 @@ fn typed_point(app: &mut WordApp, ui: &mut Ui, st: &Structure, state: &mut State
             _ => {
                 state.tool = if state.tool == Tool::Member { Tool::Member } else { Tool::Node };
                 if let Some(id) = node_at(app, st, point) {
-                    state.sel = Some(Sel::Node(id));
+                    state.select(Sel::Node(id));
                 }
             }
         }
@@ -706,7 +1236,25 @@ fn kind_label(k: Option<SupportKind>) -> &'static str {
 
 /// The selected node's or member's properties.
 fn selection(app: &mut WordApp, ui: &mut Ui, src: &Structure, st: &Structure, state: &mut State) {
-    match state.sel.clone() {
+    if state.sel.len() > 1 {
+        let n = state.sel.len().to_string();
+        ui.label(RichText::new(crate::i18n::fmt(ts("{n} items selected"), &[("n", &n)])).strong());
+        ui.label(
+            RichText::new(ts(
+                "Drag one of them to move them together; the arrow keys move them by the grid (Shift: ten times); Delete removes them.",
+            ))
+            .small()
+            .weak(),
+        );
+        if ui.button(ts("Remove Selected")).clicked() {
+            let kept = without(src, &state.sel);
+            if app.run("structure.set", json!({"structure": kept})).is_ok() {
+                state.sel.clear();
+            }
+        }
+        return;
+    }
+    match state.primary().cloned() {
         Some(Sel::Node(id)) => {
             let Some(n) = src.node(&id) else { return };
             ui.label(RichText::new(crate::i18n::fmt(ts("Node {n}"), &[("n", &id)])).strong());
@@ -714,7 +1262,7 @@ fn selection(app: &mut WordApp, ui: &mut Ui, src: &Structure, st: &Structure, st
                 ui.label(ts("Name"));
                 if let Some(t) = edit_box(ui, ("node_name", &id), &id, 80.0) {
                     let _ = app.run("structure.node", json!({"id": id, "rename": t}));
-                    state.sel = Some(Sel::Node(t.trim().to_string()));
+                    state.select(Sel::Node(t.trim().to_string()));
                 }
                 ui.end_row();
                 for (axis, value) in [("x", &n.x), ("y", &n.y)] {
@@ -754,7 +1302,7 @@ fn selection(app: &mut WordApp, ui: &mut Ui, src: &Structure, st: &Structure, st
             });
             if ui.button(ts("Remove Node")).clicked() {
                 let _ = app.run("structure.node", json!({"id": id, "remove": true}));
-                state.sel = None;
+                state.sel.clear();
             }
         }
         Some(Sel::Member(id)) => {
@@ -787,11 +1335,16 @@ fn selection(app: &mut WordApp, ui: &mut Ui, src: &Structure, st: &Structure, st
             ui.label(RichText::new(ts("Without E, I, A: EI is the same for every member and members do not stretch.")).small().weak());
             if ui.button(ts("Remove Member")).clicked() {
                 let _ = app.run("structure.member", json!({"id": id, "remove": true}));
-                state.sel = None;
+                state.sel.clear();
             }
         }
+        Some(Sel::Load(k)) => {
+            loads_table(app, ui, src, st, Some(k));
+        }
         None => {
-            ui.label(RichText::new(ts("Click a node or a member to see its properties.")).weak());
+            ui.label(
+                RichText::new(ts("Click a node, a member or a load to see its properties; Shift+click or a window adds to the selection.")).weak(),
+            );
         }
     }
 }
@@ -812,7 +1365,7 @@ fn tables(app: &mut WordApp, ui: &mut Ui, src: &Structure, st: &Structure, state
     egui::CollapsingHeader::new(RichText::new(ts("Loads")).strong())
         .id_salt("structure_loads")
         .default_open(true)
-        .show(ui, |ui| loads_table(app, ui, src, st));
+        .show(ui, |ui| loads_table(app, ui, src, st, None));
 }
 
 fn remove_button(ui: &mut Ui, tip: &str) -> bool {
@@ -826,8 +1379,8 @@ fn nodes_table(app: &mut WordApp, ui: &mut Ui, src: &Structure, state: &mut Stat
         }
         ui.end_row();
         for n in &src.nodes {
-            if ui.selectable_label(state.sel == Some(Sel::Node(n.id.clone())), RichText::new(&n.id).strong()).clicked() {
-                state.sel = Some(Sel::Node(n.id.clone()));
+            if ui.selectable_label(state.has(&Sel::Node(n.id.clone())), RichText::new(&n.id).strong()).clicked() {
+                state.select(Sel::Node(n.id.clone()));
             }
             for (axis, value) in [("x", &n.x), ("y", &n.y)] {
                 if let Some(t) = edit_box(ui, ("tnode", &n.id, axis), &num_text(value), 70.0) {
@@ -857,8 +1410,8 @@ fn members_table(app: &mut WordApp, ui: &mut Ui, src: &Structure, state: &mut St
         }
         ui.end_row();
         for m in &src.members {
-            if ui.selectable_label(state.sel == Some(Sel::Member(m.id.clone())), RichText::new(&m.id).strong()).clicked() {
-                state.sel = Some(Sel::Member(m.id.clone()));
+            if ui.selectable_label(state.has(&Sel::Member(m.id.clone())), RichText::new(&m.id).strong()).clicked() {
+                state.select(Sel::Member(m.id.clone()));
             }
             for (key, current) in [("a", &m.a), ("b", &m.b)] {
                 craft_ui::ComboBox::from_id_salt(("structure_member_end", &m.id, key)).width(44.0).selected_text(current.as_str()).show_ui(
@@ -947,10 +1500,14 @@ fn supports_table(app: &mut WordApp, ui: &mut Ui, src: &Structure) {
     );
 }
 
-fn loads_table(app: &mut WordApp, ui: &mut Ui, src: &Structure, st: &Structure) {
+/// The loads' editors (`only`: just that load's, without the buttons adding loads).
+fn loads_table(app: &mut WordApp, ui: &mut Ui, src: &Structure, st: &Structure, only: Option<usize>) {
     let fu = st.force_unit.symbol();
     let lu = st.length_unit.symbol();
     for (k, l) in src.loads.iter().enumerate() {
+        if only.is_some_and(|o| o != k) {
+            continue;
+        }
         let mut lj = serde_json::to_value(l).unwrap_or(Value::Null);
         let mut changed = false;
         let mut remove = false;
@@ -1106,6 +1663,9 @@ fn loads_table(app: &mut WordApp, ui: &mut Ui, src: &Structure, st: &Structure) 
             return;
         }
     }
+    if only.is_some() {
+        return;
+    }
     ui.horizontal_wrapped(|ui| {
         let first_node = src.nodes.first().map(|n| n.id.clone());
         let first_member = src.members.first().map(|m| m.id.clone());
@@ -1155,6 +1715,102 @@ mod tests {
         assert!(h.state().session.view.structure_pane);
         h.get_by_label(ts("Isostatic"));
         h.get_by_label(ts("Loads"));
+    }
+
+    /// The selection: a window takes what is inside it, a group moves together keeping
+    /// expressions, the arrows move it by the grid, Delete removes it with what uses it, and a
+    /// load on a member is picked before the member.
+    #[test]
+    fn the_selection_moves_and_removes_together() {
+        let mut app = WordApp::new(Session::new(wordcraft_doc::Document::new()), crate::Services::default());
+        app.run("structure.insert", json!({"template": "frame"})).unwrap();
+        let rect = Rect::from_min_size(pos2(0.0, 0.0), vec2(600.0, 500.0));
+        let st = resolved(&mut app);
+        let (cx, cy, s) = fit(&st, rect);
+        let v = View { rect, cx, cy, s };
+        // The window round the top of the frame takes B, C and the beam between them.
+        let (b, c) = (st.node("B").unwrap(), st.node("C").unwrap());
+        let r = Rect::from_two_pos(v.to_screen(b.x.value - 0.3, b.y.value + 0.3), v.to_screen(c.x.value + 0.3, c.y.value - 0.3));
+        let got = inside(&st, v, r);
+        assert!(got.contains(&Sel::Node("B".into())) && got.contains(&Sel::Node("C".into())), "{got:?}");
+        assert!(got.iter().any(|s| matches!(s, Sel::Member(_))), "{got:?}");
+        assert!(!got.contains(&Sel::Node("A".into())), "{got:?}");
+        // Moving the beam moves both its nodes; an expression stays one.
+        let beam = got.iter().find(|s| matches!(s, Sel::Member(_))).cloned().unwrap();
+        assert_eq!(moved_nodes(&st, std::slice::from_ref(&beam)), vec!["B".to_string(), "C".to_string()]);
+        let mut src = st.clone();
+        src.nodes[1].y = Num::expr("H");
+        let out: Structure = serde_json::from_value(moved(&src, &["B".into()], 0.0, 0.5)).unwrap();
+        assert_eq!(out.node("B").unwrap().y.expr.as_deref(), Some("H + 0.5"));
+        let out: Structure = serde_json::from_value(moved(&src, &["C".into()], -0.25, 0.0)).unwrap();
+        assert!((out.node("C").unwrap().x.value - (c.x.value - 0.25)).abs() < 1e-9);
+        // The document takes the move as one change.
+        let ys = |app: &mut WordApp| {
+            let st = resolved(app);
+            (st.node("B").unwrap().y.value, st.node("C").unwrap().y.value)
+        };
+        let before = ys(&mut app);
+        app.run("structure.set", json!({"structure": moved(&st, &moved_nodes(&st, &[beam]), 0.0, 1.0)})).unwrap();
+        let after = ys(&mut app);
+        assert!((after.0 - before.0 - 1.0).abs() < 1e-9 && (after.1 - before.1 - 1.0).abs() < 1e-9, "{before:?} → {after:?}");
+        // Removing B takes its members, and the force on it.
+        let st = resolved(&mut app);
+        let kept: Structure = serde_json::from_value(without(&st, &[Sel::Node("B".into())])).unwrap();
+        assert!(kept.node("B").is_none() && kept.members.iter().all(|m| m.a != "B" && m.b != "B"), "{:?}", kept.members);
+        assert!(kept.loads.len() < st.loads.len(), "{:?}", kept.loads);
+        // The distributed load on the beam is picked inside its band, the beam on its line.
+        let (cx, cy, s) = fit(&st, rect);
+        let v = View { rect, cx, cy, s };
+        let (b, c) = (st.node("B").unwrap(), st.node("C").unwrap());
+        let mid = v.to_screen((b.x.value + c.x.value) / 2.0, b.y.value);
+        assert!(matches!(pick(&st, v, mid), Some(Sel::Member(_))), "{:?}", pick(&st, v, mid));
+        assert!(matches!(pick(&st, v, mid - vec2(0.0, 4.0 * MM)), Some(Sel::Load(_))), "{:?}", pick(&st, v, mid - vec2(0.0, 4.0 * MM)));
+        // Hostile picks never panic.
+        let _ = pick(&st, v, pos2(f32::NAN, f32::INFINITY));
+        let _ = inside(&st, v, Rect::NOTHING);
+    }
+
+    /// A double-click on a structure opens its editor in place of the page; Close Editor, or
+    /// the command, comes back to the tab that was open.
+    #[test]
+    fn double_click_on_a_structure_opens_the_editor() {
+        use egui::{Event, PointerButton};
+        let mut a = WordApp::new(Session::new(wordcraft_doc::Document::new()), crate::Services::default());
+        a.run("view.commentsPane", json!({"value": false})).unwrap();
+        a.run("structure.insert", json!({"template": "beam"})).unwrap();
+        // The new structure is selected: it starts at the selection's anchor.
+        let at_obj = a.session.sel.anchor.clone();
+        let mut h = egui_kittest::Harness::builder().with_size(egui::vec2(1440.0, 2200.0)).with_step_dt(1.0 / 60.0).build_ui_state(
+            |ui, app: &mut WordApp| {
+                let ctx = ui.ctx().clone();
+                app.logic(&ctx);
+                app.ui(ui);
+            },
+            a,
+        );
+        for _ in 0..6 {
+            h.step();
+        }
+        let hint = h.state().session.page_hint;
+        let obj = h.state_mut().session.layout().object(&at_obj, hint).expect("structure laid out");
+        let (x, y) = (obj.rect.x + obj.rect.w / 2.0, obj.rect.y + obj.rect.h / 2.0);
+        let at = crate::canvas::page_to_screen(h.state_mut(), obj.page, x, y).expect("structure on screen");
+        h.event(Event::PointerMoved(at));
+        for _ in 0..2 {
+            h.event(Event::PointerButton { pos: at, button: PointerButton::Primary, pressed: true, modifiers: Default::default() });
+            h.step();
+            h.event(Event::PointerButton { pos: at, button: PointerButton::Primary, pressed: false, modifiers: Default::default() });
+            h.step();
+        }
+        assert!(h.state().structure_edit.is_some(), "the editor is open");
+        assert_eq!(h.state().ui.tab, "Structures");
+        for _ in 0..3 {
+            h.step();
+        }
+        h.state_mut().run("ui.structureClose", json!({})).unwrap();
+        h.step();
+        assert!(h.state().structure_edit.is_none());
+        assert_ne!(h.state().ui.tab, "Structures");
     }
 
     /// Clicks on the sheet with each tool change the structure as they say.

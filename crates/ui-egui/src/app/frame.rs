@@ -96,7 +96,7 @@ impl WordApp {
                 chrome::status_bar(self, ui);
                 // The document's panes stay hidden while a CAD drawing is open (they come back
                 // as they were when it closes): the editor has its own Properties and layers.
-                if self.cad.is_none() {
+                if self.cad.is_none() && self.structure_edit.is_none() {
                     panes::show(self, ui);
                 }
             }
@@ -108,6 +108,8 @@ impl WordApp {
                 // An open CAD drawing takes the page's place.
                 if self.cad.is_some() {
                     crate::cad_editor::show(self, ui);
+                } else if self.structure_edit.is_some() {
+                    crate::structure_pane::editor(self, ui);
                 } else {
                     canvas::show(self, ui);
                 }

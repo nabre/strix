@@ -10,6 +10,8 @@ use crate::diagram::{Action, NotableKind, notables};
 use crate::model::{Diagram, Layout, Load, LoadAxes, Side, Structure, SupportKind};
 use crate::solve::{Analysis, MemberResult, Status, analyse};
 
+mod annotate;
+
 type P = (f64, f64);
 type Rgb = [u8; 3];
 
@@ -529,7 +531,7 @@ impl Ctx<'_> {
         let vmax = samples.iter().flatten().flatten().map(|(_, v)| v.abs()).fold(0.0_f64, f64::max);
         let side = if d.positive == Side::Up { 1.0 } else { -1.0 };
         // Each value with the places it may go, best first.
-        let mut labels: Vec<(Vec<(P, P)>, String)> = Vec::new();
+        let mut labels: Vec<(Vec<Place>, String, P)> = Vec::new();
         for (m, segs) in an.members.iter().zip(samples.iter()) {
             let dir = m.dir();
             let normal = pd((-dir.1, dir.0));
@@ -557,8 +559,11 @@ impl Ctx<'_> {
                     self.signs(seg, &curve, &axis, &ord, normal, color, f.k);
                 }
             }
+            if self.st.diagrams.stations {
+                self.stations(m, action, segs, &axis, &curve, &ord, normal, color);
+            }
             if values {
-                for n in shown_values(m, action) {
+                for (n, constant) in shown_values(m, action) {
                     if n.kind == NotableKind::Zero || n.value == 0.0 {
                         continue;
                     }
@@ -574,32 +579,97 @@ impl Ctx<'_> {
                         n.x
                     };
                     let point = |x: f64, gap: f64| add(curve(x, interp_member(segs, x).unwrap_or(n.value)), mul(out, gap));
-                    let at = point(x, 1.2);
                     let text = self.num(n.value);
+                    let at = point(x, 1.2);
                     // One label per place: a value shared by two members at a node, once.
-                    if labels.iter().any(|(c, t)| *t == text && c.first().is_some_and(|(p, _)| (p.0 - at.0).hypot(p.1 - at.1) < 8.0)) {
+                    if labels.iter().any(|(_, t, a)| *t == text && (a.0 - at.0).hypot(a.1 - at.1) < 8.0) {
                         continue;
                     }
-                    let mut places = vec![(at, out), (point(x, 3.6), out)];
-                    // A stretch's middle value may slide along it.
-                    if let Some(seg) = segs.iter().find(|s| s.first().is_some_and(|p| p.0 < x) && s.last().is_some_and(|p| p.0 > x)) {
-                        let (Some(&(x0, _)), Some(&(x1, _))) = (seg.first(), seg.last()) else { continue };
-                        for t in [0.3, 0.7, 0.15, 0.85] {
-                            places.push((point(x0 + (x1 - x0) * t, 0.8), out));
+                    let places = if constant {
+                        // A stretch of constant value: written level, at its middle or sliding along it.
+                        let mut places = vec![Place::Beside(at, out), Place::Beside(point(x, 3.6), out)];
+                        if let Some(seg) = segs.iter().find(|s| s.first().is_some_and(|p| p.0 < x) && s.last().is_some_and(|p| p.0 > x)) {
+                            let (Some(&(x0, _)), Some(&(x1, _))) = (seg.first(), seg.last()) else { continue };
+                            for t in [0.3, 0.7, 0.15, 0.85] {
+                                places.push(Place::Beside(point(x0 + (x1 - x0) * t, 0.8), out));
+                            }
                         }
-                    }
-                    labels.push((places, text));
+                        places
+                    } else {
+                        // A value at a point: written across the axis, standing on the curve there.
+                        let half = text.chars().count() as f64 * TEXT * 0.55 / 2.0;
+                        let angle = annotate::reading_angle(out);
+                        vec![Place::Turned(point(x, 1.0 + half), angle), Place::Turned(point(x, 3.5 + half), angle)]
+                    };
+                    labels.push((places, text, at));
                 }
             }
         }
-        for (places, text) in labels {
-            let boxes: Vec<[f64; 4]> = places.iter().map(|(at, dir)| text_box(*at, *dir, &text)).collect();
+        for (places, text, _) in labels {
+            let boxes: Vec<[f64; 4]> = places.iter().map(|p| p.bounds(&text)).collect();
             let free = boxes.iter().position(|b| !self.placed.iter().any(|o| overlaps(b, o)));
             let k = free.unwrap_or(0);
-            if let (Some(&(at, dir)), Some(b)) = (places.get(k), boxes.get(k)) {
+            if let (Some(place), Some(b)) = (places.get(k), boxes.get(k)) {
                 self.placed.push(*b);
-                self.pen.beside(at, dir, text, color);
+                match *place {
+                    Place::Beside(at, dir) => self.pen.beside(at, dir, text, color),
+                    Place::Turned(at, angle) => self.pen.turned(at, text, TEXT, angle, color),
+                }
             }
+        }
+    }
+
+    /// The stations of a member's diagram: where its notable values are (a load's position, a
+    /// maximum, a zero), each a tick on the axis with its distance from the member's start
+    /// written across the axis on the side away from the diagram, and a dotted ordinate.
+    #[allow(clippy::too_many_arguments)]
+    fn stations(
+        &mut self,
+        m: &MemberResult,
+        action: Action,
+        segs: &[Vec<(f64, f64)>],
+        axis: &dyn Fn(f64) -> P,
+        curve: &dyn Fn(f64, f64) -> P,
+        ord: &dyn Fn(f64) -> f64,
+        normal: P,
+        color: Rgb,
+    ) {
+        let lt = 1e-6 * (1.0 + m.length);
+        let mut xs: Vec<f64> = notables(m, action).iter().map(|n| n.x).filter(|x| *x > lt && *x < m.length - lt).collect();
+        xs.sort_by(f64::total_cmp);
+        xs.dedup_by(|a, b| (*a - *b).abs() <= lt);
+        let lu = self.st.length_unit.symbol();
+        let height = TEXT * 0.9;
+        let mut last: Option<P> = None;
+        for x in xs {
+            let v = interp_member(segs, x).unwrap_or(0.0);
+            let o = ord(v);
+            let (base, top) = (axis(x), curve(x, v));
+            if o.abs() > 0.8 {
+                self.pen.dashed(base, top, lighter(color, 0.2), 0.15);
+            }
+            self.pen.line(add(base, mul(normal, -0.8)), add(base, mul(normal, 0.8)), color, 0.25);
+            // Too close to the last one on paper: the tick only.
+            if last.is_some_and(|p| (p.0 - base.0).hypot(p.1 - base.1) < height * 1.2) {
+                continue;
+            }
+            let text = format!("{} {lu}", self.num(x));
+            let half = text.chars().count() as f64 * height * 0.55 / 2.0;
+            let away = mul(
+                normal,
+                if o > 0.0 {
+                    -1.0
+                } else if o < 0.0 {
+                    1.0
+                } else {
+                    -1.0
+                },
+            );
+            let angle = annotate::reading_angle(away);
+            let at = add(base, mul(away, 1.4 + half));
+            self.placed.push(annotate::turned_box(at, &text, height, angle));
+            self.pen.turned(at, text, height, angle, GREY);
+            last = Some(base);
         }
     }
 
@@ -678,7 +748,7 @@ impl Ctx<'_> {
 
 /// The values written on a diagram: the notable ones, a stretch of constant value once at its
 /// middle instead of at both its ends.
-fn shown_values(m: &MemberResult, action: Action) -> Vec<crate::diagram::Notable> {
+fn shown_values(m: &MemberResult, action: Action) -> Vec<(crate::diagram::Notable, bool)> {
     let bps = m.breakpoints();
     let val = |x: f64, after: bool| action.of(m.forces(x, after));
     let mut constant: Vec<(f64, f64, f64)> = Vec::new();
@@ -691,7 +761,7 @@ fn shown_values(m: &MemberResult, action: Action) -> Vec<crate::diagram::Notable
         }
     }
     let lt = 1e-9 * (1.0 + m.length);
-    let mut out: Vec<crate::diagram::Notable> = notables(m, action)
+    let mut out: Vec<(crate::diagram::Notable, bool)> = notables(m, action)
         .into_iter()
         .filter(|n| {
             n.kind != NotableKind::End
@@ -699,9 +769,10 @@ fn shown_values(m: &MemberResult, action: Action) -> Vec<crate::diagram::Notable
                     .iter()
                     .any(|&(x0, x1, v)| ((n.x - x0).abs() <= lt || (n.x - x1).abs() <= lt) && (n.value - v).abs() <= 1e-9 * v.abs().max(1e-12))
         })
+        .map(|n| (n, false))
         .collect();
-    out.extend(constant.iter().map(|&(x0, x1, v)| crate::diagram::Notable { x: 0.5 * (x0 + x1), value: v, kind: NotableKind::End }));
-    out.sort_by(|a, b| a.x.total_cmp(&b.x));
+    out.extend(constant.iter().map(|&(x0, x1, v)| (crate::diagram::Notable { x: 0.5 * (x0 + x1), value: v, kind: NotableKind::End }, true)));
+    out.sort_by(|a, b| a.0.x.total_cmp(&b.0.x));
     out
 }
 
@@ -772,6 +843,8 @@ impl Structure {
         cx.members(&f, BLACK, MEMBER_W, true);
         cx.supports(&f, BLACK);
         cx.loads(&f);
+        cx.force_angles(&f);
+        cx.slopes(&f);
         cx.node_names(&f);
         cx.pen.prims
     }
@@ -813,24 +886,7 @@ impl Structure {
 
         // The panels, top to bottom: (what, room above the structure, below it).
         let solved = an.status.is_solved();
-        let mut panels: Vec<(Panel, f64, f64)> = vec![(Panel::Schema, 16.0, 14.0)];
-        if solved {
-            if d.reactions {
-                panels.push((Panel::Reactions, 16.0, 22.0));
-            }
-            if an.truss {
-                if d.n.show {
-                    panels.push((Panel::Truss, 12.0, 8.0));
-                }
-            } else {
-                for (action, dg) in [(Action::Axial, d.n), (Action::Shear, d.v), (Action::Moment, d.m)] {
-                    if dg.show {
-                        let pad = (dg.amplitude + 6.0).max(9.0);
-                        panels.push((Panel::Diagram(action), pad, pad));
-                    }
-                }
-            }
-        }
+        let mut panels = plan(&st, &an);
         // Two columns for a frame (a tall structure), one for a beam.
         let grid = match st.layout {
             Layout::Column => false,
@@ -840,8 +896,9 @@ impl Structure {
         let cols = if grid { 2.0 } else { 1.0 };
         let cell = width / cols;
         let amp = [d.n, d.v, d.m].iter().filter(|x| x.show).map(|x| x.amplitude).fold(0.0_f64, f64::max);
-        let side = if grid { 14.0 } else { (8.0 + amp).max(16.0) };
-        let usable = (cell - 2.0 * side).max(10.0);
+        // A grid's cells keep room at the left for the reactions' arrows and their values.
+        let (side, side_r) = if grid { (22.0, 14.0) } else { ((8.0 + amp).max(16.0), (8.0 + amp).max(16.0)) };
+        let usable = (cell - side - side_r).max(10.0);
         let mut k = if bw > 0.0 { usable / bw } else { f64::MAX };
         if bh > 0.0 {
             k = k.min(if grid { 60.0 } else { 70.0 } / bh);
@@ -917,6 +974,9 @@ impl Ctx<'_> {
                 self.members(f, BLACK, MEMBER_W, true);
                 self.supports(f, BLACK);
                 self.loads(f);
+                self.force_angles(f);
+                self.slopes(f);
+                self.dimensions(f);
                 self.node_names(f);
             }
             Panel::Reactions => {
@@ -947,6 +1007,51 @@ impl Ctx<'_> {
                     self.diagram(f, action, dg, color);
                 }
             }
+        }
+    }
+}
+
+/// The panels, top to bottom: (what, room above the structure, below it).
+fn plan(st: &Structure, an: &Analysis) -> Vec<(Panel, f64, f64)> {
+    let d = st.diagrams;
+    let dim_rows = annotate::dimension_room(st);
+    let schema_below = if dim_rows > 0 { annotate::DIM_BELOW + annotate::DIM_STEP * (dim_rows - 1) as f64 + 5.0 } else { 14.0 };
+    let mut panels: Vec<(Panel, f64, f64)> = vec![(Panel::Schema, 16.0, schema_below)];
+    if !an.status.is_solved() {
+        return panels;
+    }
+    if d.reactions {
+        panels.push((Panel::Reactions, 16.0, 22.0));
+    }
+    if an.truss {
+        if d.n.show {
+            panels.push((Panel::Truss, 12.0, 8.0));
+        }
+    } else {
+        for (action, dg) in [(Action::Axial, d.n), (Action::Shear, d.v), (Action::Moment, d.m)] {
+            if dg.show {
+                let pad = (dg.amplitude + 6.0).max(9.0);
+                panels.push((Panel::Diagram(action), pad, pad));
+            }
+        }
+    }
+    panels
+}
+
+/// Where a diagram's value may be written.
+#[derive(Clone, Copy)]
+enum Place {
+    /// Level, beside the point on the side the direction points to.
+    Beside(P, P),
+    /// Centred on the point, turned this many degrees.
+    Turned(P, f64),
+}
+
+impl Place {
+    fn bounds(&self, text: &str) -> [f64; 4] {
+        match *self {
+            Place::Beside(at, dir) => text_box(at, dir, text),
+            Place::Turned(at, angle) => annotate::turned_box(at, text, TEXT, angle),
         }
     }
 }

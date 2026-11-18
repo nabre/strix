@@ -137,6 +137,7 @@ impl WordApp {
             applied_animations: None,
             frame_ms: 0.0,
             cad: None,
+            structure_edit: None,
             cad_settings: crate::cad_editor::CadSettings::default(),
             quit_requested: false,
             autosave: true,

@@ -20,6 +20,7 @@ use wordcraft_fonts::math::{C, Construction, MathTable, glyph_bounds};
 use wordcraft_fonts::{FaceRef, FontDb};
 
 mod bx;
+mod eq_wrap;
 mod glyphs;
 mod nodes;
 mod rows;
@@ -240,6 +241,7 @@ pub fn layout_equation(
     let b = match nodes.as_slice() {
         [] => cx.hint(st),
         [MNode::EqArr { rows }] if display && rows.iter().any(|r| split_number(r).is_some()) => cx.numbered(rows, st, avail, counter),
+        [MNode::EqArr { rows }] if display => cx.eq_arr_wrapped(nodes, rows, st, avail, props),
         _ if display => cx.wrapped(nodes, st, avail, props),
         _ => cx.arg(nodes, st, 0),
     };

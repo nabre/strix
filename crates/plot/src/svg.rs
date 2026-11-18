@@ -56,6 +56,18 @@ impl PlotRendered {
                     }
                     out.push_str("/>");
                 }
+                PlotPrim::TextAt { at, text, height, angle, color } => {
+                    let _ = write!(
+                        out,
+                        r#"<text x="{x}" y="{y}" font-size="{}" fill="{}" text-anchor="middle" dy="0.35em" transform="rotate({} {x} {y})">{}</text>"#,
+                        fmt(*height * 1.25),
+                        hex(*color),
+                        fmt(-*angle),
+                        escape_xml(text),
+                        x = fmt(at.0),
+                        y = fmt(at.1),
+                    );
+                }
                 PlotPrim::Text { at, text, height, bold, anchor, color } => {
                     let (ta, dy) = match anchor {
                         PlotAnchor::Left => ("start", "0"),
