@@ -204,6 +204,99 @@ fn paint_structures(pen: &Pen, name: &str) -> bool {
                 pen.line_c(&[(x, top + 0.5), (x, 14.5)], c);
             }
         }
+        // Node: a point on the grid's crossing.
+        "structureNode" => {
+            pen.line_c(&[(3.0, 10.0), (17.0, 10.0)], c.linear_multiply(0.45));
+            pen.line_c(&[(10.0, 3.0), (10.0, 17.0)], c.linear_multiply(0.45));
+            pen.fcircle(10.0, 10.0, 2.6, a);
+            pen.circle(10.0, 10.0, 2.6, c);
+        }
+        // Member: a bar between two nodes.
+        "structureMember" => {
+            pen.line_c(&[(4.5, 15.5), (15.5, 4.5)], a);
+            pen.line_c(&[(5.2, 16.2), (16.2, 5.2)], a);
+            pen.fcircle(4.5, 15.5, 2.0, c);
+            pen.fcircle(15.5, 4.5, 2.0, c);
+        }
+        // Fixed support: a bar's end into a hatched wall.
+        "structureFixed" => {
+            pen.line_c(&[(10.0, 3.0), (10.0, 12.0)], a);
+            pen.line_c(&[(4.0, 12.0), (16.0, 12.0)], c);
+            for x in [5.0, 8.0, 11.0, 14.0] {
+                pen.line_c(&[(x + 2.0, 12.5), (x, 16.0)], c);
+            }
+        }
+        // Pin: a triangle on the ground.
+        "structurePin" => {
+            pen.line_c(&[(10.0, 3.0), (10.0, 8.0)], a);
+            pen.circle(10.0, 8.0, 1.0, c);
+            pen.closed(&[(10.0, 8.0), (6.0, 14.0), (14.0, 14.0)], c);
+            pen.line_c(&[(4.0, 14.0), (16.0, 14.0)], c);
+            for x in [5.0, 9.0, 13.0] {
+                pen.line_c(&[(x + 2.0, 14.5), (x, 17.0)], c);
+            }
+        }
+        // Roller: a triangle on wheels.
+        "structureRoller" => {
+            pen.line_c(&[(10.0, 3.0), (10.0, 7.0)], a);
+            pen.closed(&[(10.0, 7.0), (6.0, 12.5), (14.0, 12.5)], c);
+            pen.circle(7.5, 14.0, 1.2, c);
+            pen.circle(12.5, 14.0, 1.2, c);
+            pen.line_c(&[(4.0, 15.8), (16.0, 15.8)], c);
+        }
+        // Link: a bar hinged at both ends down to the ground.
+        "structureLink" => {
+            pen.line_c(&[(10.0, 3.0), (10.0, 5.5)], a);
+            pen.circle(10.0, 6.5, 1.0, c);
+            pen.line_c(&[(10.0, 7.5), (10.0, 13.0)], c);
+            pen.circle(10.0, 14.0, 1.0, c);
+            pen.line_c(&[(5.0, 15.5), (15.0, 15.5)], c);
+            for x in [6.0, 10.0, 14.0] {
+                pen.line_c(&[(x + 1.5, 16.0), (x - 0.5, 18.0)], c);
+            }
+        }
+        // Slider: a bar's end in a guide of two parallel lines.
+        "structureSlider" => {
+            pen.line_c(&[(10.0, 3.0), (10.0, 11.0)], a);
+            pen.line_c(&[(6.5, 11.0), (13.5, 11.0)], a);
+            pen.line_c(&[(4.0, 13.0), (16.0, 13.0)], c);
+            pen.line_c(&[(4.0, 15.5), (16.0, 15.5)], c);
+        }
+        // Internal hinge: two bars meeting at an open circle.
+        "structureHinge" => {
+            pen.line_c(&[(2.5, 14.0), (8.0, 10.6)], c);
+            pen.line_c(&[(12.0, 10.6), (17.5, 14.0)], c);
+            pen.circle(10.0, 9.5, 2.2, a);
+        }
+        // Force: an arrow coming down on a beam.
+        "structureForce" => {
+            pen.line_c(&[(3.0, 15.0), (17.0, 15.0)], c);
+            pen.line_c(&[(10.0, 3.0), (10.0, 11.5)], a);
+            pen.fill(&[(7.8, 10.5), (12.2, 10.5), (10.0, 14.2)], a);
+        }
+        // Couple: a curved arrow round a point of a beam.
+        "structureCouple" => {
+            pen.line_c(&[(3.0, 12.0), (17.0, 12.0)], c);
+            let arc: Vec<(f32, f32)> = (0..=14)
+                .map(|i| {
+                    let t = std::f32::consts::PI * (0.15 + 1.1 * i as f32 / 14.0);
+                    (10.0 + 5.0 * t.cos(), 12.0 - 5.0 * t.sin())
+                })
+                .collect();
+            pen.line_c(&arc, a);
+            if let Some(&(x, y)) = arc.last() {
+                pen.fill(&[(x - 2.0, y - 1.4), (x + 1.6, y - 1.8), (x, y + 1.6)], a);
+            }
+        }
+        // Distributed load: arrows under a line, on a beam.
+        "structureDistributed" => {
+            pen.line_c(&[(3.0, 16.0), (17.0, 16.0)], c);
+            pen.line_c(&[(3.5, 5.0), (16.5, 5.0)], a);
+            for x in [4.0, 8.0, 12.0, 16.0] {
+                pen.line_c(&[(x, 5.0), (x, 12.5)], a);
+                pen.fill(&[(x - 1.4, 12.0), (x + 1.4, 12.0), (x, 14.5)], a);
+            }
+        }
         // Signs: a circled plus and a circled minus.
         "structureSigns" => {
             pen.circle(6.5, 10.0, 4.0, c);

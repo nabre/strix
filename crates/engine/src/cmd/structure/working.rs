@@ -1,9 +1,11 @@
 //! `structure.working`: the structure's solution written after it as live calculations
 //! (`docs/structures.md`, Working).
 //!
-//! The reactions come from equilibrium equations written with the structure's numbers, each with
-//! one unknown left, so calc solves it and shows its steps (`V_B·(6 m) − (10 kN/m)·(6 m)·(3 m) =
-//! 0 kN·m ⇒ … ⇒ V_B = 30 kN`): the whole structure's translations and rotations about its
+//! The loads' names come first, defined with their sizes (`F_1 = (20 kN)`, `q_1 = (10 kN/m)`, a
+//! varying load's ends `q_(1,1)` and `q_(1,2)`: [`load_names`], as the drawing writes them). The
+//! reactions come from equilibrium equations written with those names and the structure's
+//! lengths, each with one unknown left, so calc solves it and shows its steps (`0 kN·m = V_B·(6 m)
+//! − q_1·(6 m)·(3 m) ⇒ … ⇒ V_B = 30 kN`): the whole structure's translations and rotations about its
 //! supports, and the rotation of a part about an internal hinge. An unknown no equation isolates
 //! (a hyperstatic structure's redundants) is given its value from the stiffness solution, and said
 //! so. Then, member by member and stretch by stretch, the laws `N(x)`, `T(x)`, `M(x)` as calc
@@ -11,7 +13,10 @@
 //! extremes; a truss gets each member's axial force.
 
 use serde_json::{Value, json};
-use strix_structure::{Action, MemberResult, NotableKind, Resultant, ResultantKind, Status, Structure, SupportKind, notables, resultants, stretches};
+use strix_structure::{
+    Action, Load, LoadName, MemberResult, NotableKind, Resultant, ResultantKind, Status, Structure, SupportKind, load_names, notables, resultants,
+    stretches,
+};
 use wordcraft_doc::math::{Math, parse_linear, to_linear};
 use wordcraft_doc::para::Paragraph;
 use wordcraft_doc::{Block, InlineObject};
@@ -24,6 +29,7 @@ const MAX_LINES: usize = 400;
 /// The words of the working, from the interface (English by default).
 struct Labels {
     heading: String,
+    loads: String,
     reactions: String,
     signs: String,
     hyperstatic: String,
@@ -44,6 +50,7 @@ impl Labels {
         };
         Labels {
             heading: get("heading", "Working"),
+            loads: get("loads", "Loads"),
             reactions: get("reactions", "Reactions"),
             signs: get("signs", "Reactions are positive along x, along y and counter-clockwise: a negative one acts the other way."),
             hyperstatic: get("hyperstatic", "Hyperstatic: from the solution by the stiffness method"),
@@ -101,7 +108,20 @@ pub(super) fn run(s: &mut Session, v: &Value) -> CmdResult {
     let lines = lines(&r.resolved, &r.analysis, &Labels::from(v), comma);
     let props = s.doc.para_at(&pos).map(|p| p.mark.clone()).unwrap_or_default();
     let mut path = pos.path.clone();
-    for line in &lines {
+    for para in paragraphs(&lines, &props)? {
+        path = path.with_last(path.last().saturating_add(1));
+        s.doc.insert_block(pos.story, &path, Block::Para(para)).map_err(|e| CmdError::Failed(e.to_string()))?;
+    }
+    s.touch();
+    let report = crate::cmd::calc::recalculate_now(s);
+    Ok(json!({ "lines": lines.len(), "recalculated": report }))
+}
+
+/// The working's lines as paragraphs in the character formatting `props`.
+fn paragraphs(lines: &[Line], props: &wordcraft_doc::CharProps) -> Result<Vec<Paragraph>, CmdError> {
+    let props = props.clone();
+    let mut out = Vec::new();
+    for line in lines {
         let mut para = Paragraph::with_text(&line.label, props.clone());
         if let Some(note) = &line.note {
             let math = Math { nodes: parse_linear(note), calc: false, ..Math::default() };
@@ -124,12 +144,50 @@ pub(super) fn run(s: &mut Session, v: &Value) -> CmdResult {
             let at = para.text.len();
             para.insert_object(at, obj, &props).map_err(|e| CmdError::Failed(e.to_string()))?;
         }
-        path = path.with_last(path.last().saturating_add(1));
-        s.doc.insert_block(pos.story, &path, Block::Para(para)).map_err(|e| CmdError::Failed(e.to_string()))?;
+        out.push(para);
     }
-    s.touch();
-    let report = crate::cmd::calc::recalculate_now(s);
-    Ok(json!({ "lines": lines.len(), "recalculated": report }))
+    Ok(out)
+}
+
+/// The working of structure `src` in two parts, for an exercise's solution: the reactions
+/// (without the heading) and the internal forces (a truss: its axial forces).
+pub(super) fn sections(
+    s: &Session,
+    src: &std::sync::Arc<str>,
+    v: &Value,
+    props: &wordcraft_doc::CharProps,
+) -> Result<(Vec<Paragraph>, Vec<Paragraph>), CmdError> {
+    let st = Structure::from_json(src).map_err(|e| CmdError::Failed(format!("the structure can't be read: {e}")))?;
+    let r = crate::cmd::calc::resolved_structure(s, src)
+        .unwrap_or_else(|| st.render(Some(&strix_calc::Worksheet::new(crate::cmd::calc::options_now(s)))));
+    if !r.analysis.status.is_solved() {
+        return Err(CmdError::Failed(format!("the structure can't be solved: {}", r.analysis.status.describe())));
+    }
+    let comma = crate::cmd::calc::options_now(s).decimal_comma;
+    let labels = Labels::from(v);
+    let all = lines(&r.resolved, &r.analysis, &labels, comma);
+    let forces = format!("{}: {}", labels.forces, labels.conventions);
+    let axial = format!("{}:", labels.axial);
+    let split = all.iter().position(|l| l.note.is_none() && l.equations.is_empty() && (l.label == forces || l.label == axial)).unwrap_or(all.len());
+    let (first, second) = all.split_at(split);
+    let first = first.get(1..).unwrap_or(&[]);
+    let mut reactions = paragraphs(first, props)?;
+    // The reactions are the first question's result: the equations solving them, and those
+    // giving a redundant its value.
+    let names: Vec<String> = unknowns(&r.resolved, &r.analysis).into_iter().map(|k| format!("{} = ", k.name)).collect();
+    for (line, para) in first.iter().zip(reactions.iter_mut()) {
+        let result = line.stepped || (!line.equations.is_empty() && line.equations.iter().all(|e| names.iter().any(|n| e.starts_with(n.as_str()))));
+        if !result {
+            continue;
+        }
+        let offs: Vec<usize> = para.objects_with_offsets().filter(|(_, o)| matches!(o, InlineObject::Equation { .. })).map(|(off, _)| off).collect();
+        for off in offs {
+            if let Some(InlineObject::Equation { math, .. }) = para.object_at_mut(off) {
+                math.answer = 1;
+            }
+        }
+    }
+    Ok((reactions, paragraphs(second, props)?))
 }
 
 /// A number as calc reads it: six significant digits, no trailing zeros, the document's decimal
@@ -273,6 +331,10 @@ struct Units {
     f: String,
     l: String,
     comma: bool,
+    /// Each load's name ([`load_names`]) and, for a distributed load, its intensities at its
+    /// ends (`q1`, `q2`).
+    names: Vec<Option<LoadName>>,
+    ends: Vec<(f64, f64)>,
 }
 
 impl Units {
@@ -297,8 +359,61 @@ impl Units {
         if (c.abs() - 1.0).abs() < 1e-9 { String::new() } else { format!("·{}", num(c.abs(), self.comma)) }
     }
 
-    /// The force a resultant amounts to, as text (positive).
+    /// The force a resultant amounts to, as text (positive): by its load's name (`F_1`,
+    /// `q_2·(6 m)`, `(q_(1,2) - q_(1,1))·(4 m)/2`), by its number when the load has none.
     fn resultant(&self, r: &Resultant) -> String {
+        let Some(name) = self.names.get(r.load).copied().flatten() else { return self.valued(r) };
+        match r.kind {
+            ResultantKind::Force { .. } | ResultantKind::Couple { .. } => name.linear(),
+            ResultantKind::Spread { length, triangle: false, .. } => format!("{}·{}", name.linear_end(1), self.length(length)),
+            ResultantKind::Spread { length, triangle: true, .. } => {
+                let (q1, q2) = self.ends.get(r.load).copied().unwrap_or((0.0, 0.0));
+                let (n1, n2) = (name.linear_end(1), name.linear_end(2));
+                // The triangle's height |q2 − q1| from the ends' names, which are their sizes.
+                let height = if q1 == 0.0 {
+                    n2
+                } else if q2 == 0.0 {
+                    n1
+                } else if q1.signum() != q2.signum() {
+                    format!("({n1} + {n2})")
+                } else if q2.abs() > q1.abs() {
+                    format!("({n2} - {n1})")
+                } else {
+                    format!("({n1} - {n2})")
+                };
+                format!("{height}·{}/2", self.length(length))
+            }
+        }
+    }
+
+    /// The definitions of the loads' names: `F_1 = (20 kN)`, `q_(1,1) = (5 kN/m)` (sizes: the
+    /// equations' signs give the directions).
+    fn definitions(&self, st: &Structure) -> Vec<String> {
+        let mut out = Vec::new();
+        for (l, name) in st.loads.iter().zip(&self.names) {
+            let Some(name) = name else { continue };
+            match l {
+                Load::Force { value, .. } => out.push(format!("{} = {}", name.linear(), self.force(value.value))),
+                Load::Moment { value, .. } => out.push(format!("{} = {}", name.linear(), self.moment(value.value))),
+                Load::Distributed { q1, q2, .. } => {
+                    let (a, b) = (q1.value, q2.as_ref().map_or(q1.value, |q| q.value));
+                    if !name.varying {
+                        out.push(format!("{} = {}", name.linear(), self.spread(a)));
+                        continue;
+                    }
+                    for (end, q) in [(1, a), (2, b)] {
+                        if q != 0.0 {
+                            out.push(format!("{} = {}", name.linear_end(end), self.spread(q)));
+                        }
+                    }
+                }
+            }
+        }
+        out
+    }
+
+    /// The force a resultant amounts to by its numbers (positive).
+    fn valued(&self, r: &Resultant) -> String {
         match r.kind {
             ResultantKind::Force { value } => self.force(value),
             ResultantKind::Couple { value } => self.moment(value),
@@ -488,8 +603,25 @@ fn hinge_parts(st: &Structure) -> Vec<(String, Vec<usize>)> {
 }
 
 fn lines(st: &Structure, an: &strix_structure::Analysis, labels: &Labels, comma: bool) -> Vec<Line> {
-    let u = Units { f: st.force_unit.symbol().to_string(), l: st.length_unit.symbol().to_string(), comma };
-    let mut out = vec![Line::words(labels.heading.clone()), Line::words(format!("{}:", labels.reactions))];
+    let ends = st
+        .loads
+        .iter()
+        .map(|l| match l {
+            Load::Distributed { q1, q2, .. } => (q1.value, q2.as_ref().map_or(q1.value, |q| q.value)),
+            _ => (0.0, 0.0),
+        })
+        .collect();
+    let u = Units { f: st.force_unit.symbol().to_string(), l: st.length_unit.symbol().to_string(), comma, names: load_names(st), ends };
+    let mut out = vec![Line::words(labels.heading.clone())];
+    // The loads' names, defined before the equations that use them.
+    let defs = u.definitions(st);
+    if !defs.is_empty() {
+        out.push(Line::words(format!("{}:", labels.loads)));
+        for chunk in defs.chunks(4) {
+            out.push(Line::eqs(chunk.to_vec(), false));
+        }
+    }
+    out.push(Line::words(format!("{}:", labels.reactions)));
     let us = unknowns(st, an);
     let rs = resultants(st);
     // The candidate equations: rotations about the supports first, then the translations, then

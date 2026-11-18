@@ -211,3 +211,37 @@ fn the_working_follows_the_document_decimal_comma() {
     let t = text_of(&s);
     assert!(!t.contains('⚠'), "{t}");
 }
+
+/// Each load is named, numbered by kind (`F_1`, `q_1`, a varying load's ends `q_(2,1)` and
+/// `q_(2,2)`, `C_1`): the working defines the names and its equations use them, and calc solves
+/// them to the same reactions.
+#[test]
+fn the_working_names_the_loads() {
+    let t = working_of(json!({
+        "nodes": [{"id": "A", "x": 0, "y": 0}, {"id": "B", "x": 6, "y": 0}],
+        "members": [{"id": "1", "a": "A", "b": "B"}],
+        "supports": [{"node": "A", "kind": "pin"}, {"node": "B", "kind": "roller"}],
+        "loads": [
+            {"type": "distributed", "member": "1", "q1": 10},
+            {"type": "force", "member": "1", "at": 3, "value": 0},
+            {"type": "force", "member": "1", "at": 2, "value": 12},
+            {"type": "distributed", "member": "1", "q1": 2, "q2": 5},
+            {"type": "distributed", "member": "1", "q1": 0, "q2": 4},
+            {"type": "moment", "node": "B", "value": 6}
+        ]
+    }))
+    .unwrap();
+    assert!(!t.contains('⚠'), "{t}");
+    // Defined with their sizes; the zero force is not numbered.
+    assert!(has(&t, "Loads:"), "{t}");
+    for d in ["q_1=(10 kN/m)", "F_1=(12 kN)", "q_(2,1)=(2 kN/m)", "q_(2,2)=(5 kN/m)", "q_(3,2)=(4 kN/m)", "C_1=(6 kN·m)"] {
+        assert!(has(&t, d), "{d}: {t}");
+    }
+    assert!(!has(&t, "F_2") && !has(&t, "q_(3,1)"), "{t}");
+    // The equations use the names: rectangle and triangle of the trapezoid, the triangle alone.
+    for term in ["q_1·(6 m)", "F_1·(2 m)", "q_(2,1)·(6 m)", "(q_(2,2)-q_(2,1))·(6 m)/2", "q_(3,2)·(6 m)/2", "+C_1"] {
+        assert!(has(&t, term), "{term}: {t}");
+    }
+    // ΣM_A: V_B·6 = 10·6·3 + 12·2 + 2·6·3 + 3·6/2·4 + 4·6/2·4 − 6 = 318.
+    assert!(has(&t, "V_B&=53 kN") && has(&t, "V_A&=52 kN"), "{t}");
+}

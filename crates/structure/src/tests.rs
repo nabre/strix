@@ -580,3 +580,24 @@ fn dimensions_and_stations_are_on_in_a_new_structure_and_off_in_one_saved_before
     let back = Structure::from_json(&json).unwrap();
     assert!(!back.diagrams.dimensions && !back.diagrams.stations);
 }
+
+#[test]
+fn the_editors_schema_has_the_dimensions_and_its_angles_drawn_as_dimensions() {
+    let mut st = simple_beam();
+    st.loads.push(Load::Force { node: None, member: Some("1".into()), at: Num::new(2.0), value: Num::new(20.0), angle: Num::new(-60.0) });
+    let prims = st.schema_prims(10.0, (-1.0, 3.0), strix_calc::Options::default());
+    let colour = |s: &str| {
+        prims.iter().find_map(|p| match p {
+            strix_plot::PlotPrim::TextAt { text, color, .. } if text == s => Some(*color),
+            _ => None,
+        })
+    };
+    // The chain along x, as on the page.
+    assert!(colour("2 m").is_some() && colour("4 m").is_some() && colour("6 m").is_some(), "{prims:?}");
+    // The force's angle in the dimensions' colour.
+    assert_eq!(colour("60°"), colour("6 m"));
+    // Off, the schema has neither.
+    st.diagrams.dimensions = false;
+    let prims = st.schema_prims(10.0, (-1.0, 3.0), strix_calc::Options::default());
+    assert!(!prims.iter().any(|p| matches!(p, strix_plot::PlotPrim::TextAt { text, .. } if text.ends_with(" m") || text.ends_with('°'))));
+}

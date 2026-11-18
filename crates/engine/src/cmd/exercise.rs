@@ -1300,6 +1300,21 @@ pub fn context(s: &Session) -> (bool, usize) {
 }
 
 /// The exercise holding the caret.
+/// A problem exercise put in by another command (a structure's exercise): `exercise.insert`'s
+/// params, the caret in its title afterwards.
+pub(super) fn insert_problem(s: &mut Session, v: &Value) -> CmdResult {
+    insert(s, v)
+}
+
+/// The exercise at the caret's statement (its first and last top-level block) and its repeated
+/// questions in the solution (the first and last top-level block of each).
+pub(super) fn statement_and_prompts(s: &Session) -> Option<(Option<(usize, usize)>, Vec<(usize, usize)>)> {
+    let e = exercise_at_caret(s)?;
+    let layout = scan(s);
+    let ex = layout.exercises.get(e)?;
+    Some((ex.text_blocks, ex.prompts.clone()))
+}
+
 pub(super) fn exercise_at_caret(s: &Session) -> Option<usize> {
     if s.sel.focus.story != StoryRef::Body {
         return None;

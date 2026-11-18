@@ -41,7 +41,10 @@ pub fn specs() -> Vec<CommandSpec> {
             r#"{"node": string, "kind"?: "fixed"|"pin"|"roller"|"link"|"slider", "angle"?: num|expr, "remove"?: bool} → puts a support on a node (replacing its support), turns it, or removes it"#,
         ),
         CommandSpec::new("structure.working", "Write Working", PLACE, working::run).when(selected).params(
-            r#"{"labels"?: {"heading"?, "reactions"?, "signs"?, "hyperstatic"?, "together"?, "forces"?, "conventions"?, "member"?, "axial"?, "hinge"?, "range"? ("x from {a} to {b}"): string}} → writes after the selected structure its solution as live calculations: the equilibrium equations giving the reactions, then each member's laws N(x), T(x), M(x) stretch by stretch with their values (a truss: its axial forces)"#,
+            r#"{"labels"?: {"heading"?, "loads"?, "reactions"?, "signs"?, "hyperstatic"?, "together"?, "forces"?, "conventions"?, "member"?, "axial"?, "hinge"?, "range"? ("x from {a} to {b}"): string}} → writes after the selected structure its solution as live calculations: the loads' names defined (F_1, q_1, a varying load's ends q_(1,1) and q_(1,2), couples C_1), the equilibrium equations giving the reactions, then each member's laws N(x), T(x), M(x) stretch by stretch with their values (a truss: its axial forces)"#,
+        ),
+        CommandSpec::new("structure.exercise", "Structure Exercise", PLACE, exercise::run).params(
+            r#"{"structure"?: object|string, "template"?: "beam"|"cantilever"|"continuous"|"frame"|"truss", "labels"?: {"title"?, "text"?, "reactions"?, "diagrams"? (the two questions), and structure.working's labels}} → a new exercise on a structure: the statement with the structure and its loads, the questions (reactions; N, T, M), and in the solution under each question its working and its drawing (the reactions; the diagrams), all drawings of one structure (a change to one is made to the others)"#,
         ),
         CommandSpec::new("structure.load", "Structure Load", PLACE, load).when(selected).params(
             r#"{"index"?: n, "load"?: object ({"type": "force"|"moment"|"distributed", ...}), "remove"?: bool} → adds a load, replaces load `index`, or removes it"#,
@@ -249,12 +252,7 @@ fn insert(s: &mut Session, v: &Value) -> CmdResult {
         None => template(p::str(v, "template").unwrap_or("beam"))?,
     };
     apply_settings(&mut st, v)?;
-    let st = st.sanitized();
-    let rendered = st.render(None).plot;
-    let (w, h, items) = super::plot::items_of(&rendered, &s.doc.settings.minor_font);
-    let svg = Some(rendered.to_svg().into());
-    let graphic = Graphic { kind: GraphicKind::Structure, items, w, h, structure: Some(st.to_json().into()), svg, ..Default::default() };
-    let obj = InlineObject::Graphic { w, h, alt: String::new(), float: Float::default(), graphic: Arc::new(graphic) };
+    let obj = graphic(s, &st.sanitized());
     let props = s.typing_props();
     let at = super::delete_selection(s)?;
     let end = s.doc.insert_object(&at, obj, &props)?;
@@ -265,6 +263,53 @@ fn insert(s: &mut Session, v: &Value) -> CmdResult {
         s.view.structure_pane = true;
     }
     super::sel_result(s)
+}
+
+/// A structure as an inline graphic, drawn with no parameters (the recalculation draws it again
+/// where it lands).
+fn graphic(s: &Session, st: &Structure) -> InlineObject {
+    let rendered = st.render(None).plot;
+    let (w, h, items) = super::plot::items_of(&rendered, &s.doc.settings.minor_font);
+    let svg = Some(rendered.to_svg().into());
+    let graphic = Graphic { kind: GraphicKind::Structure, items, w, h, structure: Some(st.to_json().into()), svg, ..Default::default() };
+    InlineObject::Graphic { w, h, alt: String::new(), float: Float::default(), graphic: Arc::new(graphic) }
+}
+
+/// The other drawings of `st`'s group in the body (an exercise's statement and solution) take
+/// its change, each keeping its own view and width.
+fn sync_group(s: &mut Session, pos: &wordcraft_doc::Pos, st: &Structure) {
+    if st.group.is_empty() {
+        return;
+    }
+    for i in 0..s.doc.body.len() {
+        let here = pos.story == wordcraft_doc::StoryRef::Body && pos.path.0.len() == 1 && pos.path.0.first().is_some_and(|&t| t as usize == i);
+        let Some(block) = s.doc.body.get(i) else { continue };
+        let wordcraft_doc::Block::Para(p) = &**block else { continue };
+        let offs: Vec<usize> = p
+            .objects_with_offsets()
+            .filter_map(|(off, o)| match o {
+                InlineObject::Graphic { graphic, .. } if graphic.kind == GraphicKind::Structure && !(here && off == pos.off) => {
+                    let other = Structure::from_json(graphic.structure.as_deref()?).ok()?;
+                    (other.group == st.group).then_some(off)
+                }
+                _ => None,
+            })
+            .collect();
+        if offs.is_empty() {
+            continue;
+        }
+        let Some(block) = s.doc.body.get_mut(i) else { continue };
+        let wordcraft_doc::Block::Para(p) = Arc::make_mut(block) else { continue };
+        for off in offs {
+            if let Some(InlineObject::Graphic { graphic, .. }) = p.object_at_mut(off)
+                && let Some(other) = graphic.structure.as_deref().and_then(|src| Structure::from_json(src).ok())
+            {
+                let mine = Structure { view: other.view, width: other.width, ..st.clone() };
+                Arc::make_mut(graphic).structure = Some(mine.to_json().into());
+            }
+        }
+        p.touch();
+    }
 }
 
 fn notable_json(m: &strix_structure::MemberResult, a: Action) -> Value {
@@ -555,6 +600,7 @@ fn store(s: &mut Session, pos: &wordcraft_doc::Pos, st: &Structure) -> Result<()
         }
         para.touch();
     }
+    sync_group(s, pos, st);
     let report = super::calc::recalculate_now(s);
     // A structure the recalculation does not reach (outside the body) is drawn here.
     if report["changed"].as_u64().unwrap_or(0) == 0 && super::calc::resolved_structure(s, &json_arc).is_none() {
@@ -580,6 +626,7 @@ fn store(s: &mut Session, pos: &wordcraft_doc::Pos, st: &Structure) -> Result<()
     Ok(())
 }
 
+mod exercise;
 mod working;
 
 #[cfg(test)]

@@ -25,6 +25,22 @@ pub(super) fn structures(app: &mut WordApp, ui: &mut Ui) {
                 }
             },
         );
+        menu_button(
+            ui,
+            app,
+            crate::widgets::MenuButtonOptions::new(
+                "exercise",
+                Some("Structure Exercise"),
+                "A new exercise on a structure: the structure in the statement, the reactions and the diagrams asked, the working and the drawings in the solution",
+                true,
+                "structure.exercise",
+            ),
+            |ui, app| {
+                for (template, label) in crate::structure_pane::TEMPLATES {
+                    super::mi(ui, app, label, "structure.exercise", exercise_labels(template));
+                }
+            },
+        );
         let editing = app.structure_edit.is_some();
         let (cmd, label) = if editing { ("ui.structureClose", "Close\nEditor") } else { ("ui.structureEdit", "Edit\nStructure") };
         super::big(ui, app, "structureEdit", label, cmd, json!({}), false);
@@ -207,6 +223,83 @@ pub(super) fn structures(app: &mut WordApp, ui: &mut Ui) {
     });
 }
 
+/// The full-page structure editor's tab (`structure_pane::EDITOR_TAB`): its tools, the sheet's
+/// snapping, grid and view, and the way back to the page.
+pub(super) fn structure_editor(app: &mut WordApp, ui: &mut Ui) {
+    let tools = crate::structure_pane::tools(ui.ctx());
+    let tool = |name: &str| crate::widgets::ButtonAction::new("ui.structureTool", json!({"tool": name}), tools.tool == name);
+    let big_tool = |ui: &mut Ui, app: &mut WordApp, icon: &str, label: &str, name: &str| {
+        crate::widgets::big_checked(ui, app, icon, label, "ui.structureTool", json!({"tool": name}), tools.tool == name);
+    };
+    group(ui, "Selection", None, app, |ui, app| {
+        big_tool(ui, app, "cadSelect", "Select", "select");
+        stack(ui, |ui| {
+            small(ui, app, "cadDelete", Some("Erase"), "Click a node or a member to remove it (a node with what uses it)", tool("erase"));
+        });
+    });
+    group(ui, "Draw", None, app, |ui, app| {
+        big_tool(ui, app, "structureNode", "Node", "node");
+        big_tool(ui, app, "structureMember", "Member", "member");
+    });
+    group(ui, "Supports", None, app, |ui, app| {
+        stack(ui, |ui| {
+            small(ui, app, "structureFixed", Some("Fixed"), "Click a node to fix it (incastro)", tool("fixed"));
+            small(ui, app, "structurePin", Some("Pin"), "Click a node to pin it (cerniera)", tool("pin"));
+            small(ui, app, "structureRoller", Some("Roller"), "Click a node to put it on a roller (carrello)", tool("roller"));
+        });
+        stack(ui, |ui| {
+            small(ui, app, "structureLink", Some("Link"), "Click a node to hold it with a link (pendolo)", tool("link"));
+            small(ui, app, "structureSlider", Some("Slider"), "Click a node to hold it with a slider (glifo)", tool("slider"));
+            small(ui, app, "structureHinge", Some("Internal hinge"), "Click a node to make it an internal hinge, or not", tool("hinge"));
+        });
+    });
+    group(ui, "Loads", None, app, |ui, app| {
+        stack(ui, |ui| {
+            small(ui, app, "structureForce", Some("Force"), "Click a node or a point of a member to put a force there", tool("force"));
+            small(ui, app, "structureCouple", Some("Couple"), "Click a node or a point of a member to put a couple there", tool("couple"));
+            small(ui, app, "structureDistributed", Some("Distributed"), "Click a member to load it along its length", tool("distributed"));
+        });
+    });
+    group(ui, "Sheet", None, app, |ui, app| {
+        stack(ui, |ui| {
+            small(
+                ui,
+                app,
+                "cadSnap",
+                Some("Snap"),
+                "Snap to the grid (always to the nodes)",
+                crate::widgets::ButtonAction::new("ui.structureSnap", json!({}), tools.snap),
+            );
+            ui.horizontal(|ui| {
+                ui.add_space(4.0);
+                ui.label(tl!("Grid"));
+                let mut grid = tools.grid;
+                let r = ui.add(egui::DragValue::new(&mut grid).range(0.01..=100.0).speed(0.05).max_decimals(3));
+                if r.on_hover_text(tl!("The grid's step, in the structure's length unit")).changed() {
+                    let _ = app.run("ui.structureGrid", json!({"size": grid}));
+                }
+            });
+            small(ui, app, "cadFit", Some("Fit"), "Show the whole structure", crate::widgets::ButtonAction::new("ui.structureFit", json!({}), false));
+        });
+        stack(ui, |ui| {
+            small(
+                ui,
+                app,
+                "structureDimensions",
+                Some("Dimensions"),
+                crate::structure_pane::DIMS_TIP,
+                crate::widgets::ButtonAction::new("ui.structureDimensions", json!({}), tools.dims),
+            );
+        });
+    });
+    group(ui, "Teaching", None, app, |ui, app| {
+        super::big(ui, app, "steps", "Write\nWorking", "structure.working", crate::structure_pane::working_labels(), false);
+    });
+    group(ui, "Close", None, app, |ui, app| {
+        super::big(ui, app, "cadClose", "Close\nEditor", "ui.structureClose", json!({}), false);
+    });
+}
+
 /// Positive Side: up or down for each diagram.
 fn positive_menu(ui: &mut Ui, app: &mut WordApp, d: &Value, shear: &str) {
     let rows = [("n", "N".to_string()), ("v", shear.to_string()), ("m", "M".to_string())];
@@ -225,4 +318,20 @@ fn positive_menu(ui: &mut Ui, app: &mut WordApp, d: &Value, shear: &str) {
 /// `s` in the interface's language as the structure editor words it.
 fn ts(s: &str) -> &str {
     crate::i18n::tc("structure", s)
+}
+
+/// `structure.exercise`'s params for `template`: the exercise's words and the working's in the
+/// interface's language.
+fn exercise_labels(template: &str) -> Value {
+    let mut v = crate::structure_pane::working_labels();
+    if let Some(l) = v.get_mut("labels").and_then(Value::as_object_mut) {
+        l.insert("title".into(), json!(ts("Structure")));
+        l.insert("text".into(), json!(ts("For the structure in the figure, loaded as shown:")));
+        l.insert("reactions".into(), json!(ts("Classify the structure and find the support reactions.")));
+        l.insert("diagrams".into(), json!(ts("Write the internal forces N, {T}, M stretch by stretch and draw their diagrams.")));
+    }
+    if let Some(o) = v.as_object_mut() {
+        o.insert("template".into(), json!(template));
+    }
+    v
 }

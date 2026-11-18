@@ -17,6 +17,7 @@
 mod diagram;
 mod linalg;
 mod model;
+mod names;
 mod render;
 mod solve;
 mod working;
@@ -26,8 +27,9 @@ mod tests;
 
 pub use diagram::{Action, Notable, NotableKind, notables};
 pub use model::{
-    Diagram, Diagrams, ForceUnit, Layout, LengthUnit, Load, LoadAxes, LoadPer, Member, Node, Num, Side, Structure, Support, SupportKind, Titles,
+    Diagram, Diagrams, ForceUnit, Layout, LengthUnit, Load, LoadAxes, LoadPer, Member, Node, Num, Side, Structure, Support, SupportKind, Titles, View,
 };
+pub use names::{LoadName, load_names};
 pub use render::StructureRendered;
 pub use solve::{Analysis, Forces, MemberResult, Reaction, Status, analyse};
 pub use working::{Resultant, ResultantKind, Stretch, resultants, stretches};

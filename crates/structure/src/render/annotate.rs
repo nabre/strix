@@ -4,19 +4,17 @@
 
 use strix_plot::PlotPrim;
 
-use super::{Ctx, Frame, GREY, LOAD, P, Pen, Rgb, TEXT, add, mul, pd, unit};
+use super::{Ctx, Frame, GREY, P, Pen, Rgb, TEXT, add, mul, pd, unit};
 use crate::model::{Load, LoadAxes, Structure};
 
 /// Dimension lines' colour.
 pub(super) const DIM: Rgb = [0x55, 0x55, 0x55];
 /// Distance from the structure's lowest point (or its supports) to the first dimension line.
-pub(super) const DIM_BELOW: f64 = 12.0;
+const DIM_BELOW: f64 = 12.0;
 /// Between two dimension lines.
-pub(super) const DIM_STEP: f64 = 6.5;
+const DIM_STEP: f64 = 6.5;
 /// From the structure's rightmost point to the vertical dimension line.
 pub(super) const DIM_RIGHT: f64 = 10.0;
-/// The extra room a grid's cell keeps at its right for the chain of heights and its texts.
-pub(super) const Y_CHAIN_ROOM: f64 = 5.0;
 /// Angles within this many degrees of 0°, 90° or 180° are not written (they are evident).
 const SQUARE_TOL: f64 = 0.5;
 
@@ -178,27 +176,9 @@ fn tolerance(ms: &Measures) -> f64 {
     1e-6 * (ms.nodes.iter().fold(0.0_f64, |a, p| a.max(p.0.abs()).max(p.1.abs())) + 1.0)
 }
 
-/// How many dimension lines go below the structure.
-pub(super) fn dimension_room(st: &Structure) -> usize {
-    if !st.diagrams.dimensions {
-        return 0;
-    }
-    let ms = measures(st);
-    x_rows(&ms, tolerance(&ms)).len()
-}
-
 /// The heights (along y) the chain at the structure's right measures.
 fn y_stops(ms: &Measures, tol: f64) -> Vec<f64> {
     distinct(ms.nodes.iter().chain(&ms.on_plumb).map(|p| p.1).collect(), tol)
-}
-
-/// Whether a chain of heights goes at the structure's right (a grid's cell keeps room for it).
-pub(super) fn has_y_chain(st: &Structure) -> bool {
-    if !st.diagrams.dimensions {
-        return false;
-    }
-    let ms = measures(st);
-    ms.nodes.len() >= 2 && y_stops(&ms, tolerance(&ms)).len() >= 2
 }
 
 impl Ctx<'_> {
@@ -327,14 +307,8 @@ impl Ctx<'_> {
             let along = unit((q.0 - p.0, q.1 - p.1));
             let horiz = (along.0.signum(), 0.0);
             let r = 7.0_f64.min(0.3 * len * f.k);
-            self.pen.dashed(p, add(p, mul(horiz, r + 2.5)), GREY, 0.2);
-            let (a0, a1) = (horiz.1.atan2(horiz.0), along.1.atan2(along.0));
-            let a1 = if (a1 - a0).abs() > std::f64::consts::PI { a1 + std::f64::consts::TAU * (a0 - a1).signum() } else { a1 };
-            self.pen.arc(p, r, a0, a1, DIM, 0.25);
-            let mid = (a0 + a1) / 2.0;
-            let at = add(p, mul((mid.cos(), mid.sin()), r + 3.2));
             let text = format!("{}°", self.num(deg));
-            self.pen.turned(at, text, TEXT, 0.0, DIM);
+            self.angle_dimension(p, horiz, along, r, text);
         }
     }
 
@@ -436,13 +410,26 @@ impl Ctx<'_> {
             return;
         };
         let deg = (h.0 * tail.0 + h.1 * tail.1).clamp(-1.0, 1.0).acos().to_degrees();
-        let (a0, a1) = (h.1.atan2(h.0), tail.1.atan2(tail.0));
-        let a1 = if (a1 - a0).abs() > std::f64::consts::PI { a1 + std::f64::consts::TAU * (a0 - a1).signum() } else { a1 };
-        self.pen.dashed(p, add(p, mul(h, r + 2.5)), GREY, 0.2);
-        self.pen.arc(p, r, a0, a1, LOAD, 0.25);
-        let mid = (a0 + a1) / 2.0;
-        let at = add(p, mul((mid.cos(), mid.sin()), r + 3.0));
         let text = format!("{}°", self.num(deg));
-        self.pen.turned(at, text, TEXT, 0.0, LOAD);
+        self.angle_dimension(p, h, tail, r, text);
+    }
+
+    /// An angle drawn as the dimensions are: a thin extension line along `from` (the reference:
+    /// the horizontal, a member), an arc of radius `r` round `p` from `from` to `to` in the
+    /// dimension lines' colour with an oblique tick at each end, and the angle beside it.
+    fn angle_dimension(&mut self, p: P, from: P, to: P, r: f64, text: String) {
+        let (a0, a1) = (from.1.atan2(from.0), to.1.atan2(to.0));
+        let a1 = if (a1 - a0).abs() > std::f64::consts::PI { a1 + std::f64::consts::TAU * (a0 - a1).signum() } else { a1 };
+        self.pen.line(add(p, mul(from, 1.0)), add(p, mul(from, r + 1.2)), GREY, 0.15);
+        self.pen.arc(p, r, a0, a1, DIM, 0.2);
+        for a in [a0, a1] {
+            let (radial, tangent) = ((a.cos(), a.sin()), (-a.sin(), a.cos()));
+            let mid = add(p, mul(radial, r));
+            let tick = mul(add(radial, tangent), 0.64);
+            self.pen.line(add(mid, mul(tick, -1.0)), add(mid, tick), DIM, 0.3);
+        }
+        let mid = (a0 + a1) / 2.0;
+        let at = add(p, mul((mid.cos(), mid.sin()), r + 3.2));
+        self.pen.turned(at, text, TEXT, 0.0, DIM);
     }
 }
