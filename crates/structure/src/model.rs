@@ -392,12 +392,15 @@ pub struct Diagrams {
     #[serde(default = "default_true", skip_serializing_if = "is_true")]
     pub signs: bool,
     /// The structure's dimensions (chains of distances along x and y, inclined members' slopes)
-    /// and the angles inclined forces make with their members.
-    #[serde(default = "default_true", skip_serializing_if = "is_true")]
+    /// and the angles inclined forces make with their members. On in a new structure
+    /// ([`Diagrams::default`], written out), off when absent: a structure saved before they existed
+    /// keeps its drawing and its size on the page.
+    #[serde(default, skip_serializing_if = "is_false")]
     pub dimensions: bool,
     /// The diagrams' stations: where along each member a notable value is (a maximum, a zero,
-    /// a load's position), written on the axis.
-    #[serde(default = "default_true", skip_serializing_if = "is_true")]
+    /// a load's position), written on the axis. On in a new structure, off when absent, as
+    /// `dimensions`.
+    #[serde(default, skip_serializing_if = "is_false")]
     pub stations: bool,
 }
 

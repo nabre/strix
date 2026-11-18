@@ -33,7 +33,9 @@ pub(super) fn structures(app: &mut WordApp, ui: &mut Ui) {
     });
     let d = &st["diagrams"];
     let shown = |k: &str| d[k]["show"].as_bool().unwrap_or(true);
-    let flag = |k: &str| d[k].as_bool().unwrap_or(true);
+    // Absent flags are on, but dimensions and stations, which a structure saved before them
+    // lacks (off: its drawing stays as it was; a new one writes them).
+    let flag = |k: &str| d[k].as_bool().unwrap_or(!matches!(k, "dimensions" | "stations"));
     let shear = st["titles"]["v"].as_str().unwrap_or("T").to_string();
     group(ui, "Diagrams", None, app, |ui, app| {
         stack(ui, |ui| {

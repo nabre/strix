@@ -15,6 +15,8 @@ pub(super) const DIM_BELOW: f64 = 12.0;
 pub(super) const DIM_STEP: f64 = 6.5;
 /// From the structure's rightmost point to the vertical dimension line.
 pub(super) const DIM_RIGHT: f64 = 10.0;
+/// The extra room a grid's cell keeps at its right for the chain of heights and its texts.
+pub(super) const Y_CHAIN_ROOM: f64 = 5.0;
 /// Angles within this many degrees of 0°, 90° or 180° are not written (they are evident).
 const SQUARE_TOL: f64 = 0.5;
 
@@ -185,6 +187,20 @@ pub(super) fn dimension_room(st: &Structure) -> usize {
     x_rows(&ms, tolerance(&ms)).len()
 }
 
+/// The heights (along y) the chain at the structure's right measures.
+fn y_stops(ms: &Measures, tol: f64) -> Vec<f64> {
+    distinct(ms.nodes.iter().chain(&ms.on_plumb).map(|p| p.1).collect(), tol)
+}
+
+/// Whether a chain of heights goes at the structure's right (a grid's cell keeps room for it).
+pub(super) fn has_y_chain(st: &Structure) -> bool {
+    if !st.diagrams.dimensions {
+        return false;
+    }
+    let ms = measures(st);
+    ms.nodes.len() >= 2 && y_stops(&ms, tolerance(&ms)).len() >= 2
+}
+
 impl Ctx<'_> {
     /// Chains of distances below the structure (x) and at its right (y), and along each
     /// inclined member that carries loads.
@@ -227,7 +243,7 @@ impl Ctx<'_> {
             }
         }
         // Along y, at the right.
-        let ys = distinct(ms.nodes.iter().chain(&ms.on_plumb).map(|p| p.1).collect(), tol);
+        let ys = y_stops(&ms, tol);
         if ys.len() >= 2 {
             let x = f.p(xmax, 0.0).0 + DIM_RIGHT;
             let rightmost = |y: f64| all.iter().filter(|p| (p.1 - y).abs() <= tol).map(|p| f.p(p.0, p.1).0).fold(f64::MIN, f64::max);

@@ -543,7 +543,40 @@ fn an_inclined_member_has_its_slope_and_a_chain_along_it() {
     assert!(has("2 m") && has("3 m") && has("4 m"), "{t:?}");
     // Hostile numbers never panic.
     let mut bad = st.clone();
-    bad.loads.push(Load::Force { node: None, member: Some("1".into()), at: Num::new(f64::NAN), value: Num::new(1e300), angle: Num::new(f64::INFINITY) });
+    bad.loads.push(Load::Force {
+        node: None,
+        member: Some("1".into()),
+        at: Num::new(f64::NAN),
+        value: Num::new(1e300),
+        angle: Num::new(f64::INFINITY),
+    });
     bad.nodes[1].x = Num::new(f64::NAN);
     let _ = bad.render(None);
+}
+
+#[test]
+fn dimensions_and_stations_are_on_in_a_new_structure_and_off_in_one_saved_before_them() {
+    // A new structure has both, written out, and reads back the same.
+    let st = simple_beam();
+    assert!(st.diagrams.dimensions && st.diagrams.stations);
+    let json = st.to_json();
+    assert!(json.contains("\"dimensions\":true") && json.contains("\"stations\":true"), "{json}");
+    let back = Structure::from_json(&json).unwrap();
+    assert_eq!(back.diagrams, st.diagrams);
+    // One saved before them (its diagrams without the two keys) keeps its drawing and its size.
+    let mut old: serde_json::Value = serde_json::from_str(&json).unwrap();
+    let d = old["diagrams"].as_object_mut().unwrap();
+    d.remove("dimensions");
+    d.remove("stations");
+    let old = Structure::from_json(&old.to_string()).unwrap();
+    assert!(!old.diagrams.dimensions && !old.diagrams.stations);
+    let mut before = st.clone();
+    before.diagrams.dimensions = false;
+    before.diagrams.stations = false;
+    assert_eq!(old.render(None).plot.size, before.render(None).plot.size);
+    // Turned off, they are written as such and read back off.
+    let json = before.to_json();
+    assert!(!json.contains("dimensions") && !json.contains("stations"), "{json}");
+    let back = Structure::from_json(&json).unwrap();
+    assert!(!back.diagrams.dimensions && !back.diagrams.stations);
 }

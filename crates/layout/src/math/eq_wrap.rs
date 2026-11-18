@@ -90,6 +90,33 @@ mod tests {
         assert!(narrow.slots.iter().any(|s| s.path.is_empty() && s.off == 1));
     }
 
+    /// Rows with several alignment points wrap too, inside the line, and keep every caret
+    /// position of every row, so the caret moves and clicks land in a wrapped array as in a
+    /// whole one.
+    #[test]
+    fn a_wrapped_array_with_several_columns_keeps_its_caret_positions() {
+        let lin = "█(x&=a+b+c+d+e+f+g+h+i+j&=k+l+m+n+o+p+q+r+s+t@y&=1&=2)";
+        let full = lay(lin, 1e4);
+        let avail = full.width * 0.4;
+        let narrow = lay(lin, avail);
+        assert!(narrow.width <= avail + 1.0, "fits the line: {} > {avail}", narrow.width);
+        assert!(baselines(&narrow).len() > baselines(&full).len(), "it wraps: {:?}", baselines(&narrow));
+        let offs = |m: &MathLayout, row: usize| -> Vec<usize> {
+            let mut v: Vec<usize> = m.slots.iter().filter(|s| s.path == [(0, row)]).map(|s| s.off).collect();
+            v.sort_unstable();
+            v.dedup();
+            v
+        };
+        for row in 0..2 {
+            assert!(!offs(&full, row).is_empty(), "row {row} has caret positions");
+            assert_eq!(offs(&narrow, row), offs(&full, row), "row {row}");
+        }
+        // A click on the wrapped part of the first row lands in it.
+        let lowest = narrow.slots.iter().filter(|s| s.path == [(0, 0)]).map(|s| s.y).fold(f32::MAX, f32::min);
+        let hit = narrow.hit(avail * 0.5, lowest).expect("a caret position");
+        assert_eq!(hit.path, [(0, 0)]);
+    }
+
     #[test]
     fn hostile_widths_never_panic() {
         for avail in [0.0, -5.0, f32::NAN, f32::INFINITY, 1.0] {

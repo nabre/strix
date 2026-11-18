@@ -896,8 +896,13 @@ impl Structure {
         let cols = if grid { 2.0 } else { 1.0 };
         let cell = width / cols;
         let amp = [d.n, d.v, d.m].iter().filter(|x| x.show).map(|x| x.amplitude).fold(0.0_f64, f64::max);
-        // A grid's cells keep room at the left for the reactions' arrows and their values.
-        let (side, side_r) = if grid { (22.0, 14.0) } else { ((8.0 + amp).max(16.0), (8.0 + amp).max(16.0)) };
+        // A grid's cells keep room at the left for the reactions' arrows and their values, and at
+        // the right for the chain of heights when there is one.
+        let (side, side_r) = if grid {
+            (22.0, if annotate::has_y_chain(&st) { 14.0 + annotate::Y_CHAIN_ROOM } else { 14.0 })
+        } else {
+            ((8.0 + amp).max(16.0), (8.0 + amp).max(16.0))
+        };
         let usable = (cell - side - side_r).max(10.0);
         let mut k = if bw > 0.0 { usable / bw } else { f64::MAX };
         if bh > 0.0 {
