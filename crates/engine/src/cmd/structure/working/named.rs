@@ -151,12 +151,29 @@ fn cross(p: (f64, f64), q: (f64, f64)) -> f64 {
 }
 
 impl Geometry<'_> {
-    /// `x - 2 m`, `x + 1 m` or `x`.
+    /// The share of a force along `dir` that acts along the member (`along`) or across it, as a
+    /// factor: `·cos(30°)`, `·sin(30°)` of the angle between the force and the member; nothing
+    /// for the whole force; by its number when the angle isn't a round one (hundredths).
+    fn trig(&self, dir: (f64, f64), along: bool) -> String {
+        let (c, s) = (dot(dir, self.e).abs(), cross(self.e, dir).abs());
+        let g = if along { c } else { s };
+        if (g - 1.0).abs() < 1e-9 {
+            return String::new();
+        }
+        let deg = s.atan2(c).to_degrees();
+        let round = (deg * 100.0).round() / 100.0;
+        if (deg - round).abs() >= 1e-6 {
+            return self.u.factor(g);
+        }
+        format!("·{}({}°)", if along { "cos" } else { "sin" }, super::precise(round, self.u.comma))
+    }
+
+    /// `x - 2 m`, `x - 3.2 m`, `x + 1 m` or `x` (a fraction only with no short decimal).
     fn shifted(&self, s: f64) -> Option<String> {
         if s.abs() <= TOL * (1.0 + s.abs()) {
             return None;
         }
-        Some(format!("x {} {}", if s > 0.0 { "-" } else { "+" }, arg(s.abs(), &self.u.l, self.u.comma)))
+        Some(format!("x {} {}", if s > 0.0 { "-" } else { "+" }, self.u.measure(s.abs())))
     }
 
     /// The section's internal force `action` from agent `ag` on the part before it (N: tension
@@ -165,7 +182,11 @@ impl Geometry<'_> {
         match (ag, action) {
             (Agent::Point { name, mag, dir, .. }, Action::Axial | Action::Shear) => {
                 let g = if action == Action::Axial { -dot(*dir, self.e) } else { dot(*dir, self.n) };
-                (g.abs() > TOL).then(|| Term { sign: g.signum(), text: format!("{name}{}", self.u.factor(g)), poly: [g * mag, 0.0, 0.0] })
+                (g.abs() > TOL).then(|| Term {
+                    sign: g.signum(),
+                    text: format!("{name}{}", self.trig(*dir, action == Action::Axial)),
+                    poly: [g * mag, 0.0, 0.0],
+                })
             }
             (Agent::Point { name, mag, at, dir }, Action::Moment) => {
                 let k1 = cross(self.e, *dir);
@@ -173,8 +194,8 @@ impl Geometry<'_> {
                 if k1.abs() > TOL {
                     let s = -c0 / k1;
                     let text = match self.shifted(s) {
-                        Some(t) => format!("{name}{}·({t})", self.u.factor(k1)),
-                        None => format!("{name}{}·x", self.u.factor(k1)),
+                        Some(t) => format!("{name}{}·({t})", self.trig(*dir, false)),
+                        None => format!("{name}{}·x", self.trig(*dir, false)),
                     };
                     Some(Term { sign: k1.signum(), text, poly: [mag * c0, mag * k1, 0.0] })
                 } else if c0.abs() > TOL {
@@ -194,7 +215,7 @@ impl Geometry<'_> {
                 if g.abs() <= TOL {
                     return None;
                 }
-                let f = self.u.factor(g * factor);
+                let f = if (factor - 1.0).abs() < 1e-9 { self.trig(*dir, action == Action::Axial) } else { self.u.factor(g * factor) };
                 let x = self.shifted(*from).map_or_else(|| "x".to_string(), |t| format!("({t})"));
                 let s0 = *from;
                 Some(if action == Action::Moment {

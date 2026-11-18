@@ -185,7 +185,7 @@ mod tests {
         assert_eq!(r["group"], "structure-1", "{r}");
         let found = structures(&s);
         let views: Vec<View> = found.iter().map(|f| f.2.view).collect();
-        assert_eq!(views, [View::Structure, View::Reactions, View::Axial, View::Shear, View::Moment]);
+        assert_eq!(views, [View::Structure, View::Equilibrium, View::Reactions, View::Axial, View::Shear, View::Moment]);
         assert!(found.iter().all(|f| f.2.group == "structure-1"));
         let t = text(&s);
         assert!(t.contains("Trave") && t.contains("Calcola le reazioni.") && t.contains("Dove T = 0?"), "{t}");
@@ -218,12 +218,12 @@ mod tests {
         s.sel = Selection { anchor: at.clone(), focus: Pos { off: off + OBJ.len_utf8(), ..at } };
         s.run("structure.node", &json!({"id": "B", "x": 8})).unwrap();
         let found = structures(&s);
-        assert_eq!(found.len(), 5);
+        assert_eq!(found.len(), 6);
         for (_, _, st) in &found {
             assert_eq!(st.node("B").map(|n| n.x.value), Some(8.0), "{:?}", st.view);
         }
         let views: Vec<View> = found.iter().map(|f| f.2.view).collect();
-        assert_eq!(views, [View::Structure, View::Reactions, View::Axial, View::Shear, View::Moment]);
+        assert_eq!(views, [View::Structure, View::Equilibrium, View::Reactions, View::Axial, View::Shear, View::Moment]);
     }
 
     /// The equations of the body in reading order: (linear text, result of question).
@@ -299,7 +299,7 @@ mod tests {
         let mut s = Session::new(Document::new());
         s.run("structure.exercise", &json!({"template": "truss"})).unwrap();
         let views: Vec<View> = structures(&s).iter().map(|f| f.2.view).collect();
-        assert_eq!(views, [View::Structure, View::Reactions, View::Axial]);
+        assert_eq!(views, [View::Structure, View::Equilibrium, View::Reactions, View::Axial]);
         assert!(text(&s).contains("axial force in every member"), "{}", text(&s));
     }
 }

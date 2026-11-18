@@ -527,6 +527,35 @@ fn the_drawing_has_dimensions_stations_and_values_across_the_members() {
 }
 
 #[test]
+fn a_zero_close_to_a_load_has_its_station_and_a_nought_diagram_has_none() {
+    // T goes from 0.708 to −14.292 over 4.2–5.2 m: nought at 4.247 m, 47 mm past the load's start.
+    let mut st = simple_beam();
+    let part = |q: f64, from: f64, to: f64| Load::Distributed {
+        member: "1".into(),
+        q1: q.into(),
+        q2: None,
+        from: from.into(),
+        to: Some(to.into()),
+        angle: Num::new(-90.0),
+        axes: LoadAxes::Global,
+        per: LoadPer::Length,
+    };
+    st.loads = vec![
+        part(10.0, 0.0, 2.5),
+        Load::Force { node: None, member: Some("1".into()), at: 3.2.into(), value: 5.0.into(), angle: Num::new(90.0) },
+        part(15.0, 4.2, 5.2),
+    ];
+    let t = texts(&st.render(None));
+    let count = |s: &str| t.iter().filter(|(x, a)| x == s && (a.abs() - 90.0).abs() < 1e-9).count();
+    // On T (the zero) and on M (its extreme), beside 4.2 m's.
+    assert_eq!(count("4.247 m"), 2, "{t:?}");
+    assert_eq!(count("4.2 m"), 2, "{t:?}");
+    // N is nought all along: no stations on it, T's and M's only.
+    assert_eq!(count("2.5 m"), 2, "{t:?}");
+    assert_eq!(count("2.071 m"), 2, "{t:?}");
+}
+
+#[test]
 fn an_inclined_member_has_its_slope_and_a_chain_along_it() {
     let st = Structure {
         nodes: vec![node("A", 0.0, 0.0), node("B", 4.0, 3.0)],
@@ -641,4 +670,38 @@ fn loads_are_numbered_together_by_place() {
     ];
     let n = crate::load_names(&st);
     assert_eq!(n.iter().map(|n| n.map(|n| n.linear_end(2))).collect::<Vec<_>>(), [Some("q_(1,2)".to_string()), Some("F_2".to_string())]);
+}
+
+/// The free body of the reactions' working names what its equations use: the reactions as
+/// unknowns, a distributed load's resultant, an askew force's horizontal and vertical parts (a
+/// letter and its subscript), and puts a station of the dimensions at the resultant's centroid.
+#[test]
+fn the_free_body_names_the_unknowns_resultants_and_parts() {
+    let mut st = simple_beam();
+    st.loads.clear();
+    st.loads.push(Load::Distributed {
+        member: "1".into(),
+        q1: 10.0.into(),
+        q2: None,
+        from: Num::default(),
+        to: Some(2.5.into()),
+        angle: Num::new(-90.0),
+        axes: LoadAxes::Global,
+        per: LoadPer::Length,
+    });
+    st.loads.push(Load::Force { node: None, member: Some("1".into()), at: Num::new(3.2), value: Num::new(10.0), angle: Num::new(30.0) });
+    st.diagrams.dimensions = false;
+    st.view = crate::View::Equilibrium;
+    let r = st.render(None);
+    let t: Vec<String> = texts(&r).into_iter().map(|(t, _)| t).collect();
+    let pairs: Vec<String> = t.windows(2).map(|w| format!("{}_{}", w[0], w[1])).collect();
+    for name in ["H_A", "V_A", "V_B", "F_1", "F_2,h", "F_2,v"] {
+        assert!(pairs.iter().any(|p| p == name), "{name}: {t:?}");
+    }
+    // Names only: no values, no load intensities.
+    assert!(!t.iter().any(|x| x.contains("kN")), "{t:?}");
+    // The arms' stations, whatever the dimensions' setting: 1.25 m to the resultant.
+    assert!(t.iter().filter(|x| x.as_str() == "1.25 m").count() >= 2, "{t:?}");
+    let json = st.to_json();
+    assert!(json.contains("\"view\":\"equilibrium\""), "{json}");
 }

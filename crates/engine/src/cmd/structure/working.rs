@@ -98,19 +98,26 @@ struct Line {
     display: bool,
     /// Its equations' steps one under the other (a long equilibrium equation fits the page).
     stepped: bool,
+    /// In place of words and equations, the free body the reactions' equations balance (the
+    /// structure drawn with [`View::Equilibrium`](strix_structure::View)).
+    figure: bool,
 }
 
 impl Line {
     fn words(label: String) -> Line {
-        Line { label, note: None, after: String::new(), equations: Vec::new(), display: false, stepped: false }
+        Line { label, note: None, after: String::new(), equations: Vec::new(), display: false, stepped: false, figure: false }
     }
 
     fn eqs(equations: Vec<String>, display: bool) -> Line {
-        Line { label: String::new(), note: None, after: String::new(), equations, display, stepped: false }
+        Line { label: String::new(), note: None, after: String::new(), equations, display, stepped: false, figure: false }
+    }
+
+    fn figure() -> Line {
+        Line { figure: true, ..Line::words(String::new()) }
     }
 
     fn noted(label: String, note: String, after: String) -> Line {
-        Line { label, note: Some(note), after, equations: Vec::new(), display: false, stepped: false }
+        Line { label, note: Some(note), after, equations: Vec::new(), display: false, stepped: false, figure: false }
     }
 }
 
@@ -120,14 +127,20 @@ pub(super) fn run(s: &mut Session, v: &Value) -> CmdResult {
     let (mut pos, src) = super::selected_source(s).ok_or_else(|| CmdError::Disabled("select a structure first".into()))?;
     let mut st = Structure::from_json(&src).map_err(|e| CmdError::Failed(format!("the structure can't be read: {e}")))?;
     let props = s.doc.para_at(&pos).map(|p| p.mark.clone()).unwrap_or_default();
-    let paras = whole(s, &src, v, &props)?;
-    let count = paras.len();
+    // Fails before anything changes when the structure can't be solved.
+    let mut paras = whole(s, &src, v, &props)?;
     // The structure keeps the working's words and gets a group to name its bookmark.
-    if st.group.is_empty() {
+    let grouped = st.group.is_empty();
+    if grouped {
         st.group = super::free_group(s);
     }
     keep_labels(&mut st, v);
     let src = super::put(s, &pos, &st)?;
+    // Its free body in the working belongs to the group it just got.
+    if grouped {
+        paras = whole(s, &src, v, &props)?;
+    }
+    let count = paras.len();
     let name = live::name(&st.group, Part::Whole);
     match live::range(s, &name) {
         Some(r) => live::replace(s, r, paras, &name, &mut pos)?,
@@ -167,14 +180,36 @@ fn whole(s: &Session, src: &std::sync::Arc<str>, v: &Value, props: &wordcraft_do
     }
     let comma = crate::cmd::calc::options_now(s).decimal_comma;
     let lines = lines(&r.resolved, &r.analysis, &Labels::from(v), comma);
-    paragraphs(&lines, props)
+    paragraphs_with(&lines, props, Some(&free_body(s, &st)))
+}
+
+/// The free body the reactions' equations balance: structure `st` drawn with its reactions as
+/// unknowns, its loads' resultants and parts, named as the working names them (the same group,
+/// so it follows the structure; written again with the working).
+fn free_body(s: &Session, st: &Structure) -> InlineObject {
+    let fig = Structure { view: strix_structure::View::Equilibrium, working_key: String::new(), ..st.clone() };
+    super::graphic(s, &fig)
 }
 
 /// The working's lines as paragraphs in the character formatting `props`.
 fn paragraphs(lines: &[Line], props: &wordcraft_doc::CharProps) -> Result<Vec<Paragraph>, CmdError> {
+    paragraphs_with(lines, props, None)
+}
+
+/// [`paragraphs`], the free body (`figure`) in a paragraph of its own where a line asks for it
+/// (none without it).
+fn paragraphs_with(lines: &[Line], props: &wordcraft_doc::CharProps, figure: Option<&InlineObject>) -> Result<Vec<Paragraph>, CmdError> {
     let props = props.clone();
     let mut out = Vec::new();
     for line in lines {
+        if line.figure {
+            if let Some(obj) = figure {
+                let mut para = Paragraph::with_text("", props.clone());
+                para.insert_object(0, obj.clone(), &props).map_err(|e| CmdError::Failed(e.to_string()))?;
+                out.push(para);
+            }
+            continue;
+        }
         let mut para = Paragraph::with_text(&line.label, props.clone());
         if let Some(note) = &line.note {
             let math = Math { nodes: parse_linear(note), calc: false, ..Math::default() };
@@ -250,6 +285,13 @@ fn arg(v: f64, unit: &str, comma: bool) -> String {
         Some(inner) if !inner.contains(')') => inner.to_string(),
         _ => t,
     }
+}
+
+/// A point where a law is worked out, as the function's argument: a number, never a sum
+/// or a fraction (`3.2 m`, `3.3333333 m`, not `(16 m)/5`).
+fn at(v: f64, unit: &str, comma: bool) -> String {
+    let t = precise(v, comma);
+    if unit.is_empty() { t } else { format!("{t} {unit}") }
 }
 
 /// A number with eight significant digits.
@@ -824,6 +866,8 @@ fn lines(st: &Structure, an: &strix_structure::Analysis, labels: &Labels, comma:
         out.push(Line::eqs(chunk.to_vec(), false));
     }
     out.push(Line::words(format!("{}:", labels.reactions)));
+    // The free body the equations balance, before them.
+    out.push(Line::figure());
     let us = unknowns(st, an);
     // The candidate equations: rotations about the supports first, then the translations, then
     // the parts about the hinges.
@@ -974,7 +1018,7 @@ fn member_lines(st: &Structure, us: &[Unknown], m: &MemberResult, u: &Units, lab
     let extremes: Vec<f64> = notables(m, Action::Moment).into_iter().filter(|n| n.kind == NotableKind::Extreme).map(|n| n.x).collect();
     for (k, s) in parts.iter().enumerate() {
         let tag = stretch_tag(&id, k, parts.len());
-        let at = |x: f64| arg(x, l, u.comma);
+        let at = |x: f64| at(x, l, u.comma);
         out.push(stretch_header(src, s, u, labels));
         // With the reactions' and the loads' names where they can be, else the numbers.
         let [n, v, mo] = named::laws(st, us, m, s, u);

@@ -502,6 +502,11 @@ pub enum View {
     Shear,
     /// The M diagram only (none for a truss).
     Moment,
+    /// The free body the reactions' working balances: the reactions as unknowns (`H_A`, `V_A`,
+    /// `V_B`), each distributed load as its resultant (`F_1`) and each askew force as its
+    /// horizontal and vertical parts (`F_(2,h)`, `F_(2,v)`), named as the working names them, with
+    /// the dimensions their arms are read from.
+    Equilibrium,
 }
 
 fn is_all(v: &View) -> bool {

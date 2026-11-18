@@ -112,6 +112,11 @@ fn bearing(st: &Structure, member: &str) -> Option<bool> {
 }
 
 fn measures(st: &Structure) -> Measures {
+    measures_with(st, &[])
+}
+
+/// [`measures`] with more points along members (`(member, distance from its first node)`).
+fn measures_with(st: &Structure, extra: &[(String, f64)]) -> Measures {
     let nodes: Vec<(f64, f64)> =
         st.nodes.iter().filter(|n| st.members.iter().any(|m| m.a == n.id || m.b == n.id)).map(|n| (n.x.value, n.y.value)).collect();
     let mut out = Measures { nodes, on_level: Vec::new(), on_plumb: Vec::new(), inclined: Vec::new() };
@@ -146,6 +151,9 @@ fn measures(st: &Structure) -> Measures {
             }
             _ => {}
         }
+    }
+    for (m, at) in extra {
+        add_at(&mut out, m, *at);
     }
     out
 }
@@ -209,7 +217,13 @@ impl Ctx<'_> {
         if !self.st.diagrams.dimensions {
             return;
         }
-        let ms = measures(self.st);
+        self.dimensions_with(f, &[]);
+    }
+
+    /// [`Self::dimensions`] (whatever the structure's setting) with stations at more points along
+    /// members (`(member, distance from its first node)`): the free body's resultants.
+    pub(super) fn dimensions_with(&mut self, f: &Frame, extra: &[(String, f64)]) {
+        let ms = measures_with(self.st, extra);
         if ms.nodes.len() < 2 {
             return;
         }

@@ -355,7 +355,7 @@ fn an_exercise_working_follows_any_of_its_drawings() {
     s.run("structure.exercise", &json!({"labels": {"loads": "Carichi"}})).unwrap();
     assert!(has(&text_of(&s), "F_1=q_1·6 m"));
     // The diagram of M in the solution, changed: the statement and every part follow.
-    select_structure(&mut s, 4);
+    select_structure(&mut s, 5);
     s.run("structure.load", &shortened(4.0)).unwrap();
     let t = text_of(&s);
     assert!(has(&t, "F_1=q_1·4 m") && !has(&t, "F_1=q_1·6 m"), "{t}");
@@ -458,4 +458,84 @@ fn the_moments_use_named_resultants_parts_and_arms() {
     assert!(has(&t, "V_B&=11.726 kN"), "{t}");
     // Each arm once, before the first equation that uses it.
     assert_eq!(t.matches("d_(1,A)=").count(), 1, "{t}");
+}
+
+/// A force askew to the member enters N, T and M with the trigonometric function of its angle
+/// with the member (`F_1·cos(30°)`), not the function's value (`F_1·0.866025`).
+#[test]
+fn the_laws_write_an_askew_force_with_cos_and_sin() {
+    let t = working_of(json!({
+        "nodes": [{"id": "A", "x": 0, "y": 0}, {"id": "B", "x": 6, "y": 0}],
+        "members": [{"id": "1", "a": "A", "b": "B"}],
+        "supports": [{"node": "A", "kind": "pin"}, {"node": "B", "kind": "roller"}],
+        "loads": [{"type": "force", "member": "1", "at": 2, "value": 10, "angle": -150}]
+    }))
+    .unwrap();
+    assert!(!t.contains('⚠'), "{t}");
+    assert!(has(&t, "F_1·cos⁡(30 °)") && has(&t, "F_1·sin⁡(30 °)"), "{t}");
+    assert!(has(&t, "F_1·sin⁡(30 °)·(x - 2 m)"), "{t}");
+    assert!(!has(&t, "0.866") && !has(&t, "F_1·0.5"), "{t}");
+}
+
+/// A law is worked out at a point written as a number (`T_1b(3.2 m)`), not as a fraction
+/// (`T_1b((16 m)/5)`), in the working and in the results it gathers.
+#[test]
+fn the_laws_are_worked_out_at_decimal_points() {
+    let t = working_of(json!({
+        "nodes": [{"id": "A", "x": 0, "y": 0}, {"id": "B", "x": 6, "y": 0}],
+        "members": [{"id": "1", "a": "A", "b": "B"}],
+        "supports": [{"node": "A", "kind": "pin"}, {"node": "B", "kind": "roller"}],
+        "loads": [{"type": "force", "member": "1", "at": 3.2, "value": 10, "angle": -90}]
+    }))
+    .unwrap();
+    assert!(!t.contains('⚠'), "{t}");
+    assert!(has(&t, "T_1b(3.2 m) =") && has(&t, "M_1b(3.2 m) ="), "{t}");
+    assert!(has(&t, "F_1·(x - 3.2 m)"), "{t}");
+    assert!(!has(&t, "16 m)/5"), "{t}");
+}
+
+/// The views of the structures drawn in the body, in reading order.
+fn views(s: &Session) -> Vec<strix_structure::View> {
+    s.doc
+        .body
+        .iter()
+        .filter_map(|b| match &**b {
+            Block::Para(p) => Some(p.objects.iter().filter_map(|o| match o {
+                InlineObject::Graphic { graphic, .. } if graphic.kind == GraphicKind::Structure => {
+                    strix_structure::Structure::from_json(graphic.structure.as_deref()?).ok().map(|st| (st.view, st.group))
+                }
+                _ => None,
+            })),
+            _ => None,
+        })
+        .flatten()
+        .map(|(v, g)| {
+            assert_eq!(g, "structure-1");
+            v
+        })
+        .collect()
+}
+
+/// The reactions' working draws the free body its equations balance, under its heading and before
+/// the first equation, in the structure's group; written again, it stays one.
+#[test]
+fn the_reactions_working_draws_the_free_body() {
+    use strix_structure::View;
+    let mut s = Session::new(Document::new());
+    s.run("structure.insert", &json!({"template": "beam"})).unwrap();
+    s.run("structure.working", &json!({})).unwrap();
+    assert_eq!(views(&s), [View::All, View::Equilibrium]);
+    let t = text_of(&s);
+    let (reactions, first) = (t.find("Reactions:").unwrap(), t.find("ΣM").unwrap());
+    let figure = s
+        .doc
+        .body
+        .iter()
+        .position(|b| matches!(&**b, Block::Para(p) if p.objects.iter().any(|o| matches!(o, InlineObject::Graphic { graphic, .. } if graphic.structure.as_deref().is_some_and(|j| j.contains("equilibrium"))))))
+        .unwrap();
+    let heading = s.doc.body.iter().position(|b| matches!(&**b, Block::Para(p) if p.text.contains("Reactions:"))).unwrap();
+    assert_eq!(figure, heading + 1);
+    assert!(reactions < first);
+    s.run("structure.working", &json!({})).unwrap();
+    assert_eq!(views(&s), [View::All, View::Equilibrium]);
 }
