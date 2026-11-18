@@ -582,7 +582,7 @@ impl Units {
         }
     }
 
-    /// The definitions of the loads' names: `F_1 = (20 kN)`, `q_(1,1) = (5 kN/m)` (sizes: the
+    /// The definitions of the loads' names: `F_1 = 20 kN`, `q_(1,1) = 5 kN/m`, `F_2 = (70 kN)/3` (sizes: the
     /// equations' signs give the directions), in the names' order.
     fn definitions(&self, st: &Structure) -> Vec<String> {
         let mut out: Vec<(usize, String)> = Vec::new();
@@ -590,17 +590,17 @@ impl Units {
             let Some(name) = name else { continue };
             let n = name.number;
             match l {
-                Load::Force { value, .. } => out.push((n, format!("{} = {}", name.linear(), self.force(value.value)))),
-                Load::Moment { value, .. } => out.push((n, format!("{} = {}", name.linear(), self.moment(value.value)))),
+                Load::Force { value, .. } => out.push((n, format!("{} = {}", name.linear(), bare(&self.force(value.value))))),
+                Load::Moment { value, .. } => out.push((n, format!("{} = {}", name.linear(), bare(&self.moment(value.value))))),
                 Load::Distributed { q1, q2, .. } => {
                     let (a, b) = (q1.value, q2.as_ref().map_or(q1.value, |q| q.value));
                     if !name.varying {
-                        out.push((n, format!("{} = {}", name.linear(), self.spread(a))));
+                        out.push((n, format!("{} = {}", name.linear(), bare(&self.spread(a)))));
                         continue;
                     }
                     for (end, q) in [(1, a), (2, b)] {
                         if q != 0.0 {
-                            out.push((n, format!("{} = {}", name.linear_end(end), self.spread(q))));
+                            out.push((n, format!("{} = {}", name.linear_end(end), bare(&self.spread(q)))));
                         }
                     }
                 }
@@ -975,7 +975,7 @@ fn lines(st: &Structure, an: &strix_structure::Analysis, labels: &Labels, comma:
                 Acts::Turns => format!("{}·{}", u.f, u.l),
                 Acts::Along(_) => u.f.clone(),
             };
-            out.push(Line::eqs(vec![format!("{} = {}", k.name, signed(k.value, &unit, comma))], false));
+            out.push(Line::eqs(vec![format!("{} = {}", k.name, bare(&signed(k.value, &unit, comma)))], false));
         }
     }
     out.push(Line::words(labels.signs.clone()));
@@ -986,7 +986,7 @@ fn lines(st: &Structure, an: &strix_structure::Analysis, labels: &Labels, comma:
             .iter()
             .map(|m| {
                 let n = m.forces(m.length * 0.5, true).n;
-                format!("N_{} = {}", sub(&m.id, 0), signed(n, &u.f, comma))
+                format!("N_{} = {}", sub(&m.id, 0), bare(&signed(n, &u.f, comma)))
             })
             .collect();
         for chunk in defs.chunks(4) {
@@ -1048,9 +1048,9 @@ fn member_lines(st: &Structure, us: &[Unknown], m: &MemberResult, u: &Units, lab
         out.push(stretch_header(src, s, u, labels));
         // With the reactions' and the loads' names where they can be, else the numbers.
         let [n, v, mo] = named::laws(st, us, m, s, u);
-        out.push(Line::eqs(vec![format!("N_{tag}(x) = {}", n.unwrap_or_else(|| law(&s.n, [f, &fl, &fl2, &fl3], u.comma)))], true));
-        out.push(Line::eqs(vec![format!("{shear}_{tag}(x) = {}", v.unwrap_or_else(|| law(&s.v, [f, &fl, &fl2, &fl3], u.comma)))], true));
-        out.push(Line::eqs(vec![format!("M_{tag}(x) = {}", mo.unwrap_or_else(|| law(&s.m, [&fm, f, &fl, &fl2], u.comma)))], true));
+        out.push(Line::eqs(vec![format!("N_{tag}(x) = {}", bare(&n.unwrap_or_else(|| law(&s.n, [f, &fl, &fl2, &fl3], u.comma))))], true));
+        out.push(Line::eqs(vec![format!("{shear}_{tag}(x) = {}", bare(&v.unwrap_or_else(|| law(&s.v, [f, &fl, &fl2, &fl3], u.comma))))], true));
+        out.push(Line::eqs(vec![format!("M_{tag}(x) = {}", bare(&mo.unwrap_or_else(|| law(&s.m, [&fm, f, &fl, &fl2], u.comma))))], true));
         let mut values = Vec::new();
         if s.n[1..].iter().any(|c| *c != 0.0) {
             values.push(format!("N_{tag}({}) = {f}", at(s.x0)));

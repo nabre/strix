@@ -47,6 +47,7 @@ dimensions with geometric constraints in CAD (docs/cad.md).
 Strix's history since the fork (2026-10-27). Earlier entries are WordCraft's: see its
 [roadmap](https://github.com/storytold/wordcraft/blob/main/ROADMAP.md).
 
+- 2026-11-18: **Plain values without parentheses** (`crates/engine/src/cmd/structure/working.rs`, `working/questions.rs`). The working wrote the loads' definitions as `q_1 = (10 kN/m)`, `F_2 = (10 kN)`, and the same for the reactions, a truss's forces, a constant law (`N_1a(x) = (0 kN)`) and where the shear is zero; a value standing alone after `=` is now written bare (`q_1 = 10 kN/m`), the parentheses kept where calc needs them (`(70 kN)/3`, a value multiplied in a formula).
 - 2026-11-18: **N's intervals end only at axial loads** (docs/structures.md, Exercise; `crates/engine/src/cmd/structure/working/questions.rs`). Under an exercise's N question the laws were split at every load across the member (`N_1a`, `N_1b`, `N_1c` all `= −H_A` under two vertical forces); neighbouring stretches with the same law of N are now one interval, so N's intervals end only where an axial load or a load's axial part acts.
 - 2026-11-18: **The working's blocks never split across pages** (docs/structures.md, Working; `crates/engine/src/cmd/structure/working.rs`). A heading could stay alone at the bottom of a page, its equations on the next, and a block of equations (a rotation's arms and its equation, a stretch's laws and values) could be cut in two. Each heading is now kept with what follows it, each line of equations with the next of its block and a stepped equation's lines together (keep with next / keep lines together, as Word does and saves), so a block that doesn't fit starts on the next page, wherever the text above puts it, without a page break written. Tested by laying the frame's working out under 0–40 lines of text.
 - 2026-11-18: **One value at a station a line** (docs/structures.md, Working; `crates/engine/src/cmd/structure/working.rs`, `working/questions.rs`). The internal forces' values at a stretch's ends and at M's extremes (`M_1b(2 m) = …`, `M_1b(4.5 m) = …`) stood side by side on one line; each is now a line of its own, in the full working and in an exercise's parts (a shear's jump too: before and after one under the other).
@@ -209,6 +210,7 @@ Strix's history since the fork (2026-10-27). Earlier entries are WordCraft's: se
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-11-18 | patch | Structure working: plain values without parentheses (`q_1 = 10 kN/m`) |
 | 2026-11-18 | patch | Structure exercise: N's intervals only at axial loads |
 | 2026-11-18 | patch | Structure working: blocks (a heading and its equations) never split across pages |
 | 2026-11-18 | patch | Structure working: each value at a station on a line of its own |

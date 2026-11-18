@@ -297,7 +297,7 @@ impl Writer<'_> {
                     } else {
                         for (j, at) in found.iter().enumerate() {
                             let name = if found.len() > 1 { format!("x_({tag},{})", j + 1) } else { x.clone() };
-                            let def = format!("{name} = {}", signed(*at, &self.u.l, self.u.comma));
+                            let def = format!("{name} = {}", super::bare(&signed(*at, &self.u.l, self.u.comma)));
                             let check = format!("{}_{tag}({name}) = {}", self.shear, self.u.f);
                             out.push((Line::eqs(vec![def, check], false), true));
                         }

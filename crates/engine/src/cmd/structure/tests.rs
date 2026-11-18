@@ -264,7 +264,8 @@ fn the_working_names_the_loads() {
     assert!(!t.contains('⚠'), "{t}");
     // Defined with their sizes; the zero force is not numbered.
     assert!(has(&t, "Loads:"), "{t}");
-    let defs = ["q_1=(10 kN/m)", "q_(2,1)=(2 kN/m)", "q_(2,2)=(5 kN/m)", "q_(3,2)=(4 kN/m)", "F_4=(12 kN)", "C_5=(6 kN·m)"];
+    // Without parentheses round a plain value (`q_1 = 10 kN/m`, not `q_1 = (10 kN/m)`).
+    let defs = ["q_1=10 kN/m", "q_(2,1)=2 kN/m", "q_(2,2)=5 kN/m", "q_(3,2)=4 kN/m", "F_4=12 kN", "C_5=6 kN·m"];
     let flat: String = t.chars().filter(|c| !c.is_whitespace()).collect();
     let mut from = 0;
     for d in defs {
