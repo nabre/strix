@@ -83,7 +83,7 @@ fn to_exercise_mode(s: &mut Session, pos: Pos, src: &Arc<str>, st: Structure, v:
     let top = pos.path.0.first().map_or(0, |&t| t as usize);
     // The parameters it reads, defined around it, are the exercise's data (its sandbox doesn't
     // see the document's).
-    let data = super::super::calc::worksheet_at(s, &src).map(|ws| parameters(&st, ws)).unwrap_or_default();
+    let data = super::super::calc::worksheet_at(s, src).map(|ws| parameters(&st, ws)).unwrap_or_default();
     // Its working first (it comes after the structure), then the structure.
     if !st.group.is_empty()
         && let Some((a, b)) = super::working::live_range(s, &super::working::live_name(&st.group, super::working::Part::Whole))

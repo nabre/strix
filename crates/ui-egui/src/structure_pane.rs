@@ -2264,7 +2264,8 @@ mod tests {
         assert!(a.cad.is_none());
     }
 
-    /// The empty pane inserts a structure; the pane then shows it and its classification.
+    /// The empty pane inserts a structure and opens the full-page editor on it; the pane shows it
+    /// and its classification.
     #[test]
     fn the_pane_inserts_and_shows_a_structure() {
         let app = WordApp::new(Session::new(wordcraft_doc::Document::new()), crate::Services::default());
@@ -2272,7 +2273,7 @@ mod tests {
         h.run_steps(2);
         h.get_by_label(ts("Simply Supported Beam")).click();
         h.run_steps(3);
-        assert!(h.state().session.view.structure_pane);
+        assert!(h.state().structure_edit.is_some(), "the full-page editor is open");
         h.get_by_label(ts("Isostatic"));
         h.get_by_label(ts("Loads"));
     }
