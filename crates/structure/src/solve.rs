@@ -479,9 +479,11 @@ fn place_loads(st: &Structure, md: &mut Model, warnings: &mut Vec<String>) {
     }
 }
 
-/// The supports' constraints, then the equations: one per DOF present.
-fn constrain(st: &Structure, md: &mut Model, warnings: &mut Vec<String>) {
+/// The supports' constraints, then the equations: one per DOF present. `released` lists the
+/// constraints left out, as (support index, place among that support's constraints).
+fn constrain(st: &Structure, md: &mut Model, warnings: &mut Vec<String>, released: &[(usize, usize)]) {
     for (k, s) in st.supports.iter().enumerate() {
+        let first = md.constraints.len();
         let Some(n) = st.node_index(&s.node).filter(|n| md.is_used(*n)) else {
             warnings.push(format!("support on node {}, which no member uses: left out", s.node));
             continue;
@@ -502,6 +504,13 @@ fn constrain(st: &Structure, md: &mut Model, warnings: &mut Vec<String>) {
             && let Some(r) = md.node_rot.get(n).copied().flatten()
         {
             md.constraints.push((k, vec![(r, 1.0)]));
+        }
+        // The released ones out, from the last so the places stay right.
+        let count = md.constraints.len() - first;
+        for place in (0..count).rev() {
+            if released.contains(&(k, place)) {
+                md.constraints.remove(first + place);
+            }
         }
     }
     let mut present = vec![false; md.next];
@@ -707,6 +716,14 @@ fn members_of(st: &Structure, md: &Model, x: &[f64]) -> Vec<MemberResult> {
 
 /// Analyses `st` (its numbers already resolved).
 pub fn analyse(st: &Structure) -> Analysis {
+    analyse_released(st, &[])
+}
+
+/// Analyses `st` without some of its supports' constraints: the released structure of the force
+/// method. Each is (support index, place among its constraints in the order of its reaction's
+/// components: horizontal then vertical, or the one along a roller's, link's or slider's
+/// direction, then the couple of a fixed end or slider).
+pub fn analyse_released(st: &Structure, released: &[(usize, usize)]) -> Analysis {
     let mut warnings = Vec::new();
     if st.members.is_empty() {
         return Analysis::failed(Status::Empty, warnings);
@@ -716,7 +733,7 @@ pub fn analyse(st: &Structure) -> Analysis {
         Err(status) => return Analysis::failed(status, warnings),
     };
     place_loads(st, &mut md, &mut warnings);
-    constrain(st, &mut md, &mut warnings);
+    constrain(st, &mut md, &mut warnings, released);
     let status = classify(&md);
     let truss = md.elems.iter().all(|e| e.hinged && e.loads.is_empty());
     if !status.is_solved() {

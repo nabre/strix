@@ -3950,6 +3950,15 @@ structure	Reactions	Reazioni vincolari
 	Reactions are positive along x, along y and counter-clockwise: a negative one acts the other way.	Le reazioni sono positive verso x, verso y e in senso antiorario: una reazione negativa agisce nel verso opposto.
 	Hyperstatic: from the solution by the stiffness method	Struttura iperstatica: dalla risoluzione col metodo degli spostamenti
 	From the equations solved together	Dalle equazioni risolte insieme
+	Hyperstatic structure of degree 1, solved by the force method. Redundant: {X}. Without the constraint that gives it, the structure left (the released structure) is isostatic.	Struttura iperstatica di grado 1, risolta col metodo delle forze. Incognita iperstatica: {X}. Senza il vincolo che la fornisce, la struttura che resta (la struttura principale) è isostatica.
+	Hyperstatic structure of degree 2, solved by the force method. Redundants: {X}. Without the constraints that give them, the structure left (the released structure) is isostatic.	Struttura iperstatica di grado 2, risolta col metodo delle forze. Incognite iperstatiche: {X}. Senza i vincoli che le forniscono, la struttura che resta (la struttura principale) è isostatica.
+	System 0, the released structure under the loads:	Sistema 0, la struttura principale con i carichi:
+	System {i}, the released structure under only	Sistema {i}, la struttura principale con la sola
+	Congruence: where a constraint was taken away, the real structure doesn't move along its redundant. The displacements of the released structure by the principle of virtual work,	Congruenza: dove è stato tolto un vincolo, la struttura reale non si sposta lungo la sua incognita iperstatica. Gli spostamenti della struttura principale col principio dei lavori virtuali,
+	(EI constant: multiplied by EI; axial strains neglected):	(EI costante: moltiplicati per EI; deformazioni assiali trascurate):
+	(EA constant: multiplied by EA):	(EA costante: moltiplicati per EA):
+	(axial strains neglected):	(deformazioni assiali trascurate):
+	Solved by Cramer's rule (δ_21 = δ_12):	Risolte con la regola di Cramer (δ_21 = δ_12):
 	Internal forces	Caratteristiche della sollecitazione
 	x from the member's first node; N positive in tension, T positive turning clockwise, M positive stretching the reference fibres.	x dal primo nodo dell'asta; N positivo se di trazione, T positivo se fa ruotare in senso orario, M positivo se tende le fibre di riferimento.
 	Axial forces	Sforzi normali nelle aste

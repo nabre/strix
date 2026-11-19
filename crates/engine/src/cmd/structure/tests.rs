@@ -194,6 +194,17 @@ fn the_working_solves_the_reactions_and_writes_the_laws() {
 }
 
 #[test]
+fn the_working_finds_the_second_vertical_reaction_by_the_vertical_forces() {
+    // A simple beam: V_B from the rotation about A, then V_A from ΣF_y, no second moment equation.
+    let t = template_working("beam");
+    assert!(!t.contains('⚠'), "{t}");
+    assert!(has(&t, "ΣM_A = 0:") && has(&t, "ΣF_y = 0:"), "{t}");
+    assert!(!t.contains("ΣM_B"), "{t}");
+    assert!(t.find("ΣM_A") < t.find("ΣF_y"), "V_B first, then V_A from it: {t}");
+    assert!(has(&t, "V_A&=30 kN"), "{t}");
+}
+
+#[test]
 fn the_working_uses_the_hinge_of_a_gerber_beam() {
     let t = working_of(json!({
         "nodes": [{"id": "A", "x": 0, "y": 0}, {"id": "B", "x": 2, "y": 0, "hinge": true}, {"id": "C", "x": 6, "y": 0}],
@@ -241,8 +252,8 @@ fn moment_arms_are_written_from_the_dimensions() {
     assert!(has(&t, "d_(3,A)=6 m - (1.5 m)/3=5.5 m"), "{t}");
     let first = t.lines().find(|l| l.contains("0 kN·m") && l.contains("V_B")).unwrap_or_default();
     assert!(has(first, "F_1·d_(1,A)") && has(first, "F_2·d_(2,A)") && has(first, "F_3·d_(3,A)"), "{first}");
-    // About B, the whole length less half the load's: fewer terms than the chain up to it.
-    assert!(has(&t, "d_(1,B)=6 m - (3 m)/2=4.5 m"), "{t}");
+    // V_A from the vertical forces, not from the rotation about B: no arm about B.
+    assert!(has(&t, "ΣF_y = 0:") && !t.contains("d_(1,B)"), "{t}");
     // q·3·1.5 + q·1·4 + 3·1.5/2·(4.5+1) = 45 + 40 + 24.75 = 109.75 → V_B = 18.2917.
     assert!(has(&t, "V_B&=18.292 kN"), "{t}");
 }
@@ -647,4 +658,124 @@ fn the_axial_force_s_intervals_end_only_at_axial_loads() {
     s.run("structure.exercise", &json!({"structure": st})).unwrap();
     let t = text_of(&s);
     assert!(has(&t, "T_1c(x)") && has(&t, "N_1a(x)") && has(&t, "N_1b(x)") && !has(&t, "N_1c(x)"), "{t}");
+}
+
+/// The working and the reactions the stiffness solution gives (`structure.get`).
+fn working_and_reactions(structure: serde_json::Value) -> (String, Vec<Value>) {
+    let mut s = Session::new(Document::new());
+    s.run("structure.insert", &json!({"structure": structure})).unwrap();
+    let r = s.run("structure.get", &json!({})).unwrap();
+    s.run("structure.working", &json!({})).unwrap();
+    (text_of(&s), r["reactions"].as_array().cloned().unwrap_or_default())
+}
+
+/// A value as calc shows it in the working: three decimals at most.
+fn shown(v: f64) -> String {
+    // Halves away from zero, as calc rounds (16.5625 is 16.563, not the float below it).
+    let t = format!("{:.3}", v + v.signum() * 1e-9);
+    let t = t.trim_end_matches('0').trim_end_matches('.');
+    if t == "-0" { "0".to_string() } else { t.to_string() }
+}
+
+/// A hyperstatic structure's redundants by the force method: the released structure's laws
+/// under the loads and under each redundant equal to 1, the coefficients as integrals, the
+/// congruence solved by calc (two redundants by Cramer's rule), the same values as the
+/// stiffness solution.
+#[test]
+fn the_working_finds_the_redundants_by_the_force_method() {
+    // A beam fixed at A and resting on B: the roller's reaction is the redundant, 3/8·q·L.
+    let (t, _) = working_and_reactions(json!({
+        "nodes": [{"id": "A", "x": 0, "y": 0}, {"id": "B", "x": 6, "y": 0}],
+        "members": [{"id": "1", "a": "A", "b": "B"}],
+        "supports": [{"node": "A", "kind": "fixed", "angle": -90}, {"node": "B", "kind": "roller"}],
+        "loads": [{"type": "distributed", "member": "1", "q1": 10}]
+    }));
+    assert!(!t.contains('⚠'), "{t}");
+    assert!(has(&t, "Hyperstatic structure of degree 1, solved by the force method. Redundant: V_B."), "{t}");
+    assert!(has(&t, "M_(0,1)(x)=(-180 kN·m)+(60 kN)·x-(5 kN/m)·x^2") && has(&t, "m_(1,1)(x)=(6m)-x"), "{t}");
+    assert!(has(&t, "δ_11=∫_(0 m)^(6 m)▒(m_(1,1)(x)^2 dx)=72 m³"), "{t}");
+    assert!(has(&t, "δ_10=∫_(0 m)^(6 m)▒(M_(0,1)(x)·m_(1,1)(x)dx)=-1620 kN·m³"), "{t}");
+    assert!(has(&t, "0 kN·m^3&=δ_10+V_B·δ_11") && has(&t, "V_B&=22.5 kN"), "{t}");
+    // The other reactions by equilibrium, from it: M_A = q·L²/8.
+    assert!(has(&t, "M_A&=45 kN·m"), "{t}");
+    assert!(!has(&t, "stiffness method"), "{t}");
+
+    let cases = [
+        // A continuous beam over four supports: two redundants, by Cramer's rule.
+        json!({
+            "nodes": [{"id": "A", "x": 0, "y": 0}, {"id": "B", "x": 4, "y": 0}, {"id": "C", "x": 8, "y": 0}, {"id": "D", "x": 12, "y": 0}],
+            "members": [{"id": "1", "a": "A", "b": "B"}, {"id": "2", "a": "B", "b": "C"}, {"id": "3", "a": "C", "b": "D"}],
+            "supports": [{"node": "A", "kind": "pin"}, {"node": "B", "kind": "roller"}, {"node": "C", "kind": "roller"}, {"node": "D", "kind": "roller"}],
+            "loads": [{"type": "distributed", "member": "1", "q1": 10}, {"type": "force", "member": "2", "at": 1, "value": 20}, {"type": "distributed", "member": "3", "q1": 10}]
+        }),
+        // A portal frame fixed at A and pinned at D: a couple and a horizontal force.
+        json!({
+            "nodes": [{"id": "A", "x": 0, "y": 0}, {"id": "B", "x": 0, "y": 4}, {"id": "C", "x": 6, "y": 4}, {"id": "D", "x": 6, "y": 0}],
+            "members": [{"id": "1", "a": "A", "b": "B"}, {"id": "2", "a": "B", "b": "C"}, {"id": "3", "a": "C", "b": "D"}],
+            "supports": [{"node": "A", "kind": "fixed", "angle": -90}, {"node": "D", "kind": "pin"}],
+            "loads": [{"type": "distributed", "member": "2", "q1": 10}, {"type": "force", "node": "B", "value": 5, "angle": 0}]
+        }),
+        // Different sections: each member's EI enters the coefficients.
+        json!({
+            "nodes": [{"id": "A", "x": 0, "y": 0}, {"id": "B", "x": 5, "y": 0}, {"id": "C", "x": 9, "y": 0}],
+            "members": [{"id": "1", "a": "A", "b": "B", "e": 210000000, "i": 0.0002}, {"id": "2", "a": "B", "b": "C", "e": 210000000, "i": 0.0001}],
+            "supports": [{"node": "A", "kind": "pin"}, {"node": "B", "kind": "roller"}, {"node": "C", "kind": "roller"}],
+            "loads": [{"type": "distributed", "member": "1", "q1": 12}, {"type": "force", "member": "2", "at": 3, "value": 25}]
+        }),
+        // A truss pinned at both ends: the axial forces, EA constant.
+        json!({
+            "nodes": [{"id": "A", "x": 0, "y": 0}, {"id": "B", "x": 4, "y": 0}, {"id": "C", "x": 2, "y": 2}],
+            "members": [
+                {"id": "1", "a": "A", "b": "B", "hingeA": true, "hingeB": true},
+                {"id": "2", "a": "A", "b": "C", "hingeA": true, "hingeB": true},
+                {"id": "3", "a": "C", "b": "B", "hingeA": true, "hingeB": true}
+            ],
+            "supports": [{"node": "A", "kind": "pin"}, {"node": "B", "kind": "pin"}],
+            "loads": [{"type": "force", "node": "C", "value": 10, "angle": -60}]
+        }),
+    ];
+    for c in cases {
+        let (t, reactions) = working_and_reactions(c);
+        assert!(!t.contains('⚠'), "{t}");
+        assert!(has(&t, "solved by the force method") && !has(&t, "stiffness method"), "{t}");
+        // Every reaction as the stiffness solution has it.
+        for r in &reactions {
+            for (k, unit) in [("fx", "kN"), ("fy", "kN"), ("m", "kN·m")] {
+                let v = r[k].as_f64().unwrap_or(0.0);
+                if v.abs() > 1e-6 {
+                    // Half a unit of the last digit either way: the integrals round to ten digits.
+                    let found = [v, v - 5e-4, v + 5e-4].iter().any(|w| has(&t, &format!("={} {unit}", shown(*w))));
+                    assert!(found, "{k} = {v} of {r}:\n{t}");
+                }
+            }
+        }
+    }
+    let (t, _) = working_and_reactions(json!({
+        "nodes": [{"id": "A", "x": 0, "y": 0}, {"id": "B", "x": 4, "y": 0}, {"id": "C", "x": 8, "y": 0}, {"id": "D", "x": 12, "y": 0}],
+        "members": [{"id": "1", "a": "A", "b": "B"}, {"id": "2", "a": "B", "b": "C"}, {"id": "3", "a": "C", "b": "D"}],
+        "supports": [{"node": "A", "kind": "pin"}, {"node": "B", "kind": "roller"}, {"node": "C", "kind": "roller"}, {"node": "D", "kind": "roller"}],
+        "loads": [{"type": "distributed", "member": "2", "q1": 10}]
+    }));
+    assert!(has(&t, "Redundants: V_B, V_C.") && has(&t, "Solved by Cramer's rule"), "{t}");
+    assert!(has(&t, "δ_10+V_B·δ_11+V_C·δ_12=0") && has(&t, "V_B=(δ_12·δ_20-δ_10·δ_22)/(δ_11·δ_22-δ_12^2)"), "{t}");
+}
+
+/// Sections given for every member: `EI_1 = E·I` and, with an area, `EA_1 = E·A` in the
+/// coefficients, and still the stiffness solution's values.
+#[test]
+fn the_force_method_uses_the_sections_given() {
+    let (t, reactions) = working_and_reactions(json!({
+        "nodes": [{"id": "A", "x": 0, "y": 0}, {"id": "B", "x": 0, "y": 3}, {"id": "C", "x": 5, "y": 3}],
+        "members": [
+            {"id": "1", "a": "A", "b": "B", "e": 210000000, "i": 0.00008, "area": 0.002},
+            {"id": "2", "a": "B", "b": "C", "e": 210000000, "i": 0.0002}
+        ],
+        "supports": [{"node": "A", "kind": "fixed", "angle": -90}, {"node": "C", "kind": "roller"}],
+        "loads": [{"type": "distributed", "member": "2", "q1": 8}]
+    }));
+    assert!(!t.contains('⚠'), "{t}");
+    assert!(has(&t, "·(0.00008 m^4)=16800 kN·m²") && has(&t, "·(0.002 m^2)=420000 kN") && has(&t, "EI_2="), "{t}");
+    assert!(has(&t, "(m_(1,1)(x)^2)/(EI_1)") && has(&t, "(n_(1,1)(x)^2)/(EA_1)") && has(&t, "=0.00546 m/kN"), "{t}");
+    let roller = reactions.iter().find(|r| r["node"] == "C").unwrap();
+    assert!(has(&t, &format!("V_C&={} kN", shown(roller["fy"].as_f64().unwrap()))), "{roller}\n{t}");
 }

@@ -465,17 +465,14 @@ impl Ctx<'_> {
 
     /// An angle drawn as the dimensions are: a thin extension line along `from` (the reference:
     /// the horizontal, a member), an arc of radius `r` round `p` from `from` to `to` in the
-    /// dimension lines' colour with an oblique tick at each end, and the angle beside it.
+    /// dimension lines' colour with an empty circle at each end, and the angle beside it.
     fn angle_dimension(&mut self, p: P, from: P, to: P, r: f64, text: String) {
         let (a0, a1) = (from.1.atan2(from.0), to.1.atan2(to.0));
         let a1 = if (a1 - a0).abs() > std::f64::consts::PI { a1 + std::f64::consts::TAU * (a0 - a1).signum() } else { a1 };
         self.pen.line(add(p, mul(from, 1.0)), add(p, mul(from, r + 1.2)), GREY, 0.15);
         self.pen.arc(p, r, a0, a1, DIM, 0.2);
         for a in [a0, a1] {
-            let (radial, tangent) = ((a.cos(), a.sin()), (-a.sin(), a.cos()));
-            let mid = add(p, mul(radial, r));
-            let tick = mul(add(radial, tangent), 0.64);
-            self.pen.line(add(mid, mul(tick, -1.0)), add(mid, tick), DIM, 0.3);
+            self.pen.dot(add(p, mul((a.cos(), a.sin()), r)), 0.45, [255, 255, 255], Some((DIM, 0.2)));
         }
         let mid = (a0 + a1) / 2.0;
         let at = add(p, mul((mid.cos(), mid.sin()), r + 3.2));

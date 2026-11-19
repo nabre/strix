@@ -120,6 +120,30 @@ fn propped_cantilever_is_hyperstatic_of_degree_one() {
     assert_close!(an.members[0].forces(0.0, true).m, -12.0 * 16.0 / 8.0);
 }
 
+/// The force method's released structures: without the roller, a cantilever; without the fixed
+/// end's couple, a simply supported beam.
+#[test]
+fn released_constraints_leave_an_isostatic_structure() {
+    let st = Structure {
+        nodes: vec![node("A", 0.0, 0.0), node("B", 4.0, 0.0)],
+        members: vec![member("1", "A", "B")],
+        supports: vec![support("A", SupportKind::Fixed, -90.0), support("B", SupportKind::Roller, 0.0)],
+        loads: vec![uniform("1", 12.0)],
+        ..Structure::default()
+    };
+    let an = crate::analyse_released(&st, &[(1, 0)]);
+    assert_eq!(an.status, Status::Isostatic);
+    assert_eq!(an.reactions.len(), 1);
+    assert_close!(an.reactions[0].fy, 48.0);
+    assert_close!(an.members[0].forces(0.0, true).m, -96.0);
+    let an = crate::analyse_released(&st, &[(0, 2)]);
+    assert_eq!(an.status, Status::Isostatic);
+    assert_close!(an.reactions[0].m, 0.0);
+    assert_close!(an.members[0].forces(2.0, true).m, 24.0);
+    // Both: it can move.
+    assert!(matches!(crate::analyse_released(&st, &[(0, 2), (1, 0)]).status, Status::Labile { .. }));
+}
+
 #[test]
 fn fixed_fixed_beam_with_a_central_load() {
     let st = Structure {
