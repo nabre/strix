@@ -360,8 +360,8 @@ fn with_state(app: &WordApp, f: impl FnOnce(&mut State)) -> Result<Value, String
 /// UI commands (`ui.structure*`): `ui.structureEdit` opens the full-page editor (`ui.structureNew`,
 /// `{"template"?}`: on a new structure),
 /// `ui.structureClose` closes it; the editor's tab: `ui.structureTool` (`{"tool": "select" |
-/// "node" | "member" | "fixed" | "pin" | "roller" | "link" | "slider" | "hinge" | "force" |
-/// "couple" | "distributed" | "erase"}`), `ui.structureSnap` and `ui.structureDimensions`
+/// "node" | "member" | "fixed" | "pin" | "roller" | "rollerCircle" | "link" | "slider" | "hinge" |
+/// "force" | "couple" | "distributed" | "erase"}`), `ui.structureSnap` and `ui.structureDimensions`
 /// (`{"on"?: bool}`, without it they toggle), `ui.structureGrid` (`{"size": number}`) and
 /// `ui.structureFit`.
 pub(crate) fn command(app: &mut WordApp, id: &str, p: &Value) -> Result<Value, String> {
@@ -2387,7 +2387,22 @@ mod tests {
         a.run("ui.structureEdit", json!({})).unwrap();
         assert_eq!(a.ui.tab, EDITOR_TAB);
         assert_eq!(tools(&ctx).tool, "select");
-        for name in ["node", "member", "fixed", "pin", "roller", "link", "slider", "hinge", "force", "couple", "distributed", "erase", "select"] {
+        for name in [
+            "node",
+            "member",
+            "fixed",
+            "pin",
+            "roller",
+            "rollerCircle",
+            "link",
+            "slider",
+            "hinge",
+            "force",
+            "couple",
+            "distributed",
+            "erase",
+            "select",
+        ] {
             a.run("ui.structureTool", json!({"tool": name})).unwrap();
             assert_eq!(tools(&ctx).tool, name);
         }
