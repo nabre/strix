@@ -4010,3 +4010,41 @@ structure	Double-click	Doppelklick
 	{T} changes sign under a concentrated load	{T} wechselt unter einer Einzellast das Vorzeichen
 	{T} never vanishes nor changes sign: the greatest moment is at an end of a stretch.	{T} wird nirgends null und wechselt nicht das Vorzeichen: das größte Moment liegt am Ende eines Abschnitts.
 	The structure can't be solved: its working will be written again as soon as it can.	Das Tragwerk ist nicht lösbar: der Lösungsweg wird neu geschrieben, sobald es lösbar ist.
+# Strix (2026-11-19): Structure Editor active command bar, selection, info and graphical vector rotation.
+	Click a load, support, member or node to remove it (a node with what uses it)	Klicken Sie auf eine Last, ein Auflager, einen Stab oder einen Knoten, um sie zu löschen (einen Knoten mit allem, was ihn nutzt)
+structure	Click, Shift+click or drag a window · Tab cycles overlapping items · R rotates vectors	Klicken, Umschalt+Klick oder Fenster ziehen · Tab wechselt überlappende Elemente · R dreht Vektoren
+structure	Drag on the protractor or click an angle to incline (Shift: 1° precision · arrows: ±15°)	Auf dem Winkelmesser ziehen oder einen Winkel anklicken (Umschalt: 1°-Schritte · Pfeile: ±15°)
+structure	Click a force, distributed load or support to incline it with the protractor	Klicken Sie auf eine Kraft, Streckenlast oder ein Auflager, um sie mit dem Winkelmesser zu neigen
+structure	Click on the sheet (or type x, y below) to add a node	Klicken Sie auf das Blatt (oder geben Sie unten x, y ein), um einen Knoten hinzuzufügen
+structure	Click the end point (Shift: 0°/45°/90° · right-click or Esc finishes the chain)	Klicken Sie auf den Endpunkt (Umschalt: 0°/45°/90° · Rechtsklick oder Esc beendet den Zug)
+structure	Click the first point of the member (or type x, y / @L<α below)	Klicken Sie auf den Anfangspunkt des Stabs (oder geben Sie unten x, y / @L<α ein)
+structure	Click a node to place the support (or drag from the node to orient its angle)	Klicken Sie auf einen Knoten, um das Auflager zu setzen (oder ziehen Sie vom Knoten, um es auszurichten)
+structure	Click a node or near a member's end to toggle an internal hinge	Klicken Sie auf einen Knoten oder nahe an ein Stabende, um ein Gelenk umzuschalten
+structure	Click a node or member to add a force (or drag to aim its inclination)	Klicken Sie auf einen Knoten oder Stab für eine Kraft (oder ziehen Sie, um ihre Neigung festzulegen)
+structure	Click a node or member to add a couple	Klicken Sie auf einen Knoten oder Stab, um ein Moment hinzuzufügen
+structure	Click a member to apply a distributed load	Klicken Sie auf einen Stab, um eine Streckenlast aufzubringen
+structure	Click a load, support, member or node to erase it	Klicken Sie auf eine Last, ein Auflager, einen Stab oder einen Knoten zum Löschen
+structure	Return to the Select tool (Esc)	Zurück zum Auswahlwerkzeug (Esc)
+structure	Incline forces, distributed loads and supports with a graphical protractor (R)	Kräfte, Streckenlasten und Auflager mit dem grafischen Winkelmesser neigen (R)
+structure	Click a node or a point of a member to put a force there (or drag to aim its inclination)	Klicken Sie auf einen Knoten oder Stabpunkt für eine Kraft (oder ziehen Sie für ihre Neigung)
+structure	Enter sets the angle in degrees (@delta turns from the current angle)	Eingabe setzt den Winkel in Grad (@delta dreht ab dem aktuellen Winkel)
+structure	Drag or click on the dial to incline the vector (Shift: 1° precision)	Ziehen oder klicken Sie auf die Skala, um den Vektor zu neigen (Umschalt: 1°-Schritte)
+structure	Down (−90°)	Nach unten (−90°)
+structure	Up (+90°)	Nach oben (+90°)
+structure	Right (0°)	Nach rechts (0°)
+structure	Left (180°)	Nach links (180°)
+structure	At −45°	Unter −45°
+structure	At +45°	Unter +45°
+structure	Turn 15° clockwise	Um 15° im Uhrzeigersinn drehen
+structure	Turn 15° counter-clockwise	Um 15° gegen den Uhrzeigersinn drehen
+structure	Parallel to the member	Parallel zum Stab
+structure	Open the graphical protractor on the sheet (R)	Grafischen Winkelmesser auf dem Blatt öffnen (R)
+structure	On horizontal ground below (0°)	Auf waagerechtem Boden darunter (0°)
+structure	On a wall to the left (−90°)	An einer Wand links (−90°)
+structure	On a wall to the right (+90°)	An einer Wand rechts (+90°)
+structure	Above the node (180°)	Oberhalb des Knotens (180°)
+structure	Tension	Zug
+structure	Focus this item alone	Nur dieses Element auswählen
+structure	Select the member	Stab auswählen
+structure	Swap ends	Enden vertauschen
+structure	Reverse the member's local axis (a ⇄ b), keeping loads in place	Kehrt die lokale Stabachse (a ⇄ b) um, wobei die Lasten an ihrem Ort bleiben

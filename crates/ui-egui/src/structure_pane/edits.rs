@@ -435,6 +435,7 @@ pub(super) fn placed(src: &Structure, st: &Structure, k: usize, place: &Place) -
 /// arrow points from its tail to its point, given that vector in world units, for a force of the
 /// sign of `value` (a negative force's arrow points against its angle); turned to a multiple of
 /// `step` degrees when `step` is positive.
+#[cfg(test)]
 pub(super) fn force_angle(dx: f64, dy: f64, value: f64, step: f64) -> Option<f64> {
     if !(dx.is_finite() && dy.is_finite()) || dx.hypot(dy) <= EPS {
         return None;
@@ -804,5 +805,31 @@ mod tests {
         let (nodes, members) = connected(&st, &["C".to_string()]);
         assert_eq!((nodes.len(), members.len()), (3, 2));
         assert!(!nodes.contains(&"D".to_string()));
+    }
+
+    #[test]
+    fn reversing_a_member_swaps_its_ends_hinges_and_loads_in_place() {
+        let st = Structure::from_json(
+            r#"{"nodes":[{"id":"A","x":0,"y":0},{"id":"B","x":6,"y":0}],
+                "members":[{"id":"1","a":"A","b":"B","hingeB":true}],
+                "loads":[
+                    {"type":"force","member":"1","at":2,"value":10},
+                    {"type":"distributed","member":"1","q1":2,"q2":8,"from":1,"to":4,"axes":"local","angle":-90}
+                ]}"#,
+        )
+        .unwrap();
+        let out = reverse_member(&st, &st, "1").unwrap();
+        let m = out.member("1").unwrap();
+        assert_eq!((m.a.as_str(), m.b.as_str(), m.hinge_a, m.hinge_b), ("B", "A", true, false));
+        assert!(matches!(&out.loads[0], Load::Force { at, .. } if (at.value - 4.0).abs() < 1e-9));
+        match &out.loads[1] {
+            Load::Distributed { q1, q2, from, to, angle, .. } => {
+                assert_eq!(
+                    (q1.value, q2.as_ref().map(|q| q.value), from.value, to.as_ref().map(|t| t.value), angle.value),
+                    (8.0, Some(2.0), 2.0, Some(5.0), 90.0)
+                );
+            }
+            other => panic!("{other:?}"),
+        }
     }
 }

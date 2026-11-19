@@ -40,7 +40,7 @@ enum Tool {
 
 /// What `Tool::Erase` would delete at the pointer.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub(super) enum EraseTarget {
+enum EraseTarget {
     Load(usize),
     Support(String),
     Node(String),
@@ -597,26 +597,14 @@ fn active_command_bar(ui: &mut Ui, st: &Structure, state: &mut State) {
     let has_rot = rotate::active_target(st, &state.sel).is_some();
     let active = state.tool != Tool::Select;
     let (bg, border, badge_col) = match state.tool {
-        Tool::Select => (
-            Color32::from_rgba_unmultiplied(0xF1, 0xF5, 0xF9, 190),
-            Color32::from_gray(215),
-            Color32::from_rgb(0x33, 0x41, 0x55),
-        ),
-        Tool::Erase => (
-            Color32::from_rgba_unmultiplied(0xFE, 0xE2, 0xE2, 235),
-            Color32::from_rgb(0xDC, 0x26, 0x26),
-            Color32::from_rgb(0xB9, 0x1C, 0x1C),
-        ),
-        Tool::Rotate => (
-            Color32::from_rgba_unmultiplied(0xFF, 0xE4, 0xE6, 235),
-            Color32::from_rgb(0xE1, 0x1D, 0x48),
-            Color32::from_rgb(0xBE, 0x12, 0x3C),
-        ),
-        _ => (
-            Color32::from_rgba_unmultiplied(0xFF, 0xF7, 0xED, 240),
-            Color32::from_rgb(0xEA, 0x58, 0x0C),
-            Color32::from_rgb(0xC2, 0x41, 0x0C),
-        ),
+        Tool::Select => (Color32::from_rgba_unmultiplied(0xF1, 0xF5, 0xF9, 190), Color32::from_gray(215), Color32::from_rgb(0x33, 0x41, 0x55)),
+        Tool::Erase => {
+            (Color32::from_rgba_unmultiplied(0xFE, 0xE2, 0xE2, 235), Color32::from_rgb(0xDC, 0x26, 0x26), Color32::from_rgb(0xB9, 0x1C, 0x1C))
+        }
+        Tool::Rotate => {
+            (Color32::from_rgba_unmultiplied(0xFF, 0xE4, 0xE6, 235), Color32::from_rgb(0xE1, 0x1D, 0x48), Color32::from_rgb(0xBE, 0x12, 0x3C))
+        }
+        _ => (Color32::from_rgba_unmultiplied(0xFF, 0xF7, 0xED, 240), Color32::from_rgb(0xEA, 0x58, 0x0C), Color32::from_rgb(0xC2, 0x41, 0x0C)),
     };
     egui::Frame::NONE
         .fill(bg)
@@ -635,18 +623,10 @@ fn active_command_bar(ui: &mut Ui, st: &Structure, state: &mut State) {
                 };
                 ui.label(RichText::new(title).strong().color(badge_col));
                 ui.label(RichText::new("—").weak());
-                ui.label(
-                    RichText::new(ts(state.tool.prompt(state.start.is_some(), has_rot)))
-                        .small()
-                        .color(Color32::from_gray(0x30)),
-                );
+                ui.label(RichText::new(ts(state.tool.prompt(state.start.is_some(), has_rot))).small().color(Color32::from_gray(0x30)));
                 if active {
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        if ui
-                            .small_button(format!("× {}", ts("Select tool")))
-                            .on_hover_text(ts("Return to the Select tool (Esc)"))
-                            .clicked()
-                        {
+                        if ui.small_button(format!("× {}", ts("Select tool"))).on_hover_text(ts("Return to the Select tool (Esc)")).clicked() {
                             state.tool = Tool::Select;
                             state.start = None;
                             state.gesture = None;
@@ -785,7 +765,7 @@ fn dist(a: Pos2, b: Pos2) -> f64 {
 }
 
 /// Screen bounding box of the support drawn on node `id`, if it has one.
-pub(super) fn support_rect(st: &Structure, v: View, id: &str) -> Option<Rect> {
+fn support_rect(st: &Structure, v: View, id: &str) -> Option<Rect> {
     let n = st.node(id)?;
     let s = st.supports.iter().find(|s| s.node == id)?;
     let p = v.to_screen(n.x.value, n.y.value);
@@ -808,7 +788,7 @@ pub(super) fn support_rect(st: &Structure, v: View, id: &str) -> Option<Rect> {
 }
 
 /// Picks the node whose support symbol lies under screen point `p`.
-pub(super) fn pick_support_node(st: &Structure, v: View, p: Pos2) -> Option<String> {
+fn pick_support_node(st: &Structure, v: View, p: Pos2) -> Option<String> {
     for s in st.supports.iter().rev() {
         let Some(n) = st.node(&s.node) else { continue };
         let np = v.to_screen(n.x.value, n.y.value);
@@ -895,10 +875,7 @@ fn sheet(app: &mut WordApp, ui: &mut Ui, src: &Structure, st: &Structure, state:
     }
     if resp.has_focus() {
         ui.memory_mut(|m| {
-            m.set_focus_lock_filter(
-                resp.id,
-                egui::EventFilter { tab: resp.hovered(), horizontal_arrows: true, vertical_arrows: true, escape: true },
-            )
+            m.set_focus_lock_filter(resp.id, egui::EventFilter { tab: resp.hovered(), horizontal_arrows: true, vertical_arrows: true, escape: true })
         });
     }
     let key = st.nodes.iter().map(|n| n.id.as_str()).collect::<Vec<_>>().join(",");
@@ -1023,8 +1000,7 @@ fn drag(app: &mut WordApp, ui: &Ui, resp: &egui::Response, src: &Structure, st: 
                 let cur_active = rotate::active_target(st, &state.sel);
                 let chosen = match &cur_active {
                     Some(rt)
-                        if rotate::pivot(st, rt)
-                            .is_some_and(|(wx, wy)| (v.to_screen(wx, wy) - origin).length() <= rotate::PROTRACTOR_R + 24.0) =>
+                        if rotate::pivot(st, rt).is_some_and(|(wx, wy)| (v.to_screen(wx, wy) - origin).length() <= rotate::PROTRACTOR_R + 24.0) =>
                     {
                         Some(rt.clone())
                     }
@@ -1129,9 +1105,7 @@ fn drag(app: &mut WordApp, ui: &Ui, resp: &egui::Response, src: &Structure, st: 
             Gesture::Rotate { target, grab_deg, start_vis, to, moved } => {
                 if let Some((wx, wy)) = rotate::pivot(st, &target) {
                     let center = v.to_screen(wx, wy);
-                    if moved
-                        && let Some(cur_deg) = rotate::screen_angle(center, to)
-                    {
+                    if moved && let Some(cur_deg) = rotate::screen_angle(center, to) {
                         let raw_vis = rotate::norm_deg(start_vis + rotate::ang_diff(cur_deg, grab_deg));
                         let (vis, _) = rotate::snap_visual_angle(st, &target, raw_vis, snap_rot);
                         if let Some(stored) = rotate::stored_angle_for_visual(st, &target, vis) {
@@ -1151,13 +1125,9 @@ fn drag(app: &mut WordApp, ui: &Ui, resp: &egui::Response, src: &Structure, st: 
                             edits::Place::Node(id) => {
                                 Load::Force { node: Some(id.clone()), member: None, at: Num::default(), value: Num::new(10.0), angle: Num::new(raw) }
                             }
-                            edits::Place::Member(id, at) => Load::Force {
-                                node: None,
-                                member: Some(id.clone()),
-                                at: Num::new(*at),
-                                value: Num::new(10.0),
-                                angle: Num::new(raw),
-                            },
+                            edits::Place::Member(id, at) => {
+                                Load::Force { node: None, member: Some(id.clone()), at: Num::new(*at), value: Num::new(10.0), angle: Num::new(raw) }
+                            }
                         });
                         rotate::snap_visual_angle(&temp, &rotate::RotTarget::Force(idx), raw, snap_rot).0
                     } else {
@@ -1350,16 +1320,20 @@ fn paint_sheet(ui: &Ui, resp: &egui::Response, st: &Structure, v: View, state: &
 
     let over_grip = (state.tool == Tool::Select && hover.is_some_and(|p| grips::hit(&handles, p).is_some()))
         || (state.tool == Tool::Rotate
-            && rotate::active_target(&shown, &state.sel)
-                .and_then(|rt| rotate::pivot(&shown, &rt))
-                .zip(hover)
-                .is_some_and(|((wx, wy), p)| {
-                    let d = (v.to_screen(wx, wy) - p).length();
-                    (d - rotate::PROTRACTOR_R).abs() <= 14.0
-                }));
+            && rotate::active_target(&shown, &state.sel).and_then(|rt| rotate::pivot(&shown, &rt)).zip(hover).is_some_and(|((wx, wy), p)| {
+                let d = (v.to_screen(wx, wy) - p).length();
+                (d - rotate::PROTRACTOR_R).abs() <= 14.0
+            }));
     let dragging = matches!(
         state.gesture,
-        Some(Gesture::Grip { .. } | Gesture::Move { .. } | Gesture::Slide { .. } | Gesture::Rotate { .. } | Gesture::AimForce { .. } | Gesture::AimSupport { .. })
+        Some(
+            Gesture::Grip { .. }
+                | Gesture::Move { .. }
+                | Gesture::Slide { .. }
+                | Gesture::Rotate { .. }
+                | Gesture::AimForce { .. }
+                | Gesture::AimSupport { .. }
+        )
     );
     let crosshair = matches!(state.tool, Tool::Node | Tool::Member);
     grips::cursor(ui.ctx(), over_grip, dragging, crosshair, over_tool_target);
@@ -1397,11 +1371,7 @@ fn paint_sheet(ui: &Ui, resp: &egui::Response, st: &Structure, v: View, state: &
 
     let snapped = hover.map(|p| {
         let (raw_pt, node) = snap(st, v, p, state);
-        let pt = if state.tool == Tool::Member {
-            snap_member_end(state.start, raw_pt, node.is_some(), shift, state)
-        } else {
-            raw_pt
-        };
+        let pt = if state.tool == Tool::Member { snap_member_end(state.start, raw_pt, node.is_some(), shift, state) } else { raw_pt };
         (pt, node)
     });
 
@@ -1482,15 +1452,7 @@ fn paint_hud_pill(painter: &egui::Painter, anchor_pos: Pos2, align: Align2, text
 
 /// Paints live target highlights & ghost previews for `Support`, `Hinge`, `Force`, `Couple`, and
 /// `Distributed` tools while hovering at `p`.
-fn paint_tool_ghost(
-    painter: &egui::Painter,
-    st: &Structure,
-    v: View,
-    p: Pos2,
-    state: &State,
-    accent: Color32,
-    over_target: &mut bool,
-) {
+fn paint_tool_ghost(painter: &egui::Painter, st: &Structure, v: View, p: Pos2, state: &State, accent: Color32, over_target: &mut bool) {
     let load_col = Color32::from_rgb(0xB0, 0x3A, 0x2E).linear_multiply(0.65);
     match state.tool {
         Tool::Support(kind) => {
@@ -1533,10 +1495,7 @@ fn paint_tool_ghost(
                 let sat = round(round_at(at, len, state));
                 edits::point_on(st, &id, sat).map(|(wx, wy)| {
                     let lu = ts(st.length_unit.symbol());
-                    (
-                        v.to_screen(wx, wy),
-                        format!("{} · {} = {} {lu}", crate::i18n::fmt(ts("Member {n}"), &[("n", &id)]), ts("at"), short(sat)),
-                    )
+                    (v.to_screen(wx, wy), format!("{} · {} = {} {lu}", crate::i18n::fmt(ts("Member {n}"), &[("n", &id)]), ts("at"), short(sat)))
                 })
             } else {
                 None
@@ -1546,11 +1505,7 @@ fn paint_tool_ghost(
                 if state.tool == Tool::Force {
                     let tail = lp - vec2(0.0, 11.0 * MM);
                     painter.line_segment([tail, lp - vec2(0.0, 5.0)], Stroke::new(1.8, load_col));
-                    painter.add(Shape::convex_polygon(
-                        vec![lp, lp + vec2(-3.5, -7.0), lp + vec2(3.5, -7.0)],
-                        load_col,
-                        Stroke::NONE,
-                    ));
+                    painter.add(Shape::convex_polygon(vec![lp, lp + vec2(-3.5, -7.0), lp + vec2(3.5, -7.0)], load_col, Stroke::NONE));
                 } else {
                     painter.circle_stroke(lp, 4.0 * MM, Stroke::new(1.8, load_col));
                 }
@@ -1833,7 +1788,7 @@ fn along(st: &Structure, k: usize, v: View, p: Pos2) -> Option<(f64, f64)> {
 const MM: f32 = PX_PER_MM;
 
 /// Where load `k` is drawn on the sheet: its point and its arrow's tail (a force), its point (a
-/// couple), or the corners of its band (a distributed load).
+/// couple), or the actual trapezoid/triangle corners of its band (a distributed load).
 fn load_shape(st: &Structure, v: View, k: usize) -> Option<Vec<Pos2>> {
     let at_point = |node: &Option<String>, member: &Option<String>, at: f64| -> Option<Pos2> {
         if let Some(id) = member {
@@ -1866,12 +1821,40 @@ fn load_shape(st: &Structure, v: View, k: usize) -> Option<Vec<Pos2>> {
                 strix_structure::LoadAxes::Global => (th.cos(), th.sin()),
                 strix_structure::LoadAxes::Local => (c * th.cos() - s * th.sin(), s * th.cos() + c * th.sin()),
             };
-            let q = if q1.value != 0.0 { q1.value } else { q2.as_ref().map_or(1.0, |q| q.value) };
-            let sign = if q < 0.0 { -1.0 } else { 1.0 };
-            let off = vec2((-g.0 * sign) as f32, (g.1 * sign) as f32) * 8.0 * MM;
+            let qmax = st
+                .loads
+                .iter()
+                .filter_map(|l| match l {
+                    Load::Distributed { q1, q2, .. } => Some(q1.value.abs().max(q2.as_ref().map_or(0.0, |q| q.value.abs()))),
+                    _ => None,
+                })
+                .fold(0.0_f64, f64::max);
+            let q_a = q1.value;
+            let q_b = q2.as_ref().map_or(q_a, |q| q.value);
+            let dom_sign = if q_a != 0.0 {
+                q_a.signum()
+            } else if q_b != 0.0 {
+                q_b.signum()
+            } else {
+                1.0
+            };
+            let tail_dir = vec2(-g.0 as f32, g.1 as f32);
+            let h_for = |q: f64| -> f32 {
+                if qmax <= 0.0 {
+                    return 6.0 * MM * dom_sign as f32;
+                }
+                let raw = (8.0 * MM) * ((q / qmax) as f32);
+                if q == 0.0 {
+                    0.0
+                } else if raw.abs() < 2.2 * MM {
+                    2.2 * MM * raw.signum()
+                } else {
+                    raw
+                }
+            };
             let p0 = v.to_screen(a.x.value + c * x0, a.y.value + s * x0);
             let p1 = v.to_screen(a.x.value + c * x1, a.y.value + s * x1);
-            Some(vec![p0, p1, p1 + off, p0 + off])
+            Some(vec![p0, p1, p1 + tail_dir * h_for(q_b), p0 + tail_dir * h_for(q_a)])
         }
     }
 }
@@ -1883,29 +1866,85 @@ fn seg_dist(p: Pos2, a: Pos2, b: Pos2) -> f32 {
     (a + ab * t - p).length()
 }
 
+/// Checks whether `p` lies inside (with pick slack) the distributed load polygon `pts`.
+fn in_load_band(p: Pos2, pts: &[Pos2; 4]) -> bool {
+    let [p0, p1, p2, p3] = *pts;
+    if seg_dist(p, p0, p1) <= PICK * 0.5 {
+        return false;
+    }
+    let in_tri = |a: Pos2, b: Pos2, c: Pos2| -> bool {
+        let area = (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
+        if area.abs() < 1.0 {
+            return seg_dist(p, a, b).min(seg_dist(p, b, c)).min(seg_dist(p, c, a)) <= PICK * 0.8;
+        }
+        let s = area.signum();
+        [(a, b), (b, c), (c, a)].into_iter().all(|(u, w)| {
+            let cross = (w.x - u.x) * (p.y - u.y) - (w.y - u.y) * (p.x - u.x);
+            cross * s >= -PICK * 0.6 * (w - u).length()
+        })
+    };
+    in_tri(p0, p1, p2) || in_tri(p0, p2, p3)
+}
+
 /// The load the pointer is on, the last drawn first.
 fn pick_load(st: &Structure, v: View, p: Pos2) -> Option<usize> {
     (0..st.loads.len()).rev().find(|&k| match load_shape(st, v, k).as_deref() {
         Some([a, b]) => seg_dist(p, *a, *b) <= PICK && (p - *a).length() > PICK * 0.6,
         Some([c]) => ((p - *c).length() - 4.0 * MM).abs() <= PICK * 0.8,
-        Some([p0, p1, p2, p3]) => {
-            // Inside the band (with some slack), not on the member itself.
-            let poly = [*p0, *p1, *p2, *p3];
-            let inside = (0..4).all(|i| {
-                let (a, b) = (poly[i], poly[(i + 1) % 4]);
-                let cross = (b - a).x * (p - a).y - (b - a).y * (p - a).x;
-                let area = (p1.x - p0.x) * (p2.y - p0.y) - (p1.y - p0.y) * (p2.x - p0.x);
-                cross * area.signum() >= -PICK * (b - a).length()
-            });
-            inside && seg_dist(p, *p0, *p1) > PICK * 0.5
-        }
+        Some([p0, p1, p2, p3]) => in_load_band(p, &[*p0, *p1, *p2, *p3]),
         _ => false,
     })
 }
 
-/// What the pointer is on: a node, else a load, else a member.
+/// All selectable items within reach of `p`, in priority order (for cycling overlapping items).
+fn hits(st: &Structure, v: View, p: Pos2) -> Vec<Sel> {
+    let mut out: Vec<Sel> = Vec::new();
+    let mut push = |s: Sel| {
+        if !out.contains(&s) {
+            out.push(s);
+        }
+    };
+    for n in &st.nodes {
+        if dist(v.to_screen(n.x.value, n.y.value), p) <= f64::from(PICK) {
+            push(Sel::Node(n.id.clone()));
+        }
+    }
+    for k in (0..st.loads.len()).rev() {
+        let matched = match load_shape(st, v, k).as_deref() {
+            Some([a, b]) => seg_dist(p, *a, *b) <= PICK,
+            Some([c]) => ((p - *c).length() - 4.0 * MM).abs() <= PICK * 0.8,
+            Some([p0, p1, p2, p3]) => in_load_band(p, &[*p0, *p1, *p2, *p3]),
+            _ => false,
+        };
+        if matched {
+            push(Sel::Load(k));
+        }
+    }
+    if let Some(id) = pick_support_node(st, v, p) {
+        push(Sel::Node(id));
+    }
+    if let Some((id, _)) = pick_member(st, v, p) {
+        push(Sel::Member(id));
+    }
+    out
+}
+
+/// What the pointer is on: a node, else a load, else a support symbol's node, else a member.
 fn pick(st: &Structure, v: View, p: Pos2) -> Option<Sel> {
-    pick_node(st, v, p).map(Sel::Node).or_else(|| pick_load(st, v, p).map(Sel::Load)).or_else(|| pick_member(st, v, p).map(|(id, _)| Sel::Member(id)))
+    pick_node(st, v, p)
+        .map(Sel::Node)
+        .or_else(|| pick_load(st, v, p).map(Sel::Load))
+        .or_else(|| pick_support_node(st, v, p).map(Sel::Node))
+        .or_else(|| pick_member(st, v, p).map(|(id, _)| Sel::Member(id)))
+}
+
+/// What `Tool::Erase` hits at `p`: a load, a node, a support symbol, or a member.
+fn pick_erase(st: &Structure, v: View, p: Pos2) -> Option<EraseTarget> {
+    pick_load(st, v, p)
+        .map(EraseTarget::Load)
+        .or_else(|| pick_node(st, v, p).map(EraseTarget::Node))
+        .or_else(|| pick_support_node(st, v, p).map(EraseTarget::Support))
+        .or_else(|| pick_member(st, v, p).map(|(id, _)| EraseTarget::Member(id)))
 }
 
 /// What a selection window takes: the nodes in it, the members with both ends in it, the loads
@@ -1929,30 +1968,35 @@ fn inside(st: &Structure, v: View, r: Rect) -> Vec<Sel> {
     out
 }
 
-/// Marks `s` on the sheet in `c`.
+/// Marks `s` on the sheet in `c` (including a node's support box when present).
 fn highlight(p: &egui::Painter, st: &Structure, v: View, s: &Sel, c: Color32) {
     match s {
         Sel::Node(id) => {
             if let Some(n) = st.node(id) {
-                p.circle_stroke(v.to_screen(n.x.value, n.y.value), 6.0, Stroke::new(2.0, c));
+                let np = v.to_screen(n.x.value, n.y.value);
+                p.circle_filled(np, 7.5, c.linear_multiply(0.18));
+                p.circle_stroke(np, 6.5, Stroke::new(2.2, c));
+                if let Some(sr) = support_rect(st, v, id) {
+                    p.rect_stroke(sr.expand(1.5), 2.5, Stroke::new(1.2, c.linear_multiply(0.65)), egui::StrokeKind::Outside);
+                }
             }
         }
         Sel::Member(id) => {
             if let Some(m) = st.member(id)
                 && let (Some(a), Some(b)) = (st.node(&m.a), st.node(&m.b))
             {
-                p.line_segment([v.to_screen(a.x.value, a.y.value), v.to_screen(b.x.value, b.y.value)], Stroke::new(5.0, c.linear_multiply(0.6)));
+                p.line_segment([v.to_screen(a.x.value, a.y.value), v.to_screen(b.x.value, b.y.value)], Stroke::new(5.5, c.linear_multiply(0.55)));
             }
         }
         Sel::Load(k) => match load_shape(st, v, *k).as_deref() {
             Some([a, b]) => {
-                p.line_segment([*a, *b], Stroke::new(5.0, c.linear_multiply(0.6)));
+                p.line_segment([*a, *b], Stroke::new(5.5, c.linear_multiply(0.55)));
             }
             Some([o]) => {
                 p.circle_stroke(*o, 4.0 * MM + 2.0, Stroke::new(3.0, c.linear_multiply(0.6)));
             }
             Some(pts) if pts.len() == 4 => {
-                p.add(Shape::closed_line(pts.to_vec(), Stroke::new(2.0, c)));
+                p.add(Shape::closed_line(pts.to_vec(), Stroke::new(2.2, c)));
             }
             _ => {}
         },
@@ -2074,18 +2118,54 @@ fn node_at(app: &mut WordApp, st: &Structure, (x, y): (f64, f64)) -> Option<Stri
     Some(id)
 }
 
-/// A click on the sheet with the current tool.
+/// A click on the sheet with the current tool (used by unit tests and plain clicks).
+#[cfg(test)]
 fn click(app: &mut WordApp, st: &Structure, v: View, p: Pos2, state: &mut State) {
-    let (point, on_node) = snap(st, v, p, state);
+    click_with_mods(app, st, v, p, state, false);
+}
+
+/// A click on the sheet with the current tool (`shift`: 0°/45°/90° member constraint or 1° protractor precision).
+fn click_with_mods(app: &mut WordApp, st: &Structure, v: View, p: Pos2, state: &mut State, shift: bool) {
+    let (raw_pt, on_node) = snap(st, v, p, state);
+    let point = if state.tool == Tool::Member { snap_member_end(state.start, raw_pt, on_node.is_some(), shift, state) } else { raw_pt };
     match state.tool {
         Tool::Select => match pick(st, v, p) {
             Some(hit) => state.select(hit),
             None => state.sel.clear(),
         },
-        Tool::Node => {
-            if on_node.is_none()
-                && let Some(id) = node_at(app, st, point)
+        Tool::Rotate => {
+            let cur = rotate::active_target(st, &state.sel);
+            if let Some(ref rt) = cur
+                && let Some((wx, wy)) = rotate::pivot(st, rt)
             {
+                let center = v.to_screen(wx, wy);
+                let d = (p - center).length();
+                let picked_other = rotate::pick_rotatable(st, v, p).filter(|o| o != rt);
+                if picked_other.is_none() && d >= 14.0 && d <= rotate::PROTRACTOR_R + 18.0 {
+                    if let Some(raw_vis) = rotate::screen_angle(center, p) {
+                        let (vis, _) = rotate::snap_visual_angle(st, rt, raw_vis, state.snap != shift);
+                        if let Some(stored) = rotate::stored_angle_for_visual(st, rt, vis) {
+                            let src = app
+                                .session
+                                .run("structure.get", &json!({}))
+                                .ok()
+                                .and_then(|i| serde_json::from_value::<Structure>(i["structure"].clone()).ok())
+                                .unwrap_or_else(|| st.clone());
+                            rotate::commit_target(app, &src, st, rt, stored, false);
+                            return;
+                        }
+                    }
+                }
+            }
+            match rotate::pick_rotatable(st, v, p) {
+                Some(rt) => state.select(rotate::sel_of(&rt)),
+                None => state.sel.clear(),
+            }
+        }
+        Tool::Node => {
+            if let Some(id) = on_node {
+                state.select(Sel::Node(id));
+            } else if let Some(id) = node_at(app, st, point) {
                 state.select(Sel::Node(id));
             }
         }
@@ -2099,30 +2179,62 @@ fn click(app: &mut WordApp, st: &Structure, v: View, p: Pos2, state: &mut State)
         Tool::Hinge => {
             if let Some(id) = pick_node(st, v, p) {
                 let on = st.node(&id).is_some_and(|n| n.hinge);
-                let _ = app.run("structure.node", json!({"id": id, "hinge": !on}));
+                if app.run("structure.node", json!({"id": id, "hinge": !on})).is_ok() {
+                    state.select(Sel::Node(id));
+                }
+            } else if let Some((id, end_b)) = pick_member_end(st, v, p)
+                && let Some(m) = st.member(&id)
+            {
+                let (key, cur) = if end_b { ("hingeB", m.hinge_b) } else { ("hingeA", m.hinge_a) };
+                if app.run("structure.member", json!({"id": id, key: !cur})).is_ok() {
+                    state.select(Sel::Member(id));
+                }
             }
         }
         Tool::Force | Tool::Couple => {
             let kind = if state.tool == Tool::Force { "force" } else { "moment" };
             let value = 10.0;
-            if let Some(id) = pick_node(st, v, p) {
-                let _ = app.run("structure.load", json!({"load": {"type": kind, "node": id, "value": value}}));
+            let idx = st.loads.len();
+            let added = if let Some(id) = pick_node(st, v, p) {
+                app.run("structure.load", json!({"load": {"type": kind, "node": id, "value": value}})).is_ok()
             } else if let Some((id, at)) = pick_member(st, v, p) {
                 let len = st.member(&id).and_then(|m| st.length(m)).unwrap_or(0.0);
-                let _ =
-                    app.run("structure.load", json!({"load": {"type": kind, "member": id, "at": round(round_at(at, len, state)), "value": value}}));
+                app.run("structure.load", json!({"load": {"type": kind, "member": id, "at": round(round_at(at, len, state)), "value": value}}))
+                    .is_ok()
+            } else {
+                false
+            };
+            if added {
+                state.select_new_load(idx);
             }
         }
         Tool::Distributed => {
             if let Some((id, _)) = pick_member(st, v, p) {
-                let _ = app.run("structure.load", json!({"load": {"type": "distributed", "member": id, "q1": 10.0}}));
+                let idx = st.loads.len();
+                if app.run("structure.load", json!({"load": {"type": "distributed", "member": id, "q1": 10.0}})).is_ok() {
+                    state.select_new_load(idx);
+                }
             }
         }
         Tool::Erase => {
-            if let Some(id) = pick_node(st, v, p) {
-                let _ = app.run("structure.node", json!({"id": id, "remove": true}));
-            } else if let Some((id, _)) = pick_member(st, v, p) {
-                let _ = app.run("structure.member", json!({"id": id, "remove": true}));
+            if let Some(et) = pick_erase(st, v, p) {
+                match et {
+                    EraseTarget::Load(k) => {
+                        let prev = st.loads.len();
+                        if app.run("structure.load", json!({"index": k, "remove": true})).is_ok() {
+                            state.on_load_removed(k, prev);
+                        }
+                    }
+                    EraseTarget::Support(id) => {
+                        let _ = app.run("structure.support", json!({"node": id, "remove": true}));
+                    }
+                    EraseTarget::Node(id) => {
+                        let _ = app.run("structure.node", json!({"id": id, "remove": true}));
+                    }
+                    EraseTarget::Member(id) => {
+                        let _ = app.run("structure.member", json!({"id": id, "remove": true}));
+                    }
+                }
             }
         }
     }
@@ -2145,38 +2257,105 @@ fn member_point(app: &mut WordApp, st: &Structure, point: (f64, f64), state: &mu
     }
 }
 
-/// The box for typed coordinates: `x, y` (or `x; y` with decimal commas) or `@dx, dy` from the
-/// last point.
-fn typed_point(app: &mut WordApp, ui: &mut Ui, st: &Structure, state: &mut State) {
+/// Typed coordinates or angles below the sheet:
+/// - `x, y`, `x; y`, `@dx, dy` or polar `@L<α` place a node or member point;
+/// - in `Rotate` mode with a selected target, typing an angle (`−30`, `45`, `@15` or an expression)
+///   sets or increments its inclination on Enter.
+fn typed_point(app: &mut WordApp, ui: &mut Ui, src: &Structure, st: &Structure, state: &mut State) {
+    let rot_target = (state.tool == Tool::Rotate).then(|| rotate::active_target(st, &state.sel)).flatten();
     ui.horizontal(|ui| {
-        ui.label(ts("Point"));
-        let r = ui.add(egui::TextEdit::singleline(&mut state.typed).desired_width(140.0).hint_text("x, y  ·  @dx, dy"));
+        let (lbl, hint, help) = if rot_target.is_some() {
+            (ts("Angle"), "−30  ·  @15", ts("Enter sets the angle in degrees (@delta turns from the current angle)"))
+        } else {
+            (ts("Point"), "x, y  ·  @dx, dy  ·  @L<α", ts("Node or Member tool: Enter places the point"))
+        };
+        ui.label(lbl);
+        let r = ui.add(egui::TextEdit::singleline(&mut state.typed).desired_width(160.0).hint_text(hint));
         let enter = r.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
-        ui.label(RichText::new(ts("Node or Member tool: Enter places the point")).small().weak());
+        ui.label(RichText::new(help).small().weak());
         if !enter {
             return;
         }
-        let text = state.typed.trim().to_string();
+        let text = state.typed.trim().trim_end_matches('°').trim().to_string();
+        if text.is_empty() {
+            return;
+        }
+        if let Some(rt) = &rot_target
+            && !text.contains(',')
+            && !text.contains(';')
+            && !text.contains('<')
+        {
+            if let Some(rel) = text.strip_prefix('@') {
+                if let Ok(d) = rel.trim().replace(',', ".").parse::<f64>()
+                    && d.is_finite()
+                    && let Some(vis) = rotate::visual_angle(st, rt)
+                    && let Some(cur) = rotate::stored_angle_for_visual(st, rt, vis)
+                {
+                    rotate::commit_target(app, src, st, rt, cur + d, true);
+                    state.typed.clear();
+                    r.request_focus();
+                    return;
+                }
+            } else if let Ok(deg) = text.replace(',', ".").parse::<f64>()
+                && deg.is_finite()
+            {
+                rotate::commit_target(app, src, st, rt, deg, false);
+                state.typed.clear();
+                r.request_focus();
+                return;
+            } else {
+                let val = num_json(&text);
+                match rt {
+                    rotate::RotTarget::Force(k) | rotate::RotTarget::Distributed(k) => {
+                        if let Some(l) = src.loads.get(*k)
+                            && let Ok(mut lj) = serde_json::to_value(l)
+                        {
+                            lj["angle"] = val;
+                            let _ = app.run("structure.load", json!({"index": *k, "load": lj}));
+                        }
+                    }
+                    rotate::RotTarget::Support(id) => {
+                        let _ = app.run("structure.support", json!({"node": id, "angle": val}));
+                    }
+                }
+                state.typed.clear();
+                r.request_focus();
+                return;
+            }
+        }
         let (relative, body) = match text.strip_prefix('@') {
             Some(rest) => (true, rest.to_string()),
             None => (false, text.clone()),
         };
-        let parts: Vec<String> = if body.contains(';') {
-            body.split(';').map(|s| s.trim().replace(',', ".")).collect()
+        let parsed_delta = if let Some((l_str, a_str)) = body.split_once('<') {
+            let l = l_str.trim().replace(',', ".").parse::<f64>().ok().filter(|v| v.is_finite());
+            let a = a_str.trim().trim_end_matches('°').trim().replace(',', ".").parse::<f64>().ok().filter(|v| v.is_finite());
+            l.zip(a).map(|(len, deg)| {
+                let rad = deg.to_radians();
+                (round(len * rad.cos()), round(len * rad.sin()))
+            })
         } else {
-            body.split(',').map(|s| s.trim().to_string()).collect()
+            let parts: Vec<String> = if body.contains(';') {
+                body.split(';').map(|s| s.trim().replace(',', ".")).collect()
+            } else {
+                body.split(',').map(|s| s.trim().to_string()).collect()
+            };
+            let nums: Vec<f64> = parts.iter().filter_map(|s| s.parse::<f64>().ok()).filter(|v| v.is_finite()).collect();
+            match nums.as_slice() {
+                [x, y] => Some((*x, *y)),
+                _ => None,
+            }
         };
-        let nums: Vec<f64> = parts.iter().filter_map(|s| s.parse::<f64>().ok()).filter(|v| v.is_finite()).collect();
-        let [x, y] = nums.as_slice() else { return };
+        let Some((dx, dy)) = parsed_delta else { return };
         let base = state.start.or_else(|| match state.primary() {
             Some(Sel::Node(id)) => st.node(id).map(|n| (n.x.value, n.y.value)),
             _ => None,
         });
-        let point = if relative { base.map_or((*x, *y), |(bx, by)| (bx + x, by + y)) } else { (*x, *y) };
+        let point = if relative || body.contains('<') { base.map_or((dx, dy), |(bx, by)| (bx + dx, by + dy)) } else { (dx, dy) };
         match state.tool {
             Tool::Member => member_point(app, st, point, state),
             _ => {
-                state.tool = if state.tool == Tool::Member { Tool::Member } else { Tool::Node };
+                state.tool = Tool::Node;
                 if let Some(id) = node_at(app, st, point) {
                     state.select(Sel::Node(id));
                 }
@@ -2259,8 +2438,122 @@ fn slope_deg(a: (f64, f64), b: (f64, f64)) -> f64 {
     if d.is_finite() { d } else { 0.0 }
 }
 
+/// Shows the unit, and `= resolved` when `src_num` is written as a calculation expression.
+fn unit_or_resolved(ui: &mut Ui, src_num: Option<&Num>, resolved_val: Option<f64>, unit: &str) {
+    let u = ts(unit);
+    match (src_num.and_then(|n| n.expr.as_ref()), resolved_val) {
+        (Some(_), Some(v)) => {
+            ui.label(RichText::new(format!("= {} {u}", short(v))).small().color(Color32::from_rgb(0x0F, 0x76, 0x6E)));
+        }
+        _ => {
+            ui.label(RichText::new(u).weak());
+        }
+    }
+}
+
+/// Formats a load's short display title using `strix_structure::load_names` (`F₁ · Force`).
+fn load_title(st: &Structure, k: usize, l: &Load) -> String {
+    let names = strix_structure::load_names(st);
+    let kind = match l {
+        Load::Force { .. } => ts("Force"),
+        Load::Moment { .. } => ts("Couple"),
+        Load::Distributed { .. } => ts("Distributed"),
+    };
+    match names.get(k).copied().flatten() {
+        Some(n) => format!("{} · {kind}", n.pretty()),
+        None => format!("#{} {kind}", k + 1),
+    }
+}
+
+/// Renders solved support reactions for `only_node` (or all supported nodes when `None`).
+fn reactions_summary_ui(ui: &mut Ui, info: &Value, st: &Structure, only_node: Option<&str>) {
+    let Some(arr) = info["reactions"].as_array() else { return };
+    let rows: Vec<&Value> = arr.iter().filter(|r| only_node.is_none_or(|id| r["node"].as_str() == Some(id))).collect();
+    if rows.is_empty() {
+        return;
+    }
+    let fu = ts(st.force_unit.symbol());
+    let lu = ts(st.length_unit.symbol());
+    section(ui, ts("Reactions"));
+    props(ui, ("reactions_summary", only_node.unwrap_or("all")), |ui| {
+        for r in rows {
+            let node = r["node"].as_str().unwrap_or_default();
+            let fx = r["fx"].as_f64().unwrap_or(0.0);
+            let fy = r["fy"].as_f64().unwrap_or(0.0);
+            let m = r["m"].as_f64().unwrap_or(0.0);
+            if only_node.is_none() {
+                ui.label(RichText::new(node).strong());
+            } else {
+                prop_label(ui, &format!("H_{node}, V_{node}"));
+            }
+            let mut parts = vec![format!("H = {} {fu}", short(fx)), format!("V = {} {fu}", short(fy))];
+            if m.abs() > 1e-9 {
+                parts.push(format!("M = {} {fu}·{lu}", short(m)));
+            }
+            ui.label(RichText::new(parts.join("  ·  ")).small());
+            let mag = fx.hypot(fy);
+            ui.label(RichText::new(format!("|R| = {} {fu}", short(mag))).small().weak());
+            ui.end_row();
+        }
+    });
+}
+
+/// Renders solved internal forces summary (`N`, `T`, `M` min/max, or truss axial force) for `member_id`.
+fn member_forces_ui(ui: &mut Ui, info: &Value, st: &Structure, member_id: &str) {
+    let Some(m_info) = info["members"].as_array().and_then(|arr| arr.iter().find(|m| m["id"].as_str() == Some(member_id))) else {
+        return;
+    };
+    let vals = |key: &str| -> Vec<f64> {
+        m_info[key].as_array().into_iter().flatten().filter_map(|n| n["value"].as_f64()).filter(|v| v.is_finite()).collect()
+    };
+    let (ns, vs, ms) = (vals("n"), vals("v"), vals("m"));
+    if ns.is_empty() && vs.is_empty() && ms.is_empty() {
+        return;
+    }
+    let fu = ts(st.force_unit.symbol());
+    let lu = ts(st.length_unit.symbol());
+    let truss = info["truss"].as_bool().unwrap_or(false);
+    section(ui, if truss { ts("Axial forces") } else { ts("Internal forces") });
+    let range_str = |xs: &[f64], u: &str| -> String {
+        let lo = xs.iter().copied().fold(f64::MAX, f64::min);
+        let hi = xs.iter().copied().fold(f64::MIN, f64::max);
+        if (hi - lo).abs() <= 1e-6 { format!("{} {u}", short(lo)) } else { format!("{} … {} {u}", short(lo), short(hi)) }
+    };
+    props(ui, ("member_forces", member_id), |ui| {
+        if !ns.is_empty() {
+            prop_label(ui, &st.titles.n);
+            ui.label(range_str(&ns, fu));
+            if truss && let Some(&n0) = ns.first() {
+                let state_lbl = if n0 > 1e-6 {
+                    ts("Tension")
+                } else if n0 < -1e-6 {
+                    ts("Compression")
+                } else {
+                    "0"
+                };
+                ui.label(RichText::new(state_lbl).small().weak());
+            } else {
+                ui.label("");
+            }
+            ui.end_row();
+        }
+        if !truss && !vs.is_empty() {
+            prop_label(ui, &st.titles.v);
+            ui.label(range_str(&vs, fu));
+            ui.label("");
+            ui.end_row();
+        }
+        if !truss && !ms.is_empty() {
+            prop_label(ui, &st.titles.m);
+            ui.label(range_str(&ms, &format!("{fu}·{lu}")));
+            ui.label("");
+            ui.end_row();
+        }
+    });
+}
+
 /// The properties of what is selected; with nothing selected, the structure's.
-fn selection(app: &mut WordApp, ui: &mut Ui, src: &Structure, st: &Structure, state: &mut State) {
+fn selection(app: &mut WordApp, ui: &mut Ui, info: &Value, src: &Structure, st: &Structure, state: &mut State) {
     let lu = st.length_unit.symbol();
     let fu = st.force_unit.symbol();
     if state.sel.len() > 1 {
@@ -2278,6 +2571,73 @@ fn selection(app: &mut WordApp, ui: &mut Ui, src: &Structure, st: &Structure, st
                 ui.end_row();
             }
         });
+        // Interactive list of selected items: click one to inspect it alone, `×` to drop it from selection.
+        let snapshot = state.sel.clone();
+        ui.horizontal_wrapped(|ui| {
+            ui.spacing_mut().item_spacing = vec2(4.0, 3.0);
+            for item in &snapshot {
+                let chip = match item {
+                    Sel::Node(id) => crate::i18n::fmt(ts("Node {n}"), &[("n", id)]),
+                    Sel::Member(id) => crate::i18n::fmt(ts("Member {n}"), &[("n", id)]),
+                    Sel::Load(k) => st.loads.get(*k).map_or_else(|| format!("#{}", k + 1), |l| load_title(st, *k, l)),
+                };
+                if ui.small_button(&chip).on_hover_text(ts("Focus this item alone")).clicked() {
+                    state.select(item.clone());
+                }
+            }
+        });
+        // Contextual bulk actions.
+        ui.horizontal_wrapped(|ui| {
+            if let [Sel::Member(p), Sel::Member(q)] = state.sel.as_slice()
+                && let Some(shared) = edits::shared_node(st, p, q)
+            {
+                let res = edits::join_members(src, st, &shared);
+                let why = res.as_ref().err().copied();
+                if why != Some(edits::NoJoin::NotTwo) {
+                    let btn = ui.add_enabled(why.is_none(), egui::Button::new(ts("Join the members")));
+                    if let Some(w) = why {
+                        btn.on_disabled_hover_text(ts(w.reason()));
+                    } else if btn.clicked()
+                        && let Ok(out) = res
+                        && let Ok(j) = serde_json::to_value(&out)
+                        && app.run("structure.set", json!({"structure": j})).is_ok()
+                    {
+                        let kept = st
+                            .members
+                            .iter()
+                            .find(|m| (m.a == shared || m.b == shared) && out.member(&m.id).is_some())
+                            .map(|m| Sel::Member(m.id.clone()));
+                        state.sel = kept.into_iter().collect();
+                        return;
+                    }
+                }
+            }
+            let load_indices: Vec<usize> = state.sel.iter().filter_map(|s| if let Sel::Load(k) = s { Some(*k) } else { None }).collect();
+            if !load_indices.is_empty() && ui.button(ts("Reverse")).clicked() {
+                let mut out = src.clone();
+                for k in load_indices {
+                    if let Some(rev) = edits::reversed(&out, k)
+                        && let Some(slot) = out.loads.get_mut(k)
+                    {
+                        *slot = rev;
+                    }
+                }
+                if let Ok(j) = serde_json::to_value(&out) {
+                    let _ = app.run("structure.set", json!({"structure": j}));
+                }
+            }
+            if ui.button(ts("Deselect")).clicked() {
+                state.sel.clear();
+                return;
+            }
+            if ui.button(ts("Remove Selected")).clicked() {
+                let kept = without(src, &state.sel);
+                if app.run("structure.set", json!({"structure": kept})).is_ok() {
+                    state.sel.clear();
+                    return;
+                }
+            }
+        });
         ui.label(
             RichText::new(ts(
                 "Drag one of them to move them together; the arrow keys move them by the grid (Shift: ten times); Delete removes them.",
@@ -2285,17 +2645,12 @@ fn selection(app: &mut WordApp, ui: &mut Ui, src: &Structure, st: &Structure, st
             .small()
             .weak(),
         );
-        if ui.button(ts("Remove Selected")).clicked() {
-            let kept = without(src, &state.sel);
-            if app.run("structure.set", json!({"structure": kept})).is_ok() {
-                state.sel.clear();
-            }
-        }
         return;
     }
     match state.primary().cloned() {
         Some(Sel::Node(id)) => {
             let Some(n) = src.node(&id) else { return };
+            let rn = st.node(&id);
             section(ui, &crate::i18n::fmt(ts("Node {n}"), &[("n", &id)]));
             props(ui, ("node", &id), |ui| {
                 prop_label(ui, ts("Name"));
@@ -2305,12 +2660,12 @@ fn selection(app: &mut WordApp, ui: &mut Ui, src: &Structure, st: &Structure, st
                 }
                 ui.label("");
                 ui.end_row();
-                for (axis, value) in [("x", &n.x), ("y", &n.y)] {
+                for (axis, value, rval) in [("x", &n.x, rn.map(|r| r.x.value)), ("y", &n.y, rn.map(|r| r.y.value))] {
                     prop_label(ui, axis);
-                    if let Some(t) = edit_box(ui, ("node", &id, axis), &num_text(value), 120.0) {
+                    if let Some(t) = edit_box(ui, ("node", &id, axis), &num_text(value), 110.0) {
                         let _ = app.run("structure.node", json!({"id": id, axis: num_json(&t)}));
                     }
-                    ui.label(RichText::new(lu).weak());
+                    unit_or_resolved(ui, Some(value), rval, lu);
                     ui.end_row();
                 }
                 prop_label(ui, ts("Hinge"));
@@ -2320,14 +2675,46 @@ fn selection(app: &mut WordApp, ui: &mut Ui, src: &Structure, st: &Structure, st
                 }
                 ui.label("");
                 ui.end_row();
-                let joined: Vec<&str> = src.members.iter().filter(|m| m.a == id || m.b == id).map(|m| m.id.as_str()).collect();
+                let joined: Vec<String> = src.members.iter().filter(|m| m.a == id || m.b == id).map(|m| m.id.clone()).collect();
                 prop_label(ui, ts("Members"));
-                ui.label(if joined.is_empty() { "—".to_string() } else { joined.join(", ") });
+                if joined.is_empty() {
+                    ui.label("—");
+                } else {
+                    ui.horizontal_wrapped(|ui| {
+                        for mid in &joined {
+                            if ui.small_button(mid).on_hover_text(ts("Select the member")).clicked() {
+                                state.select(Sel::Member(mid.clone()));
+                            }
+                        }
+                    });
+                }
                 ui.label("");
                 ui.end_row();
             });
+            // Offer Join the members directly in Node Properties when 2 members meet here.
+            match edits::join_members(src, st, &id) {
+                Ok(joined_st) => {
+                    if ui.small_button(ts("Join the members")).clicked()
+                        && let Ok(j) = serde_json::to_value(&joined_st)
+                        && app.run("structure.set", json!({"structure": j})).is_ok()
+                    {
+                        let kept = st
+                            .members
+                            .iter()
+                            .find(|m| (m.a == id || m.b == id) && joined_st.member(&m.id).is_some())
+                            .map(|m| Sel::Member(m.id.clone()));
+                        state.sel = kept.into_iter().collect();
+                        return;
+                    }
+                }
+                Err(edits::NoJoin::NotTwo) => {}
+                Err(why) => {
+                    ui.add_enabled(false, egui::Button::new(ts("Join the members")).small()).on_disabled_hover_text(ts(why.reason()));
+                }
+            }
             section(ui, ts("Support"));
             let support = src.supports.iter().find(|s| s.node == id);
+            let rsupport = st.supports.iter().find(|s| s.node == id);
             props(ui, ("node_support", &id), |ui| {
                 prop_label(ui, ts("Kind"));
                 let current = support.map(|s| s.kind);
@@ -2348,10 +2735,14 @@ fn selection(app: &mut WordApp, ui: &mut Ui, src: &Structure, st: &Structure, st
                     if let Some(t) = edit_box(ui, ("support_angle", &id), &num_text(&s.angle), 80.0) {
                         let _ = app.run("structure.support", json!({"node": id, "angle": num_json(&t)}));
                     }
-                    ui.label(RichText::new("°").weak());
+                    unit_or_resolved(ui, Some(&s.angle), rsupport.map(|r| r.angle.value), "°");
                     ui.end_row();
                 }
             });
+            if support.is_some() {
+                rotate::support_orientation_ui(app, ui, src, st, state, &id);
+            }
+            reactions_summary_ui(ui, info, st, Some(&id));
             node_loads(app, ui, src, st, state, &id);
             ui.add_space(6.0);
             if ui.button(ts("Remove Node")).on_hover_text(ts("Remove the node with its members, support and loads")).clicked() {
@@ -2361,10 +2752,9 @@ fn selection(app: &mut WordApp, ui: &mut Ui, src: &Structure, st: &Structure, st
         }
         Some(Sel::Member(id)) => {
             let Some(m) = src.member(&id) else { return };
-            let len = st.member(&id).and_then(|m| st.length(m)).unwrap_or(0.0);
-            let ends = st
-                .member(&id)
-                .and_then(|m| Some(((st.node(&m.a)?.x.value, st.node(&m.a)?.y.value), (st.node(&m.b)?.x.value, st.node(&m.b)?.y.value))));
+            let rm = st.member(&id);
+            let len = rm.and_then(|m| st.length(m)).unwrap_or(0.0);
+            let ends = rm.and_then(|m| Some(((st.node(&m.a)?.x.value, st.node(&m.a)?.y.value), (st.node(&m.b)?.x.value, st.node(&m.b)?.y.value))));
             section(ui, &crate::i18n::fmt(ts("Member {n}"), &[("n", &id)]));
             props(ui, ("member", &id), |ui| {
                 for (key, label, current) in [("a", "From", &m.a), ("b", "To", &m.b)] {
@@ -2388,7 +2778,7 @@ fn selection(app: &mut WordApp, ui: &mut Ui, src: &Structure, st: &Structure, st
                 }
                 prop_label(ui, ts("Length"));
                 ui.label(short(len));
-                ui.label(RichText::new(lu).weak());
+                ui.label(RichText::new(ts(lu)).weak());
                 ui.end_row();
                 if let Some((pa, pb)) = ends {
                     prop_label(ui, ts("Slope"));
@@ -2397,18 +2787,45 @@ fn selection(app: &mut WordApp, ui: &mut Ui, src: &Structure, st: &Structure, st
                     ui.end_row();
                 }
             });
+            ui.horizontal_wrapped(|ui| {
+                if ui.small_button(ts("Swap ends")).on_hover_text(ts("Reverse the member's local axis (a ⇄ b), keeping loads in place")).clicked()
+                    && let Some(out) = edits::reverse_member(src, st, &id)
+                    && let Ok(j) = serde_json::to_value(&out)
+                {
+                    let _ = app.run("structure.set", json!({"structure": j}));
+                }
+                if len > 1e-6
+                    && ui.small_button(ts("Split in half")).clicked()
+                    && let Some((out, node)) = edits::split_member(src, st, &id, round(len / 2.0))
+                    && let Ok(j) = serde_json::to_value(&out)
+                    && app.run("structure.set", json!({"structure": j})).is_ok()
+                {
+                    state.select(Sel::Node(node));
+                    return;
+                }
+            });
+            member_forces_ui(ui, info, st, &id);
             section(ui, ts("Section"));
             props(ui, ("member_section", &id), |ui| {
-                for (key, label, value, unit) in
-                    [("e", "E", &m.e, format!("{fu}/{lu}²")), ("i", "I", &m.i, format!("{lu}⁴")), ("area", "A", &m.area, format!("{lu}²"))]
-                {
+                for (key, label, value, rval, unit) in [
+                    ("e", "E", &m.e, rm.and_then(|r| r.e.as_ref().map(|x| x.value)), format!("{}/{lu}²", ts(fu))),
+                    ("i", "I", &m.i, rm.and_then(|r| r.i.as_ref().map(|x| x.value)), format!("{}⁴", ts(lu))),
+                    ("area", "A", &m.area, rm.and_then(|r| r.area.as_ref().map(|x| x.value)), format!("{}²", ts(lu))),
+                ] {
                     prop_label(ui, label);
                     let text = value.as_ref().map(num_text).unwrap_or_default();
-                    if let Some(t) = edit_box(ui, ("member", &id, key), &text, 120.0) {
+                    if let Some(t) = edit_box(ui, ("member", &id, key), &text, 110.0) {
                         let v = if t.trim().is_empty() { Value::Null } else { num_json(&t) };
                         let _ = app.run("structure.member", json!({"id": id, key: v}));
                     }
-                    ui.label(RichText::new(unit).weak());
+                    match (value.as_ref().and_then(|n| n.expr.as_ref()), rval) {
+                        (Some(_), Some(v)) => {
+                            ui.label(RichText::new(format!("= {} {unit}", short(v))).small().color(Color32::from_rgb(0x0F, 0x76, 0x6E)));
+                        }
+                        _ => {
+                            ui.label(RichText::new(unit).weak());
+                        }
+                    }
                     ui.end_row();
                 }
             });
@@ -2421,10 +2838,11 @@ fn selection(app: &mut WordApp, ui: &mut Ui, src: &Structure, st: &Structure, st
             }
         }
         Some(Sel::Load(k)) => {
-            section(ui, ts("Load"));
-            loads_table(app, ui, src, st, Some(k));
+            let hdr = st.loads.get(k).map_or_else(|| ts("Load").to_string(), |l| load_title(st, k, l));
+            section(ui, &hdr);
+            loads_table(app, ui, src, st, state, Some(k));
         }
-        None => structure_props(app, ui, src),
+        None => structure_props(app, ui, info, src, st),
     }
 }
 
@@ -2460,22 +2878,23 @@ fn member_loads(app: &mut WordApp, ui: &mut Ui, src: &Structure, st: &Structure,
 /// one there (`place`: `{"node": …}` or `{"member": …}`).
 fn load_links(app: &mut WordApp, ui: &mut Ui, src: &Structure, st: &Structure, state: &mut State, on: &[usize], place: Value) {
     section(ui, ts("Loads"));
-    let fu = st.force_unit.symbol();
-    let lu = st.length_unit.symbol();
+    let fu = ts(st.force_unit.symbol());
+    let lu = ts(st.length_unit.symbol());
     for &k in on {
         let Some(l) = src.loads.get(k) else { continue };
+        let head = load_title(st, k, l);
         let text = match l {
-            Load::Force { value, angle, .. } => format!("{} {}: F = {} {fu}, {}°", k + 1, ts("Force"), num_text(value), num_text(angle)),
-            Load::Moment { value, .. } => format!("{} {}: C = {} {fu}·{lu}", k + 1, ts("Couple"), num_text(value)),
+            Load::Force { value, angle, .. } => format!("{head}: F = {} {fu}, {}°", num_text(value), num_text(angle)),
+            Load::Moment { value, .. } => format!("{head}: C = {} {fu}·{lu}", num_text(value)),
             Load::Distributed { q1, q2, .. } => {
                 let q = match q2 {
                     Some(q2) => format!("{} → {}", num_text(q1), num_text(q2)),
                     None => num_text(q1),
                 };
-                format!("{} {}: q = {q} {fu}/{lu}", k + 1, ts("Distributed"))
+                format!("{head}: q = {q} {fu}/{lu}")
             }
         };
-        if ui.selectable_label(false, text).on_hover_text(ts("Select the load to edit it")).clicked() {
+        if ui.selectable_label(state.has(&Sel::Load(k)), text).on_hover_text(ts("Select the load to edit it")).clicked() {
             state.select(Sel::Load(k));
         }
     }
@@ -2488,9 +2907,9 @@ fn load_links(app: &mut WordApp, ui: &mut Ui, src: &Structure, st: &Structure, s
             for (key, v) in place.as_object().into_iter().flatten().chain(extra.as_object().into_iter().flatten()) {
                 load[key] = v.clone();
             }
+            let idx = src.loads.len();
             if app.run("structure.load", json!({"load": load})).is_ok() {
-                state.select(Sel::Load(src.loads.len()));
-                state.loads = Some(src.loads.len() + 1);
+                state.select_new_load(idx);
             }
         };
         if ui.small_button(ts("Add Force")).clicked() {
@@ -2521,8 +2940,8 @@ fn rescale(s: &mut State, k: f64) {
 pub(crate) const MIN_GRID: f64 = 0.01;
 pub(crate) const MAX_GRID: f64 = 10_000.0;
 
-/// With nothing selected: the structure's title and units, what it is made of.
-fn structure_props(app: &mut WordApp, ui: &mut Ui, src: &Structure) {
+/// With nothing selected: the structure's title, units, counts and solved reactions summary.
+fn structure_props(app: &mut WordApp, ui: &mut Ui, info: &Value, src: &Structure, st: &Structure) {
     section(ui, ts("Structure"));
     props(ui, "structure", |ui| {
         prop_label(ui, ts("Title"));
@@ -2536,7 +2955,6 @@ fn structure_props(app: &mut WordApp, ui: &mut Ui, src: &Structure) {
         craft_ui::ComboBox::from_id_salt("structure_prop_lu").width(70.0).selected_text(lu).show_ui(ui, |ui| {
             for u in ["m", "cm", "mm"] {
                 if ui.selectable_label(lu == u, u).clicked() && lu != u {
-                    // The numbers are converted (1 m becomes 100 cm); the view follows (`State::prune`).
                     let _ = app.run("structure.set", json!({"lengthUnit": u}));
                 }
             }
@@ -2563,6 +2981,7 @@ fn structure_props(app: &mut WordApp, ui: &mut Ui, src: &Structure) {
             ui.end_row();
         }
     });
+    reactions_summary_ui(ui, info, st, None);
     ui.add_space(4.0);
     ui.label(
         RichText::new(ts("Click a node, a member or a load to see its properties; Shift+click or a window adds to the selection.")).small().weak(),
@@ -2583,11 +3002,11 @@ fn tables(app: &mut WordApp, ui: &mut Ui, src: &Structure, st: &Structure, state
     egui::CollapsingHeader::new(title("Supports", src.supports.len()))
         .id_salt("structure_supports")
         .default_open(false)
-        .show(ui, |ui| supports_table(app, ui, src));
+        .show(ui, |ui| supports_table(app, ui, src, state));
     egui::CollapsingHeader::new(title("Loads", src.loads.len()))
         .id_salt("structure_loads")
         .default_open(false)
-        .show(ui, |ui| loads_table(app, ui, src, st, None));
+        .show(ui, |ui| loads_table(app, ui, src, st, state, None));
 }
 
 fn remove_button(ui: &mut Ui, tip: &str) -> bool {
@@ -2669,7 +3088,6 @@ fn members_table(app: &mut WordApp, ui: &mut Ui, src: &Structure, state: &mut St
             ui.end_row();
         }
     });
-    // A new member: between the two nodes chosen.
     let id = egui::Id::unique("structure_new_member");
     let (mut a, mut b) = ui.data(|d| d.get_temp::<(String, String)>(id)).unwrap_or_default();
     ui.horizontal(|ui| {
@@ -2687,14 +3105,16 @@ fn members_table(app: &mut WordApp, ui: &mut Ui, src: &Structure, state: &mut St
     ui.data_mut(|d| d.insert_temp(id, (a, b)));
 }
 
-fn supports_table(app: &mut WordApp, ui: &mut Ui, src: &Structure) {
+fn supports_table(app: &mut WordApp, ui: &mut Ui, src: &Structure, state: &mut State) {
     egui::Grid::new("structure_supports_grid").num_columns(4).striped(true).spacing(vec2(6.0, 3.0)).show(ui, |ui| {
         for h in ["Node", "Support", "Angle (°)", ""] {
             ui.label(RichText::new(ts(h)).small().strong());
         }
         ui.end_row();
         for s in &src.supports {
-            ui.label(RichText::new(&s.node).strong());
+            if ui.selectable_label(state.has(&Sel::Node(s.node.clone())), RichText::new(&s.node).strong()).clicked() {
+                state.select(Sel::Node(s.node.clone()));
+            }
             craft_ui::ComboBox::from_id_salt(("structure_support_row", &s.node)).selected_text(ts(kind_label(Some(s.kind)))).show_ui(ui, |ui| {
                 for (k, label) in KINDS.iter().skip(1) {
                     if ui.selectable_label(Some(s.kind) == *k, ts(label)).clicked()
@@ -2722,44 +3142,51 @@ fn supports_table(app: &mut WordApp, ui: &mut Ui, src: &Structure) {
     );
 }
 
-/// The loads' editors (`only`: just that load's, without the buttons adding loads).
-fn loads_table(app: &mut WordApp, ui: &mut Ui, src: &Structure, st: &Structure, only: Option<usize>) {
+/// The loads' editors (`only`: just that load's, with its interactive inclination dial, without
+/// the table's Add buttons).
+fn loads_table(app: &mut WordApp, ui: &mut Ui, src: &Structure, st: &Structure, state: &mut State, only: Option<usize>) {
     let fu = st.force_unit.symbol();
     let lu = st.length_unit.symbol();
     for (k, l) in src.loads.iter().enumerate() {
         if only.is_some_and(|o| o != k) {
             continue;
         }
+        let rl = st.loads.get(k);
         let mut lj = serde_json::to_value(l).unwrap_or(Value::Null);
         let mut changed = false;
         let mut remove = false;
         egui::Frame::group(ui.style()).inner_margin(6.0).show(ui, |ui| {
             ui.set_width(ui.available_width());
             ui.horizontal(|ui| {
-                let title = match l {
-                    Load::Force { .. } => ts("Force"),
-                    Load::Moment { .. } => ts("Couple"),
-                    Load::Distributed { .. } => ts("Distributed"),
-                };
-                ui.label(RichText::new(format!("{} {}", k + 1, title)).strong());
+                let hdr = load_title(st, k, l);
+                if only.is_none() {
+                    if ui
+                        .selectable_label(state.has(&Sel::Load(k)), RichText::new(hdr).strong())
+                        .on_hover_text(ts("Select the load to edit it"))
+                        .clicked()
+                    {
+                        state.select(Sel::Load(k));
+                    }
+                } else {
+                    ui.label(RichText::new(hdr).strong());
+                }
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     if ui.small_button("×").on_hover_text(ts("Remove the load")).clicked() {
                         remove = true;
                     }
                 });
             });
-            // One field per row: label, box, unit.
             let mut edits: Vec<(&'static str, Value)> = Vec::new();
-            let mut field = |ui: &mut Ui, label: &str, key: &'static str, current: String, unit: &str, optional: bool| {
+            let mut field = |ui: &mut Ui, label: &str, key: &'static str, src_num: Option<&Num>, rval: Option<f64>, unit: &str, optional: bool| {
                 prop_label(ui, label);
+                let current = src_num.map(num_text).unwrap_or_default();
                 if let Some(t) = edit_box(ui, (format!("load_{key}"), k), &current, 90.0) {
                     edits.push((key, if optional && t.trim().is_empty() { Value::Null } else { num_json(&t) }));
                 }
-                ui.label(RichText::new(unit).weak());
+                unit_or_resolved(ui, src_num, rval, unit);
                 ui.end_row();
             };
             props(ui, ("load", k), |ui| {
-                // Where: a node or a member.
                 prop_label(ui, ts("On"));
                 match l {
                     Load::Force { node, member, .. } | Load::Moment { node, member, .. } => {
@@ -2802,33 +3229,40 @@ fn loads_table(app: &mut WordApp, ui: &mut Ui, src: &Structure, st: &Structure, 
                 }
                 ui.label("");
                 ui.end_row();
-                match l {
-                    Load::Force { member, at, value, angle, .. } => {
+                match (l, rl) {
+                    (Load::Force { member, at, value, angle, .. }, Some(Load::Force { at: rat, value: rval, angle: rang, .. })) => {
                         if member.is_some() {
-                            field(ui, ts("at"), "at", num_text(at), lu, false);
+                            field(ui, ts("at"), "at", Some(at), Some(rat.value), lu, false);
                         }
-                        field(ui, "F", "value", num_text(value), fu, false);
-                        field(ui, ts("direction"), "angle", num_text(angle), "°", false);
+                        field(ui, "F", "value", Some(value), Some(rval.value), fu, false);
+                        field(ui, ts("direction"), "angle", Some(angle), Some(rang.value), "°", false);
                     }
-                    Load::Moment { member, at, value, .. } => {
+                    (Load::Moment { member, at, value, .. }, Some(Load::Moment { at: rat, value: rval, .. })) => {
                         if member.is_some() {
-                            field(ui, ts("at"), "at", num_text(at), lu, false);
+                            field(ui, ts("at"), "at", Some(at), Some(rat.value), lu, false);
                         }
-                        field(ui, "C", "value", num_text(value), &format!("{fu}·{lu}"), false);
+                        field(ui, "C", "value", Some(value), Some(rval.value), &format!("{fu}·{lu}"), false);
                     }
-                    Load::Distributed { q1, q2, from, to, angle, .. } => {
-                        let q = format!("{fu}/{lu}");
-                        field(ui, "q1", "q1", num_text(q1), &q, false);
-                        field(ui, "q2", "q2", q2.as_ref().map(num_text).unwrap_or_default(), &q, true);
-                        field(ui, ts("from"), "from", num_text(from), lu, false);
-                        field(ui, ts("to"), "to", to.as_ref().map(num_text).unwrap_or_default(), lu, true);
-                        field(ui, ts("direction"), "angle", num_text(angle), "°", false);
+                    (
+                        Load::Distributed { q1, q2, from, to, angle, .. },
+                        Some(Load::Distributed { q1: rq1, q2: rq2, from: rf, to: rt, angle: rang, .. }),
+                    ) => {
+                        let q_u = format!("{fu}/{lu}");
+                        field(ui, "q1", "q1", Some(q1), Some(rq1.value), &q_u, false);
+                        field(ui, "q2", "q2", q2.as_ref(), rq2.as_ref().map(|x| x.value), &q_u, true);
+                        field(ui, ts("from"), "from", Some(from), Some(rf.value), lu, false);
+                        field(ui, ts("to"), "to", to.as_ref(), rt.as_ref().map(|x| x.value), lu, true);
+                        field(ui, ts("direction"), "angle", Some(angle), Some(rang.value), "°", false);
                     }
+                    _ => {}
                 }
             });
             for (key, v) in edits {
                 lj[key] = v;
                 changed = true;
+            }
+            if only.is_some() && matches!(l, Load::Force { .. } | Load::Distributed { .. }) {
+                rotate::load_inclination_ui(app, ui, src, st, state, k);
             }
             match l {
                 Load::Moment { .. } => {
@@ -2862,11 +3296,13 @@ fn loads_table(app: &mut WordApp, ui: &mut Ui, src: &Structure, st: &Structure, 
             }
         });
         if remove {
-            let _ = app.run("structure.load", json!({"index": k, "remove": true}));
+            let prev = src.loads.len();
+            if app.run("structure.load", json!({"index": k, "remove": true})).is_ok() {
+                state.on_load_removed(k, prev);
+            }
             return;
         }
         if changed {
-            // `null` means "absent" for optional numbers.
             if let Some(o) = lj.as_object_mut() {
                 o.retain(|_, v| !v.is_null());
             }
@@ -2880,14 +3316,21 @@ fn loads_table(app: &mut WordApp, ui: &mut Ui, src: &Structure, st: &Structure, 
     ui.horizontal_wrapped(|ui| {
         let first_node = src.nodes.first().map(|n| n.id.clone());
         let first_member = src.members.first().map(|m| m.id.clone());
-        if ui.add_enabled(first_node.is_some(), egui::Button::new(ts("Add Force"))).clicked() {
-            let _ = app.run("structure.load", json!({"load": {"type": "force", "node": first_node, "value": 10.0}}));
+        let idx = src.loads.len();
+        if ui.add_enabled(first_node.is_some(), egui::Button::new(ts("Add Force"))).clicked()
+            && app.run("structure.load", json!({"load": {"type": "force", "node": first_node, "value": 10.0}})).is_ok()
+        {
+            state.select_new_load(idx);
         }
-        if ui.add_enabled(first_node.is_some(), egui::Button::new(ts("Add Couple"))).clicked() {
-            let _ = app.run("structure.load", json!({"load": {"type": "moment", "node": first_node, "value": 10.0}}));
+        if ui.add_enabled(first_node.is_some(), egui::Button::new(ts("Add Couple"))).clicked()
+            && app.run("structure.load", json!({"load": {"type": "moment", "node": first_node, "value": 10.0}})).is_ok()
+        {
+            state.select_new_load(idx);
         }
-        if ui.add_enabled(first_member.is_some(), egui::Button::new(ts("Add Distributed Load"))).clicked() {
-            let _ = app.run("structure.load", json!({"load": {"type": "distributed", "member": first_member, "q1": 10.0}}));
+        if ui.add_enabled(first_member.is_some(), egui::Button::new(ts("Add Distributed Load"))).clicked()
+            && app.run("structure.load", json!({"load": {"type": "distributed", "member": first_member, "q1": 10.0}})).is_ok()
+        {
+            state.select_new_load(idx);
         }
     });
     ui.label(
@@ -3180,6 +3623,7 @@ mod tests {
         assert_eq!(a.ui.tab, EDITOR_TAB);
         assert_eq!(tools(&ctx).tool, "select");
         for name in [
+            "rotate",
             "node",
             "member",
             "fixed",
@@ -3249,5 +3693,71 @@ mod tests {
         // Typed numbers: plain numbers (decimal commas too) or expressions.
         assert_eq!(num_json("2,5"), json!(2.5));
         assert_eq!(num_json("L/2"), json!("L/2"));
+    }
+
+    /// Graphical vector rotation (`Tool::Rotate` protractor + `DistAngle` & `SupportAngle` grips),
+    /// `Tool::Erase` on loads and support symbols, `Tool::Hinge` on member ends, and immediate
+    /// selection of newly placed loads.
+    #[test]
+    fn rotate_tool_and_grips_incline_vectors_and_supports() {
+        let mut app = WordApp::new(Session::new(wordcraft_doc::Document::new()), crate::Services::default());
+        app.run("structure.insert", json!({"template": "beam"})).unwrap();
+        let rect = Rect::from_min_size(pos2(0.0, 0.0), vec2(600.0, 400.0));
+        let st = resolved(&mut app);
+        let (cx, cy, s) = fit(&st, rect);
+        let v = View { rect, cx, cy, s };
+
+        // Adding a force with Tool::Force selects the new load right away.
+        let mut state = State { tool: Tool::Force, ..State::default() };
+        click(&mut app, &st, v, v.to_screen(3.0, 0.0), &mut state);
+        let st = resolved(&mut app);
+        assert_eq!(state.sel, vec![Sel::Load(1)]);
+
+        // Tool::Rotate: clicking at −45° on the active protractor rim sets the force to −45°.
+        state.tool = Tool::Rotate;
+        let center = v.to_screen(3.0, 0.0);
+        let at_m45 = rotate::ring_pos(center, rotate::PROTRACTOR_R, -45.0);
+        click(&mut app, &st, v, at_m45, &mut state);
+        let st = resolved(&mut app);
+        assert!(matches!(&st.loads[1], Load::Force { angle, .. } if (angle.value - (-45.0)).abs() < 1e-6), "{:?}", st.loads[1]);
+
+        // Distributed load inclination grip (`Grip::DistAngle(0)`): dragging tail up-left inclines arrows down-right (−60°).
+        let src: Structure = serde_json::from_value(app.session.run("structure.get", &json!({})).unwrap()["structure"].clone()).unwrap();
+        let tail_120 = rotate::ring_pos(v.to_screen(3.0, 0.0), 40.0, 120.0);
+        grips::commit(&mut app, &src, &st, v, &mut state, &grips::Grip::DistAngle(0), tail_120, false);
+        let st = resolved(&mut app);
+        assert!(matches!(&st.loads[0], Load::Distributed { angle, .. } if (angle.value - (-60.0)).abs() < 1e-6), "{:?}", st.loads[0]);
+
+        // Support angle grip (`Grip::SupportAngle("B")`): dragging ground to the right of B sets support angle to +90°.
+        let src: Structure = serde_json::from_value(app.session.run("structure.get", &json!({})).unwrap()["structure"].clone()).unwrap();
+        let right_of_b = v.to_screen(6.0, 0.0) + vec2(30.0, 0.0);
+        grips::commit(&mut app, &src, &st, v, &mut state, &grips::Grip::SupportAngle("B".into()), right_of_b, false);
+        let st = resolved(&mut app);
+        assert_eq!(st.supports.iter().find(|sup| sup.node == "B").map(|sup| sup.angle.value), Some(90.0));
+
+        // Tool::Hinge near end A of member 1 (away from node A itself) toggles hingeA.
+        state.tool = Tool::Hinge;
+        let near_a = v.to_screen(0.0, 0.0) + vec2(PICK + 6.0, 0.0);
+        click(&mut app, &st, v, near_a, &mut state);
+        let st = resolved(&mut app);
+        assert!(st.member("1").unwrap().hinge_a);
+
+        // Tool::Erase on the force's shaft removes only that force, keeping member 1 intact.
+        state.tool = Tool::Erase;
+        let force_shaft = match load_shape(&st, v, 1).unwrap().as_slice() {
+            [a, b] => pos2(0.5 * (a.x + b.x), 0.5 * (a.y + b.y)),
+            _ => unreachable!(),
+        };
+        click(&mut app, &st, v, force_shaft, &mut state);
+        let st = resolved(&mut app);
+        assert_eq!(st.loads.len(), 1);
+        assert_eq!(st.members.len(), 1);
+
+        // Tool::Erase on node A's Pin support symbol (below node A) removes only the support, keeping node A.
+        let on_pin = v.to_screen(0.0, 0.0) + vec2(0.0, 3.8 * MM);
+        click(&mut app, &st, v, on_pin, &mut state);
+        let st = resolved(&mut app);
+        assert!(st.node("A").is_some(), "node A stays");
+        assert!(st.supports.iter().all(|s| s.node != "A"), "pin support removed");
     }
 }

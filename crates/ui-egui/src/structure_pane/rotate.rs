@@ -2,7 +2,7 @@
 //! sheet, smart snapping to 15° steps and member parallel/perpendicular axes, and the interactive
 //! compass dial + vector component breakdown in the Properties panel).
 
-use egui::{Align2, Color32, FontId, Pos2, Rect, RichText, Sense, Shape, Stroke, Ui, pos2, vec2};
+use egui::{Align2, Color32, FontId, Pos2, RichText, Sense, Shape, Stroke, Ui, pos2, vec2};
 use serde_json::json;
 use strix_structure::{Load, LoadAxes, Num, Structure};
 
@@ -104,11 +104,8 @@ pub(super) fn active_target(st: &Structure, sel: &[Sel]) -> Option<RotTarget> {
                 if st.supports.iter().any(|sup| sup.node == *id) {
                     return Some(RotTarget::Support(id.clone()));
                 }
-                if let Some((k, _)) = st
-                    .loads
-                    .iter()
-                    .enumerate()
-                    .find(|(_, l)| matches!(l, Load::Force { node: Some(n), member: None, .. } if n == id))
+                if let Some((k, _)) =
+                    st.loads.iter().enumerate().find(|(_, l)| matches!(l, Load::Force { node: Some(n), member: None, .. } if n == id))
                 {
                     return Some(RotTarget::Force(k));
                 }
@@ -133,12 +130,7 @@ pub(super) fn pick_rotatable(st: &Structure, v: View, p: Pos2) -> Option<RotTarg
         if st.supports.iter().any(|s| s.node == id) {
             return Some(RotTarget::Support(id));
         }
-        if let Some((k, _)) = st
-            .loads
-            .iter()
-            .enumerate()
-            .find(|(_, l)| matches!(l, Load::Force { node: Some(n), member: None, .. } if *n == id))
-        {
+        if let Some((k, _)) = st.loads.iter().enumerate().find(|(_, l)| matches!(l, Load::Force { node: Some(n), member: None, .. } if *n == id)) {
             return Some(RotTarget::Force(k));
         }
     }
@@ -230,9 +222,7 @@ pub(super) fn member_angles(st: &Structure, target: &RotTarget) -> Vec<(String, 
 pub(super) fn visual_angle(st: &Structure, target: &RotTarget) -> Option<f64> {
     match target {
         RotTarget::Force(k) => match st.loads.get(*k)? {
-            Load::Force { value, angle, .. } => {
-                Some(if value.value < 0.0 { norm_deg(angle.value + 180.0) } else { norm_deg(angle.value) })
-            }
+            Load::Force { value, angle, .. } => Some(if value.value < 0.0 { norm_deg(angle.value + 180.0) } else { norm_deg(angle.value) }),
             _ => None,
         },
         RotTarget::Distributed(k) => match st.loads.get(*k)? {
@@ -432,7 +422,7 @@ pub(super) fn readout_for(st: &Structure, target: &RotTarget, vis_deg: f64, snap
         let f = value.value.abs();
         let r = vis_deg.to_radians();
         let fu = ts(st.force_unit.symbol());
-        parts.push(format!("Fx = {} {fu}, Fy = {} {fu}", short(f * r.cos()), short(f * r.sin())));
+        parts.push(format!("F_x = {} {fu}, F_y = {} {fu}", short(f * r.cos()), short(f * r.sin())));
     }
     parts.join("   ·   ")
 }
@@ -496,10 +486,7 @@ pub(super) fn paint_protractor(
         } else {
             3.2
         };
-        painter.line_segment(
-            [ring_pos(center, r - len, deg), ring_pos(center, r, deg)],
-            Stroke::new(if i % 90 == 0 { 1.2 } else { 0.8 }, slate),
-        );
+        painter.line_segment([ring_pos(center, r - len, deg), ring_pos(center, r, deg)], Stroke::new(if i % 90 == 0 { 1.2 } else { 0.8 }, slate));
         i += 15;
     }
 
@@ -532,11 +519,7 @@ pub(super) fn paint_protractor(
             }
             for tri in arc_pts.windows(2) {
                 if let [p1, p2] = tri {
-                    painter.add(Shape::convex_polygon(
-                        vec![center, *p1, *p2],
-                        Color32::from_rgba_unmultiplied(0xE1, 0x1D, 0x48, 28),
-                        Stroke::NONE,
-                    ));
+                    painter.add(Shape::convex_polygon(vec![center, *p1, *p2], Color32::from_rgba_unmultiplied(0xE1, 0x1D, 0x48, 28), Stroke::NONE));
                 }
             }
             painter.add(Shape::line(arc_pts, Stroke::new(1.5, accent)));
@@ -568,11 +551,7 @@ pub(super) fn paint_protractor(
     let ny = ux;
     let base = ring_pos(center, r - 8.5, vis_deg);
     let tip = ring_pos(center, r - 1.5, vis_deg);
-    painter.add(Shape::convex_polygon(
-        vec![tip, base + vec2(nx * 3.5, ny * 3.5), base - vec2(nx * 3.5, ny * 3.5)],
-        accent,
-        Stroke::NONE,
-    ));
+    painter.add(Shape::convex_polygon(vec![tip, base + vec2(nx * 3.5, ny * 3.5), base - vec2(nx * 3.5, ny * 3.5)], accent, Stroke::NONE));
 
     // Prominent draggable knob on the protractor rim.
     painter.circle_filled(dir_end, 5.5, accent);
@@ -594,14 +573,7 @@ pub(super) fn paint_protractor(
 /// Interactive compass dial + quick inclination presets + component breakdown for a Force or
 /// Distributed load in the Properties panel. Returns `Some(new_stored_angle)` when clicked/dragged
 /// or a preset button is pressed.
-pub(super) fn load_inclination_ui(
-    app: &mut WordApp,
-    ui: &mut Ui,
-    src: &Structure,
-    st: &Structure,
-    state: &mut State,
-    k: usize,
-) {
+pub(super) fn load_inclination_ui(app: &mut WordApp, ui: &mut Ui, src: &Structure, st: &Structure, state: &mut State, k: usize) {
     let Some(load) = st.loads.get(k) else { return };
     let target = match load {
         Load::Force { .. } => RotTarget::Force(k),
@@ -708,11 +680,7 @@ pub(super) fn load_inclination_ui(
                     run_load(app, k, edits::reversed(src, k));
                 }
                 let rot_on = state.tool == Tool::Rotate && state.has(&Sel::Load(k));
-                if ui
-                    .selectable_label(rot_on, ts("Rotate"))
-                    .on_hover_text(ts("Open the graphical protractor on the sheet (R)"))
-                    .clicked()
-                {
+                if ui.selectable_label(rot_on, ts("Rotate")).on_hover_text(ts("Open the graphical protractor on the sheet (R)")).clicked() {
                     state.select(Sel::Load(k));
                     state.tool = if rot_on { Tool::Select } else { Tool::Rotate };
                     state.start = None;
@@ -728,7 +696,7 @@ pub(super) fn load_inclination_ui(
             let f = value.value.abs();
             let fu = ts(st.force_unit.symbol());
             let (fx, fy) = (f * rad.cos(), f * rad.sin());
-            ui.label(RichText::new(format!("Fx = {} {fu}   ·   Fy = {} {fu}", short(fx), short(fy))).small().weak());
+            ui.label(RichText::new(format!("F_x = {} {fu}   ·   F_y = {} {fu}", short(fx), short(fy))).small().weak());
             if let Some((m_id, th)) = members.first() {
                 let rel = acute_member_angle(vis_deg, *th);
                 let d_rad = (vis_deg - th).to_radians();
@@ -751,14 +719,10 @@ pub(super) fn load_inclination_ui(
             let fu = ts(st.force_unit.symbol());
             let lu = ts(st.length_unit.symbol());
             let (qx, qy) = (q * rad.cos(), q * rad.sin());
-            ui.label(RichText::new(format!("qx = {} {fu}/{lu}   ·   qy = {} {fu}/{lu}", short(qx), short(qy))).small().weak());
+            ui.label(RichText::new(format!("q_x = {} {fu}/{lu}   ·   q_y = {} {fu}/{lu}", short(qx), short(qy))).small().weak());
             if let Some((m_id, th)) = members.first() {
                 let rel = acute_member_angle(vis_deg, *th);
-                ui.label(
-                    RichText::new(format!("{}: {}°", crate::i18n::fmt(ts("Member {n}"), &[("n", m_id)]), short(rel)))
-                        .small()
-                        .weak(),
-                );
+                ui.label(RichText::new(format!("{}: {}°", crate::i18n::fmt(ts("Member {n}"), &[("n", m_id)]), short(rel))).small().weak());
             }
         }
         Load::Moment { .. } => {}
@@ -766,14 +730,7 @@ pub(super) fn load_inclination_ui(
 }
 
 /// Quick orientation presets & Rotate button for a Support in Node Properties.
-pub(super) fn support_orientation_ui(
-    app: &mut WordApp,
-    ui: &mut Ui,
-    src: &Structure,
-    st: &Structure,
-    state: &mut State,
-    node_id: &str,
-) {
+pub(super) fn support_orientation_ui(app: &mut WordApp, ui: &mut Ui, src: &Structure, st: &Structure, state: &mut State, node_id: &str) {
     let target = RotTarget::Support(node_id.to_string());
     let Some(cur) = st.supports.iter().find(|s| s.node == node_id) else { return };
     let stored = norm_deg(cur.angle.value);
@@ -809,11 +766,7 @@ pub(super) fn support_orientation_ui(
             }
         }
         let rot_on = state.tool == Tool::Rotate && state.has(&Sel::Node(node_id.to_string()));
-        if ui
-            .selectable_label(rot_on, ts("Rotate"))
-            .on_hover_text(ts("Open the graphical protractor on the sheet (R)"))
-            .clicked()
-        {
+        if ui.selectable_label(rot_on, ts("Rotate")).on_hover_text(ts("Open the graphical protractor on the sheet (R)")).clicked() {
             state.select(Sel::Node(node_id.to_string()));
             state.tool = if rot_on { Tool::Select } else { Tool::Rotate };
             state.start = None;
@@ -839,12 +792,7 @@ mod tests {
         )
         .unwrap();
 
-        for t in [
-            RotTarget::Force(0),
-            RotTarget::Force(1),
-            RotTarget::Distributed(2),
-            RotTarget::Support("A".into()),
-        ] {
+        for t in [RotTarget::Force(0), RotTarget::Force(1), RotTarget::Distributed(2), RotTarget::Support("A".into())] {
             let vis = visual_angle(&st, &t).unwrap();
             let back = stored_angle_for_visual(&st, &t, vis).unwrap();
             let vis2 = visual_for_stored(&st, &t, back).unwrap();

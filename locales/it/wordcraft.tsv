@@ -4090,3 +4090,41 @@ structure	Double-click	Doppio clic
 	{T} changes sign under a concentrated load	{T} cambia segno sotto un carico concentrato
 	{T} never vanishes nor changes sign: the greatest moment is at an end of a stretch.	{T} non si annulla né cambia segno: il momento massimo è a un estremo di un tratto.
 	The structure can't be solved: its working will be written again as soon as it can.	La struttura non è risolvibile: lo svolgimento verrà riscritto appena lo sarà.
+# Strix (2026-11-19): Structure Editor active command bar, selection, info and graphical vector rotation.
+	Click a load, support, member or node to remove it (a node with what uses it)	Fai clic su un carico, un vincolo, un'asta o un nodo per eliminarli (un nodo con ciò che lo usa)
+structure	Click, Shift+click or drag a window · Tab cycles overlapping items · R rotates vectors	Fai clic, Maiusc+clic o trascina un riquadro · Tab scorre gli elementi sovrapposti · R ruota i vettori
+structure	Drag on the protractor or click an angle to incline (Shift: 1° precision · arrows: ±15°)	Trascina sul goniometro o fai clic su un angolo per inclinare (Maiusc: precisione 1° · frecce: ±15°)
+structure	Click a force, distributed load or support to incline it with the protractor	Fai clic su una forza, un carico distribuito o un vincolo per inclinarlo con il goniometro
+structure	Click on the sheet (or type x, y below) to add a node	Fai clic sul foglio (o digita x, y sotto) per aggiungere un nodo
+structure	Click the end point (Shift: 0°/45°/90° · right-click or Esc finishes the chain)	Fai clic sul punto finale (Maiusc: 0°/45°/90° · clic destro o Esc termina la spezzata)
+structure	Click the first point of the member (or type x, y / @L<α below)	Fai clic sul primo punto dell'asta (o digita x, y / @L<α sotto)
+structure	Click a node to place the support (or drag from the node to orient its angle)	Fai clic su un nodo per applicare il vincolo (o trascina dal nodo per orientarne l'angolo)
+structure	Click a node or near a member's end to toggle an internal hinge	Fai clic su un nodo o vicino all'estremo di un'asta per attivare o togliere una cerniera interna
+structure	Click a node or member to add a force (or drag to aim its inclination)	Fai clic su un nodo o un'asta per aggiungere una forza (o trascina per orientarne l'inclinazione)
+structure	Click a node or member to add a couple	Fai clic su un nodo o un'asta per aggiungere una coppia
+structure	Click a member to apply a distributed load	Fai clic su un'asta per applicare un carico distribuito
+structure	Click a load, support, member or node to erase it	Fai clic su un carico, un vincolo, un'asta o un nodo per eliminarlo
+structure	Return to the Select tool (Esc)	Torna allo strumento Selezione (Esc)
+structure	Incline forces, distributed loads and supports with a graphical protractor (R)	Inclina forze, carichi distribuiti e vincoli con il goniometro grafico (R)
+structure	Click a node or a point of a member to put a force there (or drag to aim its inclination)	Fai clic su un nodo o un punto di un'asta per applicarvi una forza (o trascina per orientarne l'inclinazione)
+structure	Enter sets the angle in degrees (@delta turns from the current angle)	Invio imposta l'angolo in gradi (@delta ruota rispetto all'angolo attuale)
+structure	Drag or click on the dial to incline the vector (Shift: 1° precision)	Trascina o fai clic sul quadrante per inclinare il vettore (Maiusc: precisione 1°)
+structure	Down (−90°)	Verso il basso (−90°)
+structure	Up (+90°)	Verso l'alto (+90°)
+structure	Right (0°)	Verso destra (0°)
+structure	Left (180°)	Verso sinistra (180°)
+structure	At −45°	A −45°
+structure	At +45°	A +45°
+structure	Turn 15° clockwise	Ruota di 15° in senso orario
+structure	Turn 15° counter-clockwise	Ruota di 15° in senso antiorario
+structure	Parallel to the member	Parallela all'asta
+structure	Open the graphical protractor on the sheet (R)	Apri il goniometro grafico sul foglio (R)
+structure	On horizontal ground below (0°)	Sul piano orizzontale sotto (0°)
+structure	On a wall to the left (−90°)	Su parete a sinistra (−90°)
+structure	On a wall to the right (+90°)	Su parete a destra (+90°)
+structure	Above the node (180°)	Sopra il nodo (180°)
+structure	Tension	Trazione
+structure	Focus this item alone	Seleziona solo questo elemento
+structure	Select the member	Seleziona l'asta
+structure	Swap ends	Inverti estremi
+structure	Reverse the member's local axis (a ⇄ b), keeping loads in place	Inverte l'asse locale dell'asta (a ⇄ b) mantenendo i carichi al loro posto

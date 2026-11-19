@@ -346,11 +346,7 @@ pub(super) fn paint_member_cue(painter: &egui::Painter, st: &Structure, v: View,
     let tip = c + u * 8.0;
     let tail = c - u * 8.0;
     painter.line_segment([tail, tip], Stroke::new(1.3, teal));
-    painter.add(Shape::convex_polygon(
-        vec![tip, tip - u * 4.5 + ref_side * 2.6, tip - u * 4.5 - ref_side * 2.6],
-        teal,
-        Stroke::NONE,
-    ));
+    painter.add(Shape::convex_polygon(vec![tip, tip - u * 4.5 + ref_side * 2.6, tip - u * 4.5 - ref_side * 2.6], teal, Stroke::NONE));
     // Short dashed reference-fibre line on the −y side.
     let rf0 = mid + ref_side * 6.5 - u * 12.0;
     let rf1 = mid + ref_side * 6.5 + u * 12.0;
@@ -535,14 +531,7 @@ pub(super) fn tag(st: &Structure, s: &Sel) -> Option<String> {
         Sel::Member(id) => {
             let m = st.member(id)?;
             let slope = rotate::member_deg(st, id).unwrap_or(0.0);
-            format!(
-                "{} ({} → {}) · {} {lu} · {}°",
-                fmt(ts("Member {n}"), &[("n", id)]),
-                m.a,
-                m.b,
-                short(st.length(m)?),
-                short(slope)
-            )
+            format!("{} ({} → {}) · {} {lu} · {}°", fmt(ts("Member {n}"), &[("n", id)]), m.a, m.b, short(st.length(m)?), short(slope))
         }
         Sel::Load(k) => {
             let prefix = names.get(*k).copied().flatten().map(|n| format!("{} · ", n.pretty())).unwrap_or_default();
@@ -553,13 +542,7 @@ pub(super) fn tag(st: &Structure, s: &Sel) -> Option<String> {
                 Load::Moment { value, .. } => format!("{prefix}{} · {} {fu}·{lu}", ts("Couple"), short(value.value)),
                 Load::Distributed { q1, q2, angle, .. } => match q2 {
                     Some(q2) => {
-                        format!(
-                            "{prefix}{} · {} → {} {fu}/{lu} · {}°",
-                            ts("Distributed load"),
-                            short(q1.value),
-                            short(q2.value),
-                            short(angle.value)
-                        )
+                        format!("{prefix}{} · {} → {} {fu}/{lu} · {}°", ts("Distributed load"), short(q1.value), short(q2.value), short(angle.value))
                     }
                     None => {
                         format!("{prefix}{} · {} {fu}/{lu} · {}°", ts("Distributed load"), short(q1.value), short(angle.value))
@@ -577,21 +560,12 @@ pub(super) fn erase_tag(st: &Structure, t: &EraseTarget) -> Option<String> {
         EraseTarget::Load(k) => Some(format!("{}: {}", ts("Erase"), tag(st, &Sel::Load(*k))?)),
         EraseTarget::Support(id) => {
             let sup = st.supports.iter().find(|s| s.node == *id)?;
-            Some(format!(
-                "{}: {} ({})",
-                ts("Erase"),
-                ts(kind_label(Some(sup.kind))),
-                fmt(ts("Node {n}"), &[("n", id)])
-            ))
+            Some(format!("{}: {} ({})", ts("Erase"), ts(kind_label(Some(sup.kind))), fmt(ts("Node {n}"), &[("n", id)])))
         }
         EraseTarget::Node(id) => {
             let m_cnt = st.members.iter().filter(|m| m.a == *id || m.b == *id).count();
             let base = fmt(ts("Node {n}"), &[("n", id)]);
-            if m_cnt > 0 {
-                Some(format!("{}: {base} (+ {m_cnt} {})", ts("Erase"), ts("Members")))
-            } else {
-                Some(format!("{}: {base}", ts("Erase")))
-            }
+            if m_cnt > 0 { Some(format!("{}: {base} (+ {m_cnt} {})", ts("Erase"), ts("Members"))) } else { Some(format!("{}: {base}", ts("Erase"))) }
         }
         EraseTarget::Member(id) => Some(format!("{}: {}", ts("Erase"), fmt(ts("Member {n}"), &[("n", id)]))),
     }
@@ -611,15 +585,7 @@ pub(super) fn paint_tag(painter: &egui::Painter, clip: Rect, p: Pos2, text: &str
 }
 
 /// Paints `text` in a small styled tag box by `p`, within `clip`.
-pub(super) fn paint_tag_styled(
-    painter: &egui::Painter,
-    clip: Rect,
-    p: Pos2,
-    text: &str,
-    bg: Color32,
-    border: Color32,
-    fg: Color32,
-) {
+pub(super) fn paint_tag_styled(painter: &egui::Painter, clip: Rect, p: Pos2, text: &str, bg: Color32, border: Color32, fg: Color32) {
     let font = FontId::proportional(11.0);
     let galley = painter.layout_no_wrap(text.to_string(), font, fg);
     let size = galley.size() + vec2(10.0, 5.0);

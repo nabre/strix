@@ -1,9 +1,8 @@
 <!-- Modified by the Strix contributors (fork of WordCraft); see NOTICE. -->
 # Strix roadmap
 
-> **Last updated:** 2026-11-18 · **Change:** minor (v0.26.0 prepared; READMEs, site and feature
-> docs brought up to date with plane structures' stage 4, the structure exercise and the
-> report/exercise modes)
+> **Last updated:** 2026-11-19 · **Change:** minor (Structure Editor: graphical vector rotation
+> tool and protractor, active-command banner, selection cycling, richer properties and commands)
 
 Strix is a tool for teachers of mathematics, science and engineering: calculation exercises with
 units, open and multiple-choice questions, tests assembled from an archive of exercises, scores,
@@ -47,6 +46,7 @@ dimensions with geometric constraints in CAD (docs/cad.md).
 Strix's history since the fork (2026-10-27). Earlier entries are WordCraft's: see its
 [roadmap](https://github.com/storytold/wordcraft/blob/main/ROADMAP.md).
 
+- 2026-11-19: **Structure Editor: graphical vector rotation, active-command banner, selection and information improvements** (docs/structures.md, Structure Editor pane; `crates/ui-egui/src/structure_pane.rs`, `structure_pane/{rotate,grips,menu,edits}.rs`, `ribbon/structures.rs`). *Vector inclination:* a new **Rotate** tool (`ui.structureTool {"tool": "rotate"}`, shortcut `R`, icon `"structureRotate"`), rotation grips on distributed loads and supports as well as forces, click-and-drag aiming when placing a force or support, a full **360° graduated protractor** on the sheet with 15° steps and member `∥`/`⊥` snaps (preserving calculation expressions when stepped), and an interactive **vector compass dial** in Properties with presets (`↓`, `↑`, `→`, `←`, `±45°`, `±15°`, `⊥`, `∥`, `⇄`) and live `F_x, F_y` / `q_x, q_y` and `F∥, F⊥` components. *Active command:* a contextual banner above the sheet with the active tool's icon, name, step-by-step guide and `×` return to Select, accented sheet frame, tool crosshairs, and single-key shortcuts (`V, R, N, M, F, C, D, H, E`). *Selection and tools:* accurate trapezoid/triangle hit-boxes for distributed loads, support picking, `Alt+click` / `Tab` cycling through overlapping items, `a → b` direction and reference-fibre cue on a selected member, **Swap ends (A ⇄ B)** (`edits::reverse_member`), `Erase` removing individual loads or supports without deleting the member or node, `Hinge` toggling member end hinges (`hingeA`/`hingeB`), `Shift` 0°/45°/90° member constraint, and polar `@L<α` / `@Δα` typed input. *Information:* real load symbols (`F₁`, `q₂`, `C₃`) everywhere, `= value` resolved previews beside expressions, solved support reactions and member N/T/M ranges in Properties, interactive multi-selection chips, and clickable Supports/Loads table rows; translated into Italian, French and German.
 - 2026-11-19: **A change of unit converts the structure** (docs/structures.md, Model; `Structure::convert_units`, `structure.set`, `crates/ui-egui/src/structure_pane.rs`). Choosing cm instead of m (or N instead of kN) in the Structure Editor only relabelled the numbers, so a 1 m beam became 1 cm long; now the numbers are rewritten in the new unit (1 m → 100 cm, 10 kN/m → 0.1 kN/cm, E, I, area too, angles unchanged, expressions kept), and the editor's view and grid are rescaled so the sheet shows the same thing. `structure.set` takes `"convert": false` to relabel only; a `structure` given in the same call is not converted.
 - 2026-11-18: **Plain values without parentheses** (`crates/engine/src/cmd/structure/working.rs`, `working/questions.rs`). The working wrote the loads' definitions as `q_1 = (10 kN/m)`, `F_2 = (10 kN)`, and the same for the reactions, a truss's forces, a constant law (`N_1a(x) = (0 kN)`) and where the shear is zero; a value standing alone after `=` is now written bare (`q_1 = 10 kN/m`), the parentheses kept where calc needs them (`(70 kN)/3`, a value multiplied in a formula).
 - 2026-11-18: **N's intervals end only at axial loads** (docs/structures.md, Exercise; `crates/engine/src/cmd/structure/working/questions.rs`). Under an exercise's N question the laws were split at every load across the member (`N_1a`, `N_1b`, `N_1c` all `= −H_A` under two vertical forces); neighbouring stretches with the same law of N are now one interval, so N's intervals end only where an axial load or a load's axial part acts.
@@ -211,6 +211,8 @@ Strix's history since the fork (2026-10-27). Earlier entries are WordCraft's: se
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-11-19 | minor | Structure Editor: Rotate tool and 360° protractor with member `∥`/`⊥` snaps, compass dial and components, active-command banner, selection cycling, Swap ends, Erase on loads/supports, solved reactions and N/T/M in Properties |
+| 2026-11-19 | minor | Structure units: changing `lengthUnit` or `forceUnit` converts the structure's numbers and rescales the editor's sheet |
 | 2026-11-18 | patch | Structure working: plain values without parentheses (`q_1 = 10 kN/m`) |
 | 2026-11-18 | patch | Structure exercise: N's intervals only at axial loads |
 | 2026-11-18 | patch | Structure working: blocks (a heading and its equations) never split across pages |
