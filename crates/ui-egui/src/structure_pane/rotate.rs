@@ -314,7 +314,7 @@ pub(super) fn snap_visual_angle(st: &Structure, target: &RotTarget, raw_vis_deg:
     }
     let step15 = norm_deg((raw_vis_deg / 15.0).round() * 15.0);
     if let Some((d_ref, ang, kind)) = best_ref {
-        // Prefer an inclined member's exact ⊥ / ∥ unless a 15° tick is much closer.
+        // Prefer an inclined member's exact ∟ / ‖ unless a 15° tick is much closer.
         let d_15 = ang_diff(raw_vis_deg, step15).abs();
         if (ang - step15).abs() <= 1e-6 || d_ref <= d_15 + 1.5 {
             return (ang, Some(kind));
@@ -402,13 +402,13 @@ pub(super) fn commit_target(app: &mut WordApp, src: &Structure, st: &Structure, 
     }
 }
 
-/// Readout string for a rotation state (`α = −60° · ⊥ Member 1 · Fx = …, Fy = …`).
+/// Readout string for a rotation state (`α = −60° · ∟ Member 1 · Fx = …, Fy = …`).
 pub(super) fn readout_for(st: &Structure, target: &RotTarget, vis_deg: f64, snap_ref: Option<&SnapRef>) -> String {
     let stored = stored_angle_for_visual(st, target, vis_deg).unwrap_or(vis_deg);
     let mut parts = vec![format!("α = {}°", short(stored))];
     match snap_ref {
-        Some(SnapRef::Perp(m)) => parts.push(format!("⊥ {}", crate::i18n::fmt(ts("Member {n}"), &[("n", m)]))),
-        Some(SnapRef::Parallel(m)) => parts.push(format!("∥ {}", crate::i18n::fmt(ts("Member {n}"), &[("n", m)]))),
+        Some(SnapRef::Perp(m)) => parts.push(format!("∟ {}", crate::i18n::fmt(ts("Member {n}"), &[("n", m)]))),
+        Some(SnapRef::Parallel(m)) => parts.push(format!("‖ {}", crate::i18n::fmt(ts("Member {n}"), &[("n", m)]))),
         None => {
             if let Some((m, th)) = member_angles(st, target).first() {
                 let rel = acute_member_angle(vis_deg, *th);
@@ -433,18 +433,22 @@ pub(super) fn acute_member_angle(vis_deg: f64, member_th: f64) -> f64 {
     round(d.min(180.0 - d))
 }
 
+/// What the protractor shows: the vector's visual angle and how it got there.
+#[derive(Clone, Copy)]
+pub(super) struct Dial<'a> {
+    /// The vector's current visual angle (degrees, screen convention).
+    pub vis_deg: f64,
+    /// When dragging, the visual angle before the drag started.
+    pub start_vis: Option<f64>,
+    /// The member the angle is snapped to, if any.
+    pub snap_ref: Option<&'a SnapRef>,
+    /// A faint preview (hover) instead of the active protractor.
+    pub faint: bool,
+}
+
 /// Draws the interactive graphical protractor on `painter` around `target`'s pivot.
-/// `start_vis`: when dragging, the initial visual angle before the drag started.
-pub(super) fn paint_protractor(
-    painter: &egui::Painter,
-    st: &Structure,
-    v: View,
-    target: &RotTarget,
-    vis_deg: f64,
-    start_vis: Option<f64>,
-    snap_ref: Option<&SnapRef>,
-    faint_preview: bool,
-) {
+pub(super) fn paint_protractor(painter: &egui::Painter, st: &Structure, v: View, target: &RotTarget, dial: Dial) {
+    let Dial { vis_deg, start_vis, snap_ref, faint: faint_preview } = dial;
     let Some((wx, wy)) = pivot(st, target) else { return };
     let center = v.to_screen(wx, wy);
     let r = PROTRACTOR_R;
@@ -562,8 +566,8 @@ pub(super) fn paint_protractor(
     if !faint_preview {
         let stored = stored_angle_for_visual(st, target, vis_deg).unwrap_or(vis_deg);
         let badge = match snap_ref {
-            Some(SnapRef::Perp(_)) => format!("{}° (⊥)", short(stored)),
-            Some(SnapRef::Parallel(_)) => format!("{}° (∥)", short(stored)),
+            Some(SnapRef::Perp(_)) => format!("{}° (∟)", short(stored)),
+            Some(SnapRef::Parallel(_)) => format!("{}° (‖)", short(stored)),
             None => format!("{}°", short(stored)),
         };
         super::grips::paint_tag(painter, v.rect, pos2(center.x + r * 0.72, center.y - r * 0.92), &badge);
@@ -606,13 +610,12 @@ pub(super) fn load_inclination_ui(app: &mut WordApp, ui: &mut Ui, src: &Structur
         } else if let Some(saved) = ui.data(|d| d.get_temp::<f64>(dial_id)) {
             live_vis = saved;
         }
-        if resp.drag_stopped() || resp.clicked() {
-            if let Some(fin) = ui.data_mut(|d| d.remove_temp::<f64>(dial_id))
-                && let Some(new_st) = stored_angle_for_visual(st, &target, fin)
-            {
-                commit_target(app, src, st, &target, new_st, false);
-                return;
-            }
+        if (resp.drag_stopped() || resp.clicked())
+            && let Some(fin) = ui.data_mut(|d| d.remove_temp::<f64>(dial_id))
+            && let Some(new_st) = stored_angle_for_visual(st, &target, fin)
+        {
+            commit_target(app, src, st, &target, new_st, false);
+            return;
         }
         let resp = resp.on_hover_text(ts("Drag or click on the dial to incline the vector (Shift: 1° precision)"));
         if resp.hovered() || resp.dragged() {
@@ -665,18 +668,18 @@ pub(super) fn load_inclination_ui(app: &mut WordApp, ui: &mut Ui, src: &Structur
                 if let Some((_, th)) = members.first() {
                     let perp_vis = norm_deg(th - 90.0);
                     let par_vis = norm_deg(*th);
-                    if ui.small_button("⊥").on_hover_text(ts("Perpendicular to the member")).clicked()
+                    if ui.small_button("∟").on_hover_text(ts("Perpendicular to the member")).clicked()
                         && let Some(st_a) = stored_angle_for_visual(st, &target, perp_vis)
                     {
                         commit_target(app, src, st, &target, st_a, false);
                     }
-                    if ui.small_button("∥").on_hover_text(ts("Parallel to the member")).clicked()
+                    if ui.small_button("‖").on_hover_text(ts("Parallel to the member")).clicked()
                         && let Some(st_a) = stored_angle_for_visual(st, &target, par_vis)
                     {
                         commit_target(app, src, st, &target, st_a, false);
                     }
                 }
-                if ui.small_button("⇄").on_hover_text(ts("Reverse")).clicked() {
+                if ui.small_button("↔").on_hover_text(ts("Reverse")).clicked() {
                     run_load(app, k, edits::reversed(src, k));
                 }
                 let rot_on = state.tool == Tool::Rotate && state.has(&Sel::Load(k));
@@ -703,7 +706,7 @@ pub(super) fn load_inclination_ui(app: &mut WordApp, ui: &mut Ui, src: &Structur
                 let (f_par, f_perp) = (f * d_rad.cos(), -f * d_rad.sin());
                 ui.label(
                     RichText::new(format!(
-                        "{}: {}°   (F∥ = {} {fu}, F⊥ = {} {fu})",
+                        "{}: {}°   (F‖ = {} {fu}, F∟ = {} {fu})",
                         crate::i18n::fmt(ts("Member {n}"), &[("n", m_id)]),
                         short(rel),
                         short(f_par),
@@ -757,11 +760,11 @@ pub(super) fn support_orientation_ui(app: &mut WordApp, ui: &mut Ui, src: &Struc
         if let Some((_, th)) = members.first() {
             // Ground parallel to member: support angle = member angle `th`.
             let par_ground = norm_deg(*th);
-            if ui.small_button("∥").on_hover_text(ts("Parallel to the member")).clicked() {
+            if ui.small_button("‖").on_hover_text(ts("Parallel to the member")).clicked() {
                 commit_target(app, src, st, &target, par_ground, false);
             }
             let perp_ground = norm_deg(th + 90.0);
-            if ui.small_button("⊥").on_hover_text(ts("Perpendicular to the member")).clicked() {
+            if ui.small_button("∟").on_hover_text(ts("Perpendicular to the member")).clicked() {
                 commit_target(app, src, st, &target, perp_ground, false);
             }
         }

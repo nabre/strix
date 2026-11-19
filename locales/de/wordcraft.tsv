@@ -4047,4 +4047,4 @@ structure	Tension	Zug
 structure	Focus this item alone	Nur dieses Element auswählen
 structure	Select the member	Stab auswählen
 structure	Swap ends	Enden vertauschen
-structure	Reverse the member's local axis (a ⇄ b), keeping loads in place	Kehrt die lokale Stabachse (a ⇄ b) um, wobei die Lasten an ihrem Ort bleiben
+structure	Reverse the member's local axis (a ↔ b), keeping loads in place	Kehrt die lokale Stabachse (a ↔ b) um, wobei die Lasten an ihrem Ort bleiben

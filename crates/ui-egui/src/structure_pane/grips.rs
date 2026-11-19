@@ -369,7 +369,7 @@ pub(super) fn paint(
         && let Target::Turn(rt, _, vis, sref) = target(st, v, state, g, p, shift)
     {
         let start_vis = rotate::visual_angle(st, &rt);
-        rotate::paint_protractor(painter, st, v, &rt, vis, start_vis, sref.as_ref(), false);
+        rotate::paint_protractor(painter, st, v, &rt, rotate::Dial { vis_deg: vis, start_vis, snap_ref: sref.as_ref(), faint: false });
     }
 
     let under = hover.and_then(|h| hit(grips, h));

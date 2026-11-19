@@ -4046,4 +4046,4 @@ structure	Tension	Traction
 structure	Focus this item alone	Sélectionner uniquement cet élément
 structure	Select the member	Sélectionner la barre
 structure	Swap ends	Inverser les extrémités
-structure	Reverse the member's local axis (a ⇄ b), keeping loads in place	Inverse l’axe local de la barre (a ⇄ b) en gardant les charges en place
+structure	Reverse the member's local axis (a ↔ b), keeping loads in place	Inverse l’axe local de la barre (a ↔ b) en gardant les charges en place

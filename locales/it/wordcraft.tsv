@@ -4127,4 +4127,4 @@ structure	Tension	Trazione
 structure	Focus this item alone	Seleziona solo questo elemento
 structure	Select the member	Seleziona l'asta
 structure	Swap ends	Inverti estremi
-structure	Reverse the member's local axis (a ⇄ b), keeping loads in place	Inverte l'asse locale dell'asta (a ⇄ b) mantenendo i carichi al loro posto
+structure	Reverse the member's local axis (a ↔ b), keeping loads in place	Inverte l'asse locale dell'asta (a ↔ b) mantenendo i carichi al loro posto
