@@ -292,6 +292,23 @@ fn paint_structures(pen: &Pen, name: &str) -> bool {
             pen.line_c(&[(10.0, 3.0), (10.0, 11.5)], a);
             pen.fill(&[(7.8, 10.5), (12.2, 10.5), (10.0, 14.2)], a);
         }
+        // Rotate vector: an inclined force on a beam with a protractor arc turning it.
+        "structureRotate" => {
+            pen.line_c(&[(2.5, 16.0), (17.5, 16.0)], c);
+            pen.fcircle(9.0, 16.0, 1.4, c);
+            pen.line_c(&[(16.0, 4.0), (10.3, 13.8)], a);
+            pen.fill(&[(9.3, 11.8), (12.6, 13.7), (9.2, 15.4)], a);
+            let arc: Vec<(f32, f32)> = (0..=10)
+                .map(|i| {
+                    let t = std::f32::consts::PI * (0.36 + 0.50 * i as f32 / 10.0);
+                    (9.0 + 9.5 * t.cos(), 16.0 - 9.5 * t.sin())
+                })
+                .collect();
+            pen.line_c(&arc, c.linear_multiply(0.75));
+            if let Some(&(x, y)) = arc.last() {
+                pen.fill(&[(x - 1.2, y - 1.8), (x + 2.2, y - 0.8), (x - 0.4, y + 1.8)], c);
+            }
+        }
         // Couple: a curved arrow round a point of a beam.
         "structureCouple" => {
             pen.line_c(&[(3.0, 12.0), (17.0, 12.0)], c);

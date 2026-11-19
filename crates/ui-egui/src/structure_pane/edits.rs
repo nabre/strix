@@ -487,6 +487,52 @@ pub(super) fn spread(src: &Structure, st: &Structure, k: usize, from: f64, to: f
     Some(l)
 }
 
+/// `src` with member `id` turned round (`a` ⇄ `b`, `hingeA` ⇄ `hingeB`): its loads stay at the
+/// same world positions and keep the same directions (`len − at`, `q1` ⇄ `q2`, local direction
+/// turned by 180°).
+pub(super) fn reverse_member(src: &Structure, st: &Structure, id: &str) -> Option<Structure> {
+    let rm = st.member(id)?;
+    let len = st.length(rm).filter(|l| *l > 0.0)?;
+    let mut out = src.clone();
+    let m = out.members.iter_mut().find(|m| m.id == id)?;
+    std::mem::swap(&mut m.a, &mut m.b);
+    std::mem::swap(&mut m.hinge_a, &mut m.hinge_b);
+    for (k, l) in out.loads.iter_mut().enumerate() {
+        let Some(rl) = st.loads.get(k) else { continue };
+        match (l, rl) {
+            (
+                Load::Force { member: Some(mid), at, .. } | Load::Moment { member: Some(mid), at, .. },
+                Load::Force { at: rat, .. } | Load::Moment { at: rat, .. },
+            ) if mid == id => {
+                *at = Num::new(round((len - rat.value).clamp(0.0, len)));
+            }
+            (
+                Load::Distributed { member, q1, q2, from, to, angle, axes, .. },
+                Load::Distributed { q1: rq1, q2: rq2, from: rf, to: rt, angle: ra, .. },
+            ) if member == id => {
+                let (f, t) = (rf.value.clamp(0.0, len), rt.as_ref().map_or(len, |t| t.value).clamp(0.0, len));
+                let nf = round((len - t).max(0.0));
+                let nt = round((len - f).min(len));
+                *from = Num::new(nf);
+                *to = if (nt - len).abs() <= EPS { None } else { Some(Num::new(nt)) };
+                if let Some(rq2) = rq2 {
+                    *q1 = Num::new(rq2.value);
+                    *q2 = Some(Num::new(rq1.value));
+                }
+                if *axes == strix_structure::LoadAxes::Local {
+                    let mut d = ra.value + 180.0;
+                    if d > 180.0 {
+                        d -= 360.0;
+                    }
+                    *angle = Num::new(round(d));
+                }
+            }
+            _ => {}
+        }
+    }
+    Some(out)
+}
+
 /// The nodes and members joined to `start` through members (a node, or a member's ends): the
 /// connected part of the structure it is in.
 pub(super) fn connected(st: &Structure, start: &[String]) -> (Vec<String>, Vec<String>) {

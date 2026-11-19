@@ -15,6 +15,7 @@ use crate::WordApp;
 mod edits;
 mod grips;
 mod menu;
+mod rotate;
 
 /// Screen pixels per paper millimetre on the sheet (the symbols' and texts' sizes).
 const PX_PER_MM: f32 = 4.0;
@@ -26,6 +27,7 @@ const PICK: f32 = 10.0;
 enum Tool {
     #[default]
     Select,
+    Rotate,
     Node,
     Member,
     Support(SupportKind),
@@ -36,9 +38,19 @@ enum Tool {
     Erase,
 }
 
+/// What `Tool::Erase` would delete at the pointer.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) enum EraseTarget {
+    Load(usize),
+    Support(String),
+    Node(String),
+    Member(String),
+}
+
 /// The tools as `ui.structureTool` names them.
-const TOOL_NAMES: [(Tool, &str); 14] = [
+const TOOL_NAMES: [(Tool, &str); 15] = [
     (Tool::Select, "select"),
+    (Tool::Rotate, "rotate"),
     (Tool::Node, "node"),
     (Tool::Member, "member"),
     (Tool::Support(SupportKind::Fixed), "fixed"),
@@ -61,6 +73,64 @@ impl Tool {
 
     fn from_name(name: &str) -> Option<Tool> {
         TOOL_NAMES.iter().find(|(_, n)| n.eq_ignore_ascii_case(name.trim())).map(|(t, _)| *t)
+    }
+
+    fn icon(self) -> &'static str {
+        match self {
+            Tool::Select => "cadSelect",
+            Tool::Rotate => "structureRotate",
+            Tool::Node => "structureNode",
+            Tool::Member => "structureMember",
+            Tool::Support(SupportKind::Fixed) => "structureFixed",
+            Tool::Support(SupportKind::Pin) => "structurePin",
+            Tool::Support(SupportKind::Roller) => "structureRoller",
+            Tool::Support(SupportKind::RollerCircle) => "structureRollerCircle",
+            Tool::Support(SupportKind::Link) => "structureLink",
+            Tool::Support(SupportKind::Slider) => "structureSlider",
+            Tool::Hinge => "structureHinge",
+            Tool::Force => "structureForce",
+            Tool::Couple => "structureCouple",
+            Tool::Distributed => "structureDistributed",
+            Tool::Erase => "cadDelete",
+        }
+    }
+
+    fn label(self) -> &'static str {
+        match self {
+            Tool::Select => "Select",
+            Tool::Rotate => "Rotate",
+            Tool::Node => "Node",
+            Tool::Member => "Member",
+            Tool::Support(SupportKind::Fixed) => "Fixed",
+            Tool::Support(SupportKind::Pin) => "Pin",
+            Tool::Support(SupportKind::Roller) => "Roller",
+            Tool::Support(SupportKind::RollerCircle) => "Roller (circle)",
+            Tool::Support(SupportKind::Link) => "Link",
+            Tool::Support(SupportKind::Slider) => "Slider",
+            Tool::Hinge => "Internal hinge",
+            Tool::Force => "Force",
+            Tool::Couple => "Couple",
+            Tool::Distributed => "Distributed",
+            Tool::Erase => "Erase",
+        }
+    }
+
+    /// Step-by-step guidance shown in the active command banner above the sheet.
+    fn prompt(self, has_start: bool, has_rot: bool) -> &'static str {
+        match self {
+            Tool::Select => "Click, Shift+click or drag a window · Tab cycles overlapping items · R rotates vectors",
+            Tool::Rotate if has_rot => "Drag on the protractor or click an angle to incline (Shift: 1° precision · arrows: ±15°)",
+            Tool::Rotate => "Click a force, distributed load or support to incline it with the protractor",
+            Tool::Node => "Click on the sheet (or type x, y below) to add a node",
+            Tool::Member if has_start => "Click the end point (Shift: 0°/45°/90° · right-click or Esc finishes the chain)",
+            Tool::Member => "Click the first point of the member (or type x, y / @L<α below)",
+            Tool::Support(_) => "Click a node to place the support (or drag from the node to orient its angle)",
+            Tool::Hinge => "Click a node or near a member's end to toggle an internal hinge",
+            Tool::Force => "Click a node or member to add a force (or drag to aim its inclination)",
+            Tool::Couple => "Click a node or member to add a couple",
+            Tool::Distributed => "Click a member to apply a distributed load",
+            Tool::Erase => "Click a load, support, member or node to erase it",
+        }
     }
 }
 
@@ -86,6 +156,12 @@ enum Gesture {
     Window { from: Pos2, to: Pos2 },
     /// A grip dragged (`grips.rs`), with where the pointer is.
     Grip { grip: grips::Grip, to: Pos2 },
+    /// Rotating a vector or support on the protractor (`Tool::Rotate`).
+    Rotate { target: rotate::RotTarget, grab_deg: f64, start_vis: f64, to: Pos2, moved: bool },
+    /// Placing a force with `Tool::Force` and dragging to aim its inclination.
+    AimForce { place: edits::Place, from: Pos2, to: Pos2 },
+    /// Placing a support with `Tool::Support` and dragging to orient its angle.
+    AimSupport { node: String, kind: SupportKind, from: Pos2, to: Pos2 },
 }
 
 /// The editor's state between frames.
@@ -94,6 +170,8 @@ struct State {
     tool: Tool,
     /// The selection, in the order it was made.
     sel: Vec<Sel>,
+    /// Index for cycling through overlapping hits (`Alt+Click` or `Tab`).
+    cycle: usize,
     /// The drag under way.
     gesture: Option<Gesture>,
     /// The world point at the sheet's centre and pixels per unit; `None`: fit on the next frame.
@@ -112,6 +190,9 @@ struct State {
     /// How many loads the structure had when last seen: loads are selected by index, so a
     /// change in their number (an undo, a table, a command) drops them from the selection.
     loads: Option<usize>,
+    /// The structure's length unit when last seen: when it changes the structure's numbers were
+    /// converted, and the view and the grid are rescaled to show the same thing.
+    unit: Option<strix_structure::LengthUnit>,
 }
 
 impl Default for State {
@@ -119,6 +200,7 @@ impl Default for State {
         State {
             tool: Tool::Select,
             sel: Vec::new(),
+            cycle: 0,
             gesture: None,
             view: None,
             fitted_for: String::new(),
@@ -128,6 +210,7 @@ impl Default for State {
             dims: true,
             typed: String::new(),
             loads: None,
+            unit: None,
         }
     }
 }
@@ -149,6 +232,28 @@ impl State {
         self.sel.contains(s)
     }
 
+    /// Selects a newly appended load at `idx` (`prev_len`) and updates `self.loads` so `prune`
+    /// keeps it selected on the next frame.
+    fn select_new_load(&mut self, idx: usize) {
+        self.loads = Some(idx + 1);
+        self.select(Sel::Load(idx));
+    }
+
+    /// Updates load indices in the selection after load `removed` was deleted.
+    fn on_load_removed(&mut self, removed: usize, prev_len: usize) {
+        self.loads = Some(prev_len.saturating_sub(1));
+        self.sel.retain_mut(|s| match s {
+            Sel::Load(k) if *k == removed => false,
+            Sel::Load(k) => {
+                if *k > removed {
+                    *k -= 1;
+                }
+                true
+            }
+            _ => true,
+        });
+    }
+
     /// Adds `s` to the selection, or takes it out (Shift or Ctrl and a click).
     fn toggle(&mut self, s: Sel) {
         match self.sel.iter().position(|x| *x == s) {
@@ -162,6 +267,12 @@ impl State {
     /// What no longer exists leaves the selection; loads too when their number changed, since
     /// an index may then name another load.
     fn prune(&mut self, st: &Structure) {
+        if let Some(old) = self.unit
+            && old != st.length_unit
+        {
+            rescale(self, old.si() / st.length_unit.si());
+        }
+        self.unit = Some(st.length_unit);
         let n = st.loads.len();
         let renumbered = self.loads.is_some_and(|k| k != n);
         self.loads = Some(n);
@@ -175,11 +286,22 @@ impl State {
         {
             self.gesture = None;
         }
-        if let Some(Gesture::Grip { grip: grips::Grip::Point(k) | grips::Grip::Tail(k) | grips::Grip::From(k) | grips::Grip::To(k), .. }) =
-            &self.gesture
+        if let Some(Gesture::Grip {
+            grip: grips::Grip::Point(k) | grips::Grip::Tail(k) | grips::Grip::DistAngle(k) | grips::Grip::From(k) | grips::Grip::To(k),
+            ..
+        }) = &self.gesture
             && (renumbered || *k >= n)
         {
             self.gesture = None;
+        }
+        if let Some(Gesture::Rotate { target, .. }) = &self.gesture {
+            let gone = match target {
+                rotate::RotTarget::Force(k) | rotate::RotTarget::Distributed(k) => renumbered || *k >= n,
+                rotate::RotTarget::Support(id) => !st.supports.iter().any(|s| s.node == *id),
+            };
+            if gone {
+                self.gesture = None;
+            }
         }
     }
 }
@@ -216,19 +338,24 @@ pub(crate) fn pane(app: &mut WordApp, ui: &mut Ui) {
     };
     let mut state = ui.data(|d| d.get_temp::<State>(state_id())).unwrap_or_default();
     state.prune(&st);
-    status_line(ui, &info);
-    if ui
-        .button(ts("Edit in Full Page"))
-        .on_hover_text(ts("Open the structure in its editor, in place of the page (or double-click the structure)"))
-        .clicked()
-    {
-        ui.data_mut(|d| d.insert_temp(state_id(), state.clone()));
-        let _ = app.run("ui.structureEdit", json!({}));
-    }
+    ui.horizontal(|ui| {
+        status_line(ui, &info);
+        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+            if ui
+                .button(ts("Edit in Full Page"))
+                .on_hover_text(ts("Open the structure in its editor, in place of the page (or double-click the structure)"))
+                .clicked()
+            {
+                ui.data_mut(|d| d.insert_temp(state_id(), state.clone()));
+                let _ = app.run("ui.structureEdit", json!({}));
+            }
+        });
+    });
     toolbar(ui, &mut state);
+    active_command_bar(ui, &st, &mut state);
     let h = (ui.available_height() * 0.45).clamp(220.0, 460.0);
     sheet(app, ui, &src, &st, &mut state, h, false);
-    typed_point(app, ui, &st, &mut state);
+    typed_point(app, ui, &src, &st, &mut state);
     egui::ScrollArea::vertical().id_salt("structure_pane_scroll").show(ui, |ui| {
         if ui
             .button(ts("Write Working"))
@@ -237,7 +364,7 @@ pub(crate) fn pane(app: &mut WordApp, ui: &mut Ui) {
         {
             let _ = app.run("structure.working", working_labels());
         }
-        selection(app, ui, &src, &st, &mut state);
+        selection(app, ui, &info, &src, &st, &mut state);
         ui.add_space(4.0);
         tables(app, ui, &src, &st, &mut state);
     });
@@ -265,7 +392,7 @@ pub(crate) fn editor(app: &mut WordApp, ui: &mut Ui) {
     let mut state = ui.data(|d| d.get_temp::<State>(state_id())).unwrap_or_default();
     state.prune(&st);
     let full = ui.available_rect_before_wrap();
-    let side_w = 360.0_f32.min(full.width() * 0.4);
+    let side_w = 370.0_f32.min(full.width() * 0.42);
     let main = Rect::from_min_max(full.min, pos2(full.max.x - side_w, full.max.y));
     let side = Rect::from_min_max(pos2(full.max.x - side_w, full.min.y), full.max);
     let mut close_now = false;
@@ -276,15 +403,16 @@ pub(crate) fn editor(app: &mut WordApp, ui: &mut Ui) {
             ui.add_space(12.0);
             status_line(ui, &info);
         });
+        active_command_bar(ui, &st, &mut state);
         // Its tools, Write Working and Close Editor are on its ribbon tab (EDITOR_TAB).
         let h = ui.available_height() - 34.0;
         esc_free = sheet(app, ui, &src, &st, &mut state, h, true);
-        typed_point(app, ui, &st, &mut state);
+        typed_point(app, ui, &src, &st, &mut state);
     });
     ui.painter().vline(side.min.x, side.y_range(), Stroke::new(1.0, Color32::from_gray(200)));
     ui.scope_builder(egui::UiBuilder::new().max_rect(side.shrink(8.0)).layout(egui::Layout::top_down(egui::Align::Min)), |ui| {
         egui::ScrollArea::vertical().id_salt("structure_editor_side").show(ui, |ui| {
-            selection(app, ui, &src, &st, &mut state);
+            selection(app, ui, &info, &src, &st, &mut state);
             ui.add_space(6.0);
             tables(app, ui, &src, &st, &mut state);
         });
@@ -394,7 +522,7 @@ pub(crate) fn command(app: &mut WordApp, id: &str, p: &Value) -> Result<Value, S
         "ui.structureDimensions" => with_state(app, |s| s.dims = on.unwrap_or(!s.dims)),
         "ui.structureGrid" => {
             let size = p.get("size").and_then(Value::as_f64).filter(|v| v.is_finite() && *v > 0.0).ok_or("size: a positive number")?;
-            with_state(app, |s| s.grid = size.clamp(0.01, 100.0))
+            with_state(app, |s| s.grid = size.clamp(MIN_GRID, MAX_GRID))
         }
         "ui.structureFit" => with_state(app, |s| s.view = None),
         _ => Err(format!("unknown command {id}")),
@@ -463,9 +591,77 @@ fn status_line(ui: &mut Ui, info: &Value) {
 /// What the editor's Dimensions switch does.
 pub(crate) const DIMS_TIP: &str = "Show on the sheet the dimensions, the slopes of inclined members and the angles of inclined forces (the document draws them as Structures › Dimensions says)";
 
+/// Banner shown above the sheet: highlights the active command with its icon, step prompt, and
+/// a one-click return to Select (`Esc`), or shows contextual selection hints in `Select` mode.
+fn active_command_bar(ui: &mut Ui, st: &Structure, state: &mut State) {
+    let has_rot = rotate::active_target(st, &state.sel).is_some();
+    let active = state.tool != Tool::Select;
+    let (bg, border, badge_col) = match state.tool {
+        Tool::Select => (
+            Color32::from_rgba_unmultiplied(0xF1, 0xF5, 0xF9, 190),
+            Color32::from_gray(215),
+            Color32::from_rgb(0x33, 0x41, 0x55),
+        ),
+        Tool::Erase => (
+            Color32::from_rgba_unmultiplied(0xFE, 0xE2, 0xE2, 235),
+            Color32::from_rgb(0xDC, 0x26, 0x26),
+            Color32::from_rgb(0xB9, 0x1C, 0x1C),
+        ),
+        Tool::Rotate => (
+            Color32::from_rgba_unmultiplied(0xFF, 0xE4, 0xE6, 235),
+            Color32::from_rgb(0xE1, 0x1D, 0x48),
+            Color32::from_rgb(0xBE, 0x12, 0x3C),
+        ),
+        _ => (
+            Color32::from_rgba_unmultiplied(0xFF, 0xF7, 0xED, 240),
+            Color32::from_rgb(0xEA, 0x58, 0x0C),
+            Color32::from_rgb(0xC2, 0x41, 0x0C),
+        ),
+    };
+    egui::Frame::NONE
+        .fill(bg)
+        .stroke(Stroke::new(if active { 1.2 } else { 0.8 }, border))
+        .corner_radius(4.0)
+        .inner_margin(egui::Margin::symmetric(8, 4))
+        .show(ui, |ui| {
+            ui.set_width(ui.available_width());
+            ui.horizontal(|ui| {
+                let (ic_rect, _) = ui.allocate_exact_size(vec2(16.0, 16.0), Sense::hover());
+                crate::icons::paint(ui.painter(), ic_rect, state.tool.icon(), badge_col, badge_col);
+                let title = if state.tool == Tool::Member {
+                    format!("{} ({}/2)", ts(state.tool.label()), if state.start.is_some() { "2" } else { "1" })
+                } else {
+                    ts(state.tool.label()).to_string()
+                };
+                ui.label(RichText::new(title).strong().color(badge_col));
+                ui.label(RichText::new("—").weak());
+                ui.label(
+                    RichText::new(ts(state.tool.prompt(state.start.is_some(), has_rot)))
+                        .small()
+                        .color(Color32::from_gray(0x30)),
+                );
+                if active {
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        if ui
+                            .small_button(format!("× {}", ts("Select tool")))
+                            .on_hover_text(ts("Return to the Select tool (Esc)"))
+                            .clicked()
+                        {
+                            state.tool = Tool::Select;
+                            state.start = None;
+                            state.gesture = None;
+                        }
+                    });
+                }
+            });
+        });
+    ui.add_space(2.0);
+}
+
 fn toolbar(ui: &mut Ui, state: &mut State) {
-    let tools: [(Tool, &str, &str); 14] = [
+    let tools: [(Tool, &str, &str); 15] = [
         (Tool::Select, "Select", "Select nodes, members and loads (Shift+click, a window); drag to move them, a load slides along its member"),
+        (Tool::Rotate, "Rotate", "Incline forces, distributed loads and supports with a graphical protractor (R)"),
         (Tool::Node, "Node", "Click to add a node"),
         (Tool::Member, "Member", "Click two points to draw a member; it goes on from its end (Esc or a right click stops)"),
         (Tool::Support(SupportKind::Fixed), "Fixed", "Click a node to fix it (incastro)"),
@@ -474,25 +670,28 @@ fn toolbar(ui: &mut Ui, state: &mut State) {
         (Tool::Support(SupportKind::RollerCircle), "Roller (circle)", "Click a node to put it on a roller drawn as a circle (carrello)"),
         (Tool::Support(SupportKind::Link), "Link", "Click a node to hold it with a link (pendolo)"),
         (Tool::Support(SupportKind::Slider), "Slider", "Click a node to hold it with a slider (glifo)"),
-        (Tool::Hinge, "Internal hinge", "Click a node to make it an internal hinge, or not"),
-        (Tool::Force, "Force", "Click a node or a point of a member to put a force there"),
+        (Tool::Hinge, "Internal hinge", "Click a node or near a member's end to toggle an internal hinge"),
+        (Tool::Force, "Force", "Click a node or a point of a member to put a force there (or drag to aim its inclination)"),
         (Tool::Couple, "Couple", "Click a node or a point of a member to put a couple there"),
         (Tool::Distributed, "Distributed", "Click a member to load it along its length"),
-        (Tool::Erase, "Erase", "Click a node or a member to remove it (a node with what uses it)"),
+        (Tool::Erase, "Erase", "Click a load, support, member or node to remove it (a node with what uses it)"),
     ];
     ui.horizontal_wrapped(|ui| {
         ui.spacing_mut().item_spacing = vec2(3.0, 3.0);
         for (tool, label, tip) in tools {
-            if ui.selectable_label(state.tool == tool, ts(label)).on_hover_text(ts(tip)).clicked() {
+            let on = state.tool == tool;
+            let text = if on { RichText::new(ts(label)).strong() } else { RichText::new(ts(label)) };
+            if ui.selectable_label(on, text).on_hover_text(ts(tip)).clicked() {
                 state.tool = tool;
                 state.start = None;
+                state.gesture = None;
             }
         }
     });
     ui.horizontal(|ui| {
         ui.checkbox(&mut state.snap, ts("Snap")).on_hover_text(ts("Snap to the grid (always to the nodes)"));
         ui.label(ts("Grid"));
-        ui.add(egui::DragValue::new(&mut state.grid).range(0.01..=100.0).speed(0.05).max_decimals(3));
+        ui.add(egui::DragValue::new(&mut state.grid).range(MIN_GRID..=MAX_GRID).speed(0.05).max_decimals(3));
         if ui.button(ts("Fit")).on_hover_text(ts("Show the whole structure")).clicked() {
             state.view = None;
         }
@@ -553,8 +752,83 @@ fn snap(st: &Structure, v: View, p: Pos2, state: &State) -> ((f64, f64), Option<
     ((x, y), None)
 }
 
+/// Constrains `pt` to 0°/45°/90° from `start` when `shift` is held and not snapped to an existing node.
+fn snap_member_end(start: Option<(f64, f64)>, pt: (f64, f64), on_node: bool, shift: bool, state: &State) -> (f64, f64) {
+    let Some((x0, y0)) = start.filter(|_| shift && !on_node) else { return pt };
+    let (dx, dy) = (pt.0 - x0, pt.1 - y0);
+    let len = dx.hypot(dy);
+    if len <= 1e-9 {
+        return pt;
+    }
+    let ang = (dy.atan2(dx).to_degrees() / 45.0).round() * 45.0;
+    let r = ang.to_radians();
+    let (mut x, mut y) = (x0 + len * r.cos(), y0 + len * r.sin());
+    if state.snap && state.grid > 0.0 {
+        let g = state.grid;
+        if r.sin().abs() < 1e-6 {
+            x = (x / g).round() * g;
+            y = y0;
+        } else if r.cos().abs() < 1e-6 {
+            x = x0;
+            y = (y / g).round() * g;
+        } else {
+            let step = ((dx.abs().max(dy.abs())) / g).round() * g;
+            x = x0 + step * r.cos().signum();
+            y = y0 + step * r.sin().signum();
+        }
+    }
+    (round(x), round(y))
+}
+
 fn dist(a: Pos2, b: Pos2) -> f64 {
     f64::from((a - b).length())
+}
+
+/// Screen bounding box of the support drawn on node `id`, if it has one.
+pub(super) fn support_rect(st: &Structure, v: View, id: &str) -> Option<Rect> {
+    let n = st.node(id)?;
+    let s = st.supports.iter().find(|s| s.node == id)?;
+    let p = v.to_screen(n.x.value, n.y.value);
+    let phi = s.angle.value.to_radians();
+    let down = vec2(phi.sin() as f32, phi.cos() as f32);
+    let along = vec2(phi.cos() as f32, -(phi.sin() as f32));
+    let depth = match s.kind {
+        SupportKind::Fixed => 2.2,
+        SupportKind::Link => 7.0,
+        SupportKind::Slider => 6.0,
+        _ => 5.0,
+    } * MM;
+    let half = 4.0 * MM;
+    let corners = [p - along * half, p + along * half, p + along * half + down * depth, p - along * half + down * depth];
+    let mut r = Rect::NOTHING;
+    for c in corners {
+        r.extend_with(c);
+    }
+    Some(r)
+}
+
+/// Picks the node whose support symbol lies under screen point `p`.
+pub(super) fn pick_support_node(st: &Structure, v: View, p: Pos2) -> Option<String> {
+    for s in st.supports.iter().rev() {
+        let Some(n) = st.node(&s.node) else { continue };
+        let np = v.to_screen(n.x.value, n.y.value);
+        let phi = s.angle.value.to_radians();
+        let down = vec2(phi.sin() as f32, phi.cos() as f32);
+        let along = vec2(phi.cos() as f32, -(phi.sin() as f32));
+        let rel = p - np;
+        let u = rel.dot(along);
+        let w = rel.dot(down);
+        let depth = match s.kind {
+            SupportKind::Fixed => 2.6,
+            SupportKind::Link => 7.2,
+            SupportKind::Slider => 6.2,
+            _ => 5.2,
+        } * MM;
+        if u.abs() <= 4.2 * MM + 4.0 && w >= -2.0 && w <= depth + 5.0 {
+            return Some(s.node.clone());
+        }
+    }
+    None
 }
 
 /// The member nearest `p` within reach, with the distance along it (units) to the point picked.
@@ -578,6 +852,25 @@ fn pick_member(st: &Structure, v: View, p: Pos2) -> Option<(String, f64)> {
     best.map(|(id, at, _)| (id, at))
 }
 
+/// Checks if `p` is near an end of a member (but outside `PICK` of the node itself), returning
+/// `(member_id, is_end_b)` for toggling a member end hinge with `Tool::Hinge`.
+fn pick_member_end(st: &Structure, v: View, p: Pos2) -> Option<(String, bool)> {
+    if pick_node(st, v, p).is_some() {
+        return None;
+    }
+    let (id, at) = pick_member(st, v, p)?;
+    let m = st.member(&id)?;
+    let len = st.length(m).filter(|l| *l > 0.0)?;
+    let end_zone = (len * 0.25).min(24.0 / v.s.max(1.0));
+    if at <= end_zone {
+        Some((id, false))
+    } else if at >= len - end_zone {
+        Some((id, true))
+    } else {
+        None
+    }
+}
+
 fn pick_node(st: &Structure, v: View, p: Pos2) -> Option<String> {
     st.nodes
         .iter()
@@ -597,14 +890,15 @@ fn round_at(at: f64, len: f64, state: &State) -> f64 {
 /// whether Esc was pressed with nothing on the sheet to cancel or deselect.
 fn sheet(app: &mut WordApp, ui: &mut Ui, src: &Structure, st: &Structure, state: &mut State, h: f32, full: bool) -> bool {
     let (rect, resp) = ui.allocate_exact_size(vec2(ui.available_width(), h.max(120.0)), Sense::click_and_drag());
-    // A click or a drag on the sheet gives it the keyboard (from the page, in the pane), with the
-    // arrows and Esc kept for it instead of moving the focus.
     if resp.clicked() || resp.drag_started() || resp.secondary_clicked() {
         resp.request_focus();
     }
     if resp.has_focus() {
         ui.memory_mut(|m| {
-            m.set_focus_lock_filter(resp.id, egui::EventFilter { tab: false, horizontal_arrows: true, vertical_arrows: true, escape: true })
+            m.set_focus_lock_filter(
+                resp.id,
+                egui::EventFilter { tab: resp.hovered(), horizontal_arrows: true, vertical_arrows: true, escape: true },
+            )
         });
     }
     let key = st.nodes.iter().map(|n| n.id.as_str()).collect::<Vec<_>>().join(",");
@@ -614,7 +908,6 @@ fn sheet(app: &mut WordApp, ui: &mut Ui, src: &Structure, st: &Structure, state:
     }
     let (cx, cy, s) = state.view.unwrap_or((0.0, 0.0, 50.0));
     let mut v = View { rect, cx, cy, s };
-    // Zoom about the pointer, pan with the middle or right button.
     if let Some(p) = resp.hover_pos() {
         let scroll = ui.input(|i| i.smooth_scroll_delta.y);
         if scroll != 0.0 {
@@ -650,239 +943,670 @@ fn sheet(app: &mut WordApp, ui: &mut Ui, src: &Structure, st: &Structure, state:
         && let Some(p) = resp.interact_pointer_pos()
     {
         if state.tool == Tool::Select {
-            match pick(st, v, p) {
+            let candidates = hits(st, v, p);
+            let chosen = if mods.alt && !candidates.is_empty() {
+                state.cycle = state.cycle.wrapping_add(1);
+                candidates.get(state.cycle % candidates.len()).cloned()
+            } else {
+                state.cycle = 0;
+                candidates.into_iter().next()
+            };
+            match chosen {
                 Some(hit) if adding => state.toggle(hit),
                 Some(hit) => state.select(hit),
                 None if adding => {}
                 None => state.sel.clear(),
             }
         } else {
-            click(app, st, v, p, state);
+            click_with_mods(app, st, v, p, state, mods.shift);
         }
     }
-    // Keys while no box is being typed in and nothing else has the keyboard: in the full-page
-    // editor always, in the pane when the sheet has the focus or the pointer is over it.
     let focused = ui.ctx().memory(|m| m.focused());
     let other = focused.is_some_and(|id| id != resp.id);
     if !other && (full || resp.has_focus() || (resp.hovered() && focused.is_none())) {
-        return keys(app, ui, src, st, state);
+        return keys(app, ui, &resp, src, st, v, state);
     }
     false
 }
 
-/// A drag with the primary button and the Select tool: moves the selection, slides a load along
-/// its member, or draws a selection window.
+/// Primary-button drags across tools (`Select`, `Rotate`, `Force`, `Support`).
 #[allow(clippy::too_many_arguments)]
 fn drag(app: &mut WordApp, ui: &Ui, resp: &egui::Response, src: &Structure, st: &Structure, v: View, state: &mut State, adding: bool) {
-    // Dragging with Select: move the selection, slide a load, or draw a selection window.
-    if state.tool == Tool::Select {
-        if resp.drag_started_by(egui::PointerButton::Primary)
-            && let Some(p) = resp.interact_pointer_pos()
-        {
-            // The press, not where the pointer is once the drag is recognised.
-            let p = ui.input(|i| i.pointer.press_origin()).unwrap_or(p);
-            let grip = grips::hit(&grips::grips(st, v, &state.sel), p);
-            state.gesture = match (grip, pick(st, v, p)) {
-                (Some(grip), _) => Some(Gesture::Grip { grip, to: p }),
-                (None, Some(Sel::Load(k))) => {
-                    if !state.has(&Sel::Load(k)) {
-                        state.select(Sel::Load(k));
-                    }
-                    // On a member it slides along it; at a node it goes to another (or a member).
-                    match load_on_member(st, k) {
-                        Some((_, at)) => Some(Gesture::Slide { load: k, start: at, at }),
-                        None if !matches!(st.loads.get(k), Some(Load::Distributed { .. })) => {
-                            Some(Gesture::Grip { grip: grips::Grip::Point(k), to: p })
+    let shift = ui.input(|i| i.modifiers.shift);
+    match state.tool {
+        Tool::Select => {
+            if resp.drag_started_by(egui::PointerButton::Primary)
+                && let Some(p) = resp.interact_pointer_pos()
+            {
+                let p = ui.input(|i| i.pointer.press_origin()).unwrap_or(p);
+                let grip = grips::hit(&grips::grips(st, v, &state.sel), p);
+                state.gesture = match (grip, pick(st, v, p)) {
+                    (Some(grip), _) => Some(Gesture::Grip { grip, to: p }),
+                    (None, Some(Sel::Load(k))) => {
+                        if !state.has(&Sel::Load(k)) {
+                            state.select(Sel::Load(k));
                         }
-                        None => None,
-                    }
-                }
-                (None, Some(hit)) => {
-                    let w = v.to_world(p);
-                    let anchor = grabbed(st, &hit, w);
-                    if !state.has(&hit) {
-                        if adding {
-                            state.sel.push(hit);
-                        } else {
-                            state.select(hit);
+                        match load_on_member(st, k) {
+                            Some((_, at)) => Some(Gesture::Slide { load: k, start: at, at }),
+                            None if !matches!(st.loads.get(k), Some(Load::Distributed { .. })) => {
+                                Some(Gesture::Grip { grip: grips::Grip::Point(k), to: p })
+                            }
+                            None => None,
                         }
                     }
-                    Some(Gesture::Move { from: w, to: w, anchor })
-                }
-                (None, None) => {
-                    if !adding {
-                        state.sel.clear();
+                    (None, Some(hit)) => {
+                        let w = v.to_world(p);
+                        let anchor = grabbed(st, &hit, w);
+                        if !state.has(&hit) {
+                            if adding {
+                                state.sel.push(hit);
+                            } else {
+                                state.select(hit);
+                            }
+                        }
+                        Some(Gesture::Move { from: w, to: w, anchor })
                     }
-                    Some(Gesture::Window { from: p, to: p })
-                }
-            };
-        }
-        if resp.dragged_by(egui::PointerButton::Primary)
-            && let Some(p) = resp.interact_pointer_pos()
-        {
-            let (snap_on, grid) = (state.snap, state.grid);
-            match &mut state.gesture {
-                Some(Gesture::Move { to, .. }) => *to = v.to_world(p),
-                Some(Gesture::Slide { load, at, .. }) => {
-                    if let Some((a, len)) = along(st, *load, v, p) {
-                        let r = if snap_on && grid > 0.0 { (a / grid).round() * grid } else { (a * 1000.0).round() / 1000.0 };
-                        *at = r.clamp(0.0, len);
+                    (None, None) => {
+                        if !adding {
+                            state.sel.clear();
+                        }
+                        Some(Gesture::Window { from: p, to: p })
                     }
-                }
-                Some(Gesture::Window { to, .. } | Gesture::Grip { to, .. }) => *to = p,
-                None => {}
+                };
             }
         }
-        if resp.drag_stopped_by(egui::PointerButton::Primary)
-            && let Some(g) = state.gesture.take()
-        {
-            match g {
-                Gesture::Move { from, to, anchor } => {
-                    let (dx, dy) = step(from, to, anchor, state);
-                    if dx != 0.0 || dy != 0.0 {
-                        let moved = moved(src, &moved_nodes(st, &state.sel), dx, dy);
-                        let _ = app.run("structure.set", json!({"structure": moved}));
+        Tool::Rotate => {
+            if resp.drag_started_by(egui::PointerButton::Primary)
+                && let Some(p) = resp.interact_pointer_pos()
+            {
+                let origin = ui.input(|i| i.pointer.press_origin()).unwrap_or(p);
+                let cur_active = rotate::active_target(st, &state.sel);
+                let chosen = match &cur_active {
+                    Some(rt)
+                        if rotate::pivot(st, rt)
+                            .is_some_and(|(wx, wy)| (v.to_screen(wx, wy) - origin).length() <= rotate::PROTRACTOR_R + 24.0) =>
+                    {
+                        Some(rt.clone())
                     }
-                }
-                Gesture::Slide { load, start, at } => {
-                    if let Some(lj) = slid(src, load, start, at) {
-                        let _ = app.run("structure.load", json!({"index": load, "load": lj}));
-                    }
-                }
-                Gesture::Grip { grip, to } => {
-                    let shift = ui.input(|i| i.modifiers.shift);
-                    grips::commit(app, src, st, v, state, &grip, to, shift);
-                }
-                Gesture::Window { from, to } => {
-                    let r = Rect::from_two_pos(from, to);
-                    // Right to left: what it crosses; left to right: what it holds.
-                    let taken = if to.x < from.x { grips::crossing(st, v, r) } else { inside(st, v, r) };
-                    for s in taken {
-                        if !state.has(&s) {
-                            state.sel.push(s);
-                        }
-                    }
+                    _ => rotate::pick_rotatable(st, v, origin).or(cur_active),
+                };
+                if let Some(rt) = chosen
+                    && let Some((wx, wy)) = rotate::pivot(st, &rt)
+                    && let Some(start_vis) = rotate::visual_angle(st, &rt)
+                {
+                    state.select(rotate::sel_of(&rt));
+                    let center = v.to_screen(wx, wy);
+                    let grab_deg = rotate::screen_angle(center, origin).unwrap_or(start_vis);
+                    state.gesture = Some(Gesture::Rotate { target: rt, grab_deg, start_vis, to: p, moved: false });
                 }
             }
         }
-    } else {
-        state.gesture = None;
+        Tool::Force => {
+            if resp.drag_started_by(egui::PointerButton::Primary)
+                && let Some(p) = resp.interact_pointer_pos()
+            {
+                let origin = ui.input(|i| i.pointer.press_origin()).unwrap_or(p);
+                let place = pick_node(st, v, origin).map(edits::Place::Node).or_else(|| {
+                    pick_member(st, v, origin).map(|(id, at)| {
+                        let len = st.member(&id).and_then(|m| st.length(m)).unwrap_or(0.0);
+                        edits::Place::Member(id, round(round_at(at, len, state)))
+                    })
+                });
+                if let Some(place) = place {
+                    state.gesture = Some(Gesture::AimForce { place, from: origin, to: p });
+                }
+            }
+        }
+        Tool::Support(kind) => {
+            if resp.drag_started_by(egui::PointerButton::Primary)
+                && let Some(p) = resp.interact_pointer_pos()
+            {
+                let origin = ui.input(|i| i.pointer.press_origin()).unwrap_or(p);
+                if let Some(node) = pick_node(st, v, origin) {
+                    state.gesture = Some(Gesture::AimSupport { node, kind, from: origin, to: p });
+                }
+            }
+        }
+        _ => {
+            state.gesture = None;
+        }
+    }
+
+    if resp.dragged_by(egui::PointerButton::Primary)
+        && let Some(p) = resp.interact_pointer_pos()
+    {
+        let (snap_on, grid) = (state.snap, state.grid);
+        match &mut state.gesture {
+            Some(Gesture::Move { to, .. }) => *to = v.to_world(p),
+            Some(Gesture::Slide { load, at, .. }) => {
+                if let Some((a, len)) = along(st, *load, v, p) {
+                    let r = if snap_on && grid > 0.0 { (a / grid).round() * grid } else { (a * 1000.0).round() / 1000.0 };
+                    *at = r.clamp(0.0, len);
+                }
+            }
+            Some(Gesture::Window { to, .. } | Gesture::Grip { to, .. } | Gesture::AimForce { to, .. } | Gesture::AimSupport { to, .. }) => {
+                *to = p;
+            }
+            Some(Gesture::Rotate { to, moved, .. }) => {
+                if (*to - p).length() > 0.5 {
+                    *moved = true;
+                }
+                *to = p;
+            }
+            None => {}
+        }
+    }
+
+    if resp.drag_stopped_by(egui::PointerButton::Primary)
+        && let Some(g) = state.gesture.take()
+    {
+        let snap_rot = state.snap != shift;
+        match g {
+            Gesture::Move { from, to, anchor } => {
+                let (dx, dy) = step(from, to, anchor, state);
+                if dx != 0.0 || dy != 0.0 {
+                    let moved = moved(src, &moved_nodes(st, &state.sel), dx, dy);
+                    let _ = app.run("structure.set", json!({"structure": moved}));
+                }
+            }
+            Gesture::Slide { load, start, at } => {
+                if let Some(lj) = slid(src, load, start, at) {
+                    let _ = app.run("structure.load", json!({"index": load, "load": lj}));
+                }
+            }
+            Gesture::Grip { grip, to } => {
+                grips::commit(app, src, st, v, state, &grip, to, shift);
+            }
+            Gesture::Window { from, to } => {
+                let r = Rect::from_two_pos(from, to);
+                let taken = if to.x < from.x { grips::crossing(st, v, r) } else { inside(st, v, r) };
+                for s in taken {
+                    if !state.has(&s) {
+                        state.sel.push(s);
+                    }
+                }
+            }
+            Gesture::Rotate { target, grab_deg, start_vis, to, moved } => {
+                if let Some((wx, wy)) = rotate::pivot(st, &target) {
+                    let center = v.to_screen(wx, wy);
+                    if moved
+                        && let Some(cur_deg) = rotate::screen_angle(center, to)
+                    {
+                        let raw_vis = rotate::norm_deg(start_vis + rotate::ang_diff(cur_deg, grab_deg));
+                        let (vis, _) = rotate::snap_visual_angle(st, &target, raw_vis, snap_rot);
+                        if let Some(stored) = rotate::stored_angle_for_visual(st, &target, vis) {
+                            rotate::commit_target(app, src, st, &target, stored, true);
+                        }
+                    }
+                }
+            }
+            Gesture::AimForce { place, from, to } => {
+                let aimed = (to - from).length() >= 9.0;
+                if aimed || !resp.clicked() {
+                    let deg = if aimed {
+                        let raw = rotate::screen_angle(from, to).unwrap_or(-90.0);
+                        let mut temp = st.clone();
+                        let idx = temp.loads.len();
+                        temp.loads.push(match &place {
+                            edits::Place::Node(id) => {
+                                Load::Force { node: Some(id.clone()), member: None, at: Num::default(), value: Num::new(10.0), angle: Num::new(raw) }
+                            }
+                            edits::Place::Member(id, at) => Load::Force {
+                                node: None,
+                                member: Some(id.clone()),
+                                at: Num::new(*at),
+                                value: Num::new(10.0),
+                                angle: Num::new(raw),
+                            },
+                        });
+                        rotate::snap_visual_angle(&temp, &rotate::RotTarget::Force(idx), raw, snap_rot).0
+                    } else {
+                        -90.0
+                    };
+                    let load = match place {
+                        edits::Place::Node(id) => json!({"type": "force", "node": id, "value": 10.0, "angle": round(deg)}),
+                        edits::Place::Member(id, at) => json!({"type": "force", "member": id, "at": round(at), "value": 10.0, "angle": round(deg)}),
+                    };
+                    let idx = st.loads.len();
+                    if app.run("structure.load", json!({"load": load})).is_ok() {
+                        state.select_new_load(idx);
+                    }
+                }
+            }
+            Gesture::AimSupport { node, kind, from, to } => {
+                let aimed = (to - from).length() >= 10.0;
+                if aimed || !resp.clicked() {
+                    let deg = if aimed {
+                        let raw_vis = rotate::screen_angle(from, to).unwrap_or(-90.0);
+                        let mut temp = st.clone();
+                        temp.supports.retain(|s| s.node != node);
+                        temp.supports.push(strix_structure::Support { node: node.clone(), kind, angle: Num::new(0.0) });
+                        let rt = rotate::RotTarget::Support(node.clone());
+                        let (vis, _) = rotate::snap_visual_angle(&temp, &rt, raw_vis, snap_rot);
+                        rotate::norm_deg(vis + 90.0)
+                    } else {
+                        0.0
+                    };
+                    if app.run("structure.support", json!({"node": node, "kind": kind.name(), "angle": round(deg)})).is_ok() {
+                        state.select(Sel::Node(node));
+                    }
+                }
+            }
+        }
     }
 }
 
-/// The sheet: grid, structure (with the drag under way), selection, hover, selection window,
-/// the member being drawn and the readouts.
+/// Computes `(preview_structure, target, vis_deg, start_vis, snap_ref)` for an active rotation or
+/// aim gesture.
+fn gesture_rotation_state(
+    st: &Structure,
+    v: View,
+    state: &State,
+    shift: bool,
+) -> Option<(Structure, rotate::RotTarget, f64, Option<f64>, Option<rotate::SnapRef>)> {
+    let snap_rot = state.snap != shift;
+    match &state.gesture {
+        Some(Gesture::Rotate { target, grab_deg, start_vis, to, .. }) => {
+            let (wx, wy) = rotate::pivot(st, target)?;
+            let center = v.to_screen(wx, wy);
+            let cur_deg = rotate::screen_angle(center, *to).unwrap_or(*grab_deg);
+            let raw_vis = rotate::norm_deg(start_vis + rotate::ang_diff(cur_deg, *grab_deg));
+            let (vis, sref) = rotate::snap_visual_angle(st, target, raw_vis, snap_rot);
+            let stored = rotate::stored_angle_for_visual(st, target, vis)?;
+            Some((rotate::preview_target(st, target, stored), target.clone(), vis, Some(*start_vis), sref))
+        }
+        Some(Gesture::AimForce { place, from, to }) if (*to - *from).length() >= 9.0 => {
+            let raw = rotate::screen_angle(*from, *to).unwrap_or(-90.0);
+            let mut out = st.clone();
+            let idx = out.loads.len();
+            out.loads.push(match place {
+                edits::Place::Node(id) => {
+                    Load::Force { node: Some(id.clone()), member: None, at: Num::default(), value: Num::new(10.0), angle: Num::new(-90.0) }
+                }
+                edits::Place::Member(id, at) => {
+                    Load::Force { node: None, member: Some(id.clone()), at: Num::new(*at), value: Num::new(10.0), angle: Num::new(-90.0) }
+                }
+            });
+            let rt = rotate::RotTarget::Force(idx);
+            let (vis, sref) = rotate::snap_visual_angle(&out, &rt, raw, snap_rot);
+            out = rotate::preview_target(&out, &rt, vis);
+            Some((out, rt, vis, None, sref))
+        }
+        Some(Gesture::AimSupport { node, kind, from, to }) if (*to - *from).length() >= 10.0 => {
+            let raw = rotate::screen_angle(*from, *to).unwrap_or(-90.0);
+            let mut out = st.clone();
+            out.supports.retain(|s| s.node != *node);
+            out.supports.push(strix_structure::Support { node: node.clone(), kind: *kind, angle: Num::new(0.0) });
+            let rt = rotate::RotTarget::Support(node.clone());
+            let (vis, sref) = rotate::snap_visual_angle(&out, &rt, raw, snap_rot);
+            let stored = rotate::norm_deg(vis + 90.0);
+            out = rotate::preview_target(&out, &rt, stored);
+            Some((out, rt, vis, None, sref))
+        }
+        _ => None,
+    }
+}
+
+/// The sheet: grid, structure (with the drag under way), selection, hover, protractor, tool ghosts,
+/// selection window, the member being drawn and the HUD readouts.
 fn paint_sheet(ui: &Ui, resp: &egui::Response, st: &Structure, v: View, state: &State) {
     let rect = v.rect;
     let painter = ui.painter_at(rect);
     painter.rect_filled(rect, 2.0, Color32::WHITE);
     grid_lines(&painter, v, state.grid);
     let shift = ui.input(|i| i.modifiers.shift);
-    // The structure as the document draws it, with the drag under way.
-    let mut shown = st.clone();
-    match &state.gesture {
-        Some(Gesture::Move { from, to, anchor }) => {
-            let (dx, dy) = step(*from, *to, *anchor, state);
-            let ids = moved_nodes(st, &state.sel);
-            for n in shown.nodes.iter_mut().filter(|n| ids.contains(&n.id)) {
-                n.x = Num::new(n.x.value + dx);
-                n.y = Num::new(n.y.value + dy);
+
+    let rot_state = gesture_rotation_state(st, v, state, shift);
+    let mut shown = if let Some((ref preview_st, ..)) = rot_state {
+        preview_st.clone()
+    } else {
+        let mut s = st.clone();
+        match &state.gesture {
+            Some(Gesture::Move { from, to, anchor }) => {
+                let (dx, dy) = step(*from, *to, *anchor, state);
+                let ids = moved_nodes(st, &state.sel);
+                for n in s.nodes.iter_mut().filter(|n| ids.contains(&n.id)) {
+                    n.x = Num::new(n.x.value + dx);
+                    n.y = Num::new(n.y.value + dy);
+                }
             }
-        }
-        Some(Gesture::Slide { load, at, .. }) => {
-            if let Some(Load::Force { at: a, .. } | Load::Moment { at: a, .. }) = shown.loads.get_mut(*load) {
-                *a = Num::new(*at);
+            Some(Gesture::Slide { load, at, .. }) => {
+                if let Some(Load::Force { at: a, .. } | Load::Moment { at: a, .. }) = s.loads.get_mut(*load) {
+                    *a = Num::new(*at);
+                }
             }
+            Some(Gesture::Grip { grip, to }) => s = grips::preview(st, v, state, grip, *to, shift),
+            _ => {}
         }
-        Some(Gesture::Grip { grip, to }) => shown = grips::preview(st, v, state, grip, *to, shift),
-        _ => {}
-    }
+        s
+    };
     shown.diagrams.dimensions = state.dims;
     let origin = v.to_world(rect.min);
     let prims = shown.schema_prims(v.s / f64::from(PX_PER_MM), origin, strix_calc::Options::default());
     paint_prims(&painter, rect.min, &prims);
-    // The selection, and what the pointer is over.
+
     let accent = Color32::from_rgb(0xE0, 0x7B, 0x1F);
+    let crimson = Color32::from_rgb(0xDC, 0x26, 0x26);
     let hover = resp.hover_pos();
-    let hovered = hover.filter(|_| state.tool == Tool::Select && state.gesture.is_none()).and_then(|p| pick(&shown, v, p));
-    if let Some(h) = &hovered
+
+    let hovered_select = hover.filter(|_| state.tool == Tool::Select && state.gesture.is_none()).and_then(|p| pick(&shown, v, p));
+    let hovered_erase = hover.filter(|_| state.tool == Tool::Erase && state.gesture.is_none()).and_then(|p| pick_erase(&shown, v, p));
+    let hovered_rot = hover.filter(|_| state.tool == Tool::Rotate && state.gesture.is_none()).and_then(|p| rotate::pick_rotatable(&shown, v, p));
+
+    if let Some(h) = &hovered_select
         && !state.has(h)
     {
-        highlight(&painter, &shown, v, h, accent.linear_multiply(0.35));
+        highlight(&painter, &shown, v, h, accent.linear_multiply(0.4));
+    }
+    if let Some(et) = &hovered_erase {
+        match et {
+            EraseTarget::Load(k) => highlight(&painter, &shown, v, &Sel::Load(*k), crimson),
+            EraseTarget::Support(id) => {
+                if let Some(sr) = support_rect(&shown, v, id) {
+                    painter.rect_filled(sr.expand(2.0), 3.0, crimson.linear_multiply(0.18));
+                    painter.rect_stroke(sr.expand(2.0), 3.0, Stroke::new(1.8, crimson), egui::StrokeKind::Outside);
+                }
+            }
+            EraseTarget::Node(id) => highlight(&painter, &shown, v, &Sel::Node(id.clone()), crimson),
+            EraseTarget::Member(id) => highlight(&painter, &shown, v, &Sel::Member(id.clone()), crimson),
+        }
     }
     for s in &state.sel {
         highlight(&painter, &shown, v, s, accent);
     }
-    // The grips of the selection, the one dragged and where it would land.
-    let handles = grips::grips(&shown, v, &state.sel);
-    let dragged = if let Some(Gesture::Grip { grip, to }) = &state.gesture { Some((grip, *to, shift)) } else { None };
-    grips::paint(&painter, st, v, state, &handles, hover, dragged);
-    let over_grip = state.tool == Tool::Select && hover.is_some_and(|p| grips::hit(&handles, p).is_some());
-    grips::cursor(ui.ctx(), over_grip, matches!(state.gesture, Some(Gesture::Grip { .. } | Gesture::Move { .. } | Gesture::Slide { .. })));
+    if let Some(Sel::Member(id)) = state.primary() {
+        grips::paint_member_cue(&painter, &shown, v, id);
+    }
+
+    if let Some((_, ref rt, vis, start_vis, ref sref)) = rot_state {
+        rotate::paint_protractor(&painter, &shown, v, rt, vis, start_vis, sref.as_ref(), false);
+    } else if state.tool == Tool::Rotate {
+        let active_rt = rotate::active_target(&shown, &state.sel);
+        if let Some(ref rt) = active_rt
+            && let Some(vis) = rotate::visual_angle(&shown, rt)
+        {
+            let (_, sref) = rotate::snap_visual_angle(&shown, rt, vis, true);
+            rotate::paint_protractor(&painter, &shown, v, rt, vis, None, sref.as_ref(), false);
+        }
+        if let Some(ref hrt) = hovered_rot
+            && active_rt.as_ref() != Some(hrt)
+            && let Some(vis) = rotate::visual_angle(&shown, hrt)
+        {
+            highlight(&painter, &shown, v, &rotate::sel_of(hrt), crimson.linear_multiply(0.45));
+            rotate::paint_protractor(&painter, &shown, v, hrt, vis, None, None, true);
+        }
+    }
+
+    let handles = if state.tool == Tool::Select { grips::grips(&shown, v, &state.sel) } else { Vec::new() };
+    let dragged_grip = if let Some(Gesture::Grip { grip, to }) = &state.gesture { Some((grip, *to, shift)) } else { None };
+    if state.tool == Tool::Select {
+        grips::paint(&painter, st, v, state, &handles, hover, dragged_grip);
+    }
+
+    let mut over_tool_target = hovered_erase.is_some() || hovered_rot.is_some();
+    if let Some(p) = hover.filter(|_| state.gesture.is_none()) {
+        paint_tool_ghost(&painter, &shown, v, p, state, accent, &mut over_tool_target);
+    }
+
+    let over_grip = (state.tool == Tool::Select && hover.is_some_and(|p| grips::hit(&handles, p).is_some()))
+        || (state.tool == Tool::Rotate
+            && rotate::active_target(&shown, &state.sel)
+                .and_then(|rt| rotate::pivot(&shown, &rt))
+                .zip(hover)
+                .is_some_and(|((wx, wy), p)| {
+                    let d = (v.to_screen(wx, wy) - p).length();
+                    (d - rotate::PROTRACTOR_R).abs() <= 14.0
+                }));
+    let dragging = matches!(
+        state.gesture,
+        Some(Gesture::Grip { .. } | Gesture::Move { .. } | Gesture::Slide { .. } | Gesture::Rotate { .. } | Gesture::AimForce { .. } | Gesture::AimSupport { .. })
+    );
+    let crosshair = matches!(state.tool, Tool::Node | Tool::Member);
+    grips::cursor(ui.ctx(), over_grip, dragging, crosshair, over_tool_target);
+
     if let Some(Gesture::Window { from, to }) = &state.gesture {
         grips::paint_window(&painter, *from, *to);
     }
-    // What the pointer is over, named.
-    if let (Some(h), Some(p)) = (&hovered, hover)
+
+    if let Some(p) = hover
         && !over_grip
-        && let Some(text) = grips::tag(&shown, h)
+        && state.gesture.is_none()
     {
-        grips::paint_tag(&painter, rect, p, &text);
+        if let Some(et) = &hovered_erase
+            && let Some(text) = grips::erase_tag(&shown, et)
+        {
+            grips::paint_tag_styled(
+                &painter,
+                rect,
+                p,
+                &text,
+                Color32::from_rgba_unmultiplied(0xFE, 0xE2, 0xE2, 244),
+                crimson,
+                Color32::from_rgb(0x99, 0x1B, 0x1B),
+            );
+        } else if let Some(h) = &hovered_select
+            && let Some(text) = grips::tag(&shown, h)
+        {
+            grips::paint_tag(&painter, rect, p, &text);
+        } else if let Some(hrt) = &hovered_rot
+            && let Some(text) = grips::tag(&shown, &rotate::sel_of(hrt))
+        {
+            grips::paint_tag(&painter, rect, p, &text);
+        }
     }
-    let snapped = hover.map(|p| snap(st, v, p, state));
-    // The member being drawn.
+
+    let snapped = hover.map(|p| {
+        let (raw_pt, node) = snap(st, v, p, state);
+        let pt = if state.tool == Tool::Member {
+            snap_member_end(state.start, raw_pt, node.is_some(), shift, state)
+        } else {
+            raw_pt
+        };
+        (pt, node)
+    });
+
     if let (Some((x0, y0)), Some(((x, y), _))) = (state.start, &snapped) {
-        painter.line_segment([v.to_screen(x0, y0), v.to_screen(*x, *y)], Stroke::new(1.5, accent));
+        let (p0, p1) = (v.to_screen(x0, y0), v.to_screen(*x, *y));
+        painter.line_segment([p0, p1], Stroke::new(1.8, accent));
+        painter.circle_filled(p0, 3.5, accent);
+        painter.circle_filled(p1, 3.5, accent);
+        let len = (*x - x0).hypot(*y - y0);
+        if len > 1e-6 {
+            let deg = (*y - y0).atan2(*x - x0).to_degrees();
+            let lu = ts(st.length_unit.symbol());
+            let badge = format!("L = {} {lu} · {}°", short(len), short(deg));
+            grips::paint_tag(&painter, rect, pos2(0.5 * (p0.x + p1.x), 0.5 * (p0.y + p1.y) - 18.0), &badge);
+        }
     }
     if let Some(((x, y), node)) = &snapped
         && matches!(state.tool, Tool::Node | Tool::Member)
     {
         let p = v.to_screen(*x, *y);
         let c = if node.is_some() { accent } else { Color32::from_rgb(0x25, 0x63, 0xEB) };
-        painter.line_segment([p - vec2(6.0, 0.0), p + vec2(6.0, 0.0)], Stroke::new(1.0, c));
-        painter.line_segment([p - vec2(0.0, 6.0), p + vec2(0.0, 6.0)], Stroke::new(1.0, c));
-    }
-    let unit = st.length_unit.symbol();
-    let readout = match &state.gesture {
-        Some(Gesture::Move { from, to, anchor }) => {
-            let (dx, dy) = step(*from, *to, *anchor, state);
-            Some(format!("Δx = {} {unit}   Δy = {} {unit}", short(dx), short(dy)))
+        painter.line_segment([p - vec2(7.0, 0.0), p + vec2(7.0, 0.0)], Stroke::new(1.0, c));
+        painter.line_segment([p - vec2(0.0, 7.0), p + vec2(0.0, 7.0)], Stroke::new(1.0, c));
+        if state.tool == Tool::Node && node.is_none() {
+            painter.circle_stroke(p, 4.0, Stroke::new(1.4, c));
         }
-        Some(Gesture::Slide { at, .. }) => Some(format!("{} = {} {unit}", ts("at"), short(*at))),
-        Some(Gesture::Grip { grip, to }) => Some(grips::readout(st, v, state, grip, *to, shift)),
-        _ => snapped.as_ref().map(|((x, y), _)| format!("x = {} {unit}   y = {} {unit}", short(*x), short(*y))),
+    }
+
+    let sheet_border = match state.tool {
+        Tool::Select => Stroke::new(1.0, Color32::from_gray(210)),
+        Tool::Erase => Stroke::new(1.5, crimson.linear_multiply(0.75)),
+        Tool::Rotate => Stroke::new(1.5, Color32::from_rgb(0xE1, 0x1D, 0x48).linear_multiply(0.75)),
+        _ => Stroke::new(1.5, accent.linear_multiply(0.75)),
     };
-    if let Some(text) = readout {
-        painter.text(rect.left_bottom() + vec2(6.0, -6.0), Align2::LEFT_BOTTOM, text, FontId::proportional(11.0), Color32::DARK_GRAY);
+    painter.rect_stroke(rect, 2.0, sheet_border, egui::StrokeKind::Inside);
+
+    let unit = ts(st.length_unit.symbol());
+    let readout = if let Some((_, ref rt, vis, _, ref sref)) = rot_state {
+        Some(rotate::readout_for(&shown, rt, vis, sref.as_ref()))
+    } else {
+        match &state.gesture {
+            Some(Gesture::Move { from, to, anchor }) => {
+                let (dx, dy) = step(*from, *to, *anchor, state);
+                Some(format!("Δx = {} {unit}   Δy = {} {unit}", short(dx), short(dy)))
+            }
+            Some(Gesture::Slide { at, .. }) => Some(format!("{} = {} {unit}", ts("at"), short(*at))),
+            Some(Gesture::Grip { grip, to }) => Some(grips::readout(st, v, state, grip, *to, shift)),
+            _ => snapped.as_ref().map(|((x, y), node)| {
+                let snap_tag = match node {
+                    Some(id) => format!("   ·   ● {id}"),
+                    None if state.snap => format!("   ·   ⊞ {}", short(state.grid)),
+                    None => String::new(),
+                };
+                format!("x = {} {unit}   y = {} {unit}{snap_tag}", short(*x), short(*y))
+            }),
+        }
+    };
+    if let Some(text) = readout.filter(|t| !t.is_empty()) {
+        paint_hud_pill(&painter, rect.left_bottom() + vec2(6.0, -6.0), Align2::LEFT_BOTTOM, &text);
     }
     if !state.sel.is_empty() {
         let n = state.sel.len().to_string();
-        painter.text(
-            rect.right_bottom() + vec2(-6.0, -6.0),
-            Align2::RIGHT_BOTTOM,
-            crate::i18n::fmt(ts("{n} selected · Del removes · arrows move"), &[("n", &n)]),
-            FontId::proportional(11.0),
-            Color32::DARK_GRAY,
-        );
+        let right_text = crate::i18n::fmt(ts("{n} selected · Del removes · arrows move"), &[("n", &n)]);
+        paint_hud_pill(&painter, rect.right_bottom() + vec2(-6.0, -6.0), Align2::RIGHT_BOTTOM, &right_text);
     }
 }
 
-/// Esc, Delete, the arrows and Select All on the sheet, each taken (consumed) when it does
-/// something, so neither the page nor the program's shortcuts see it too. Esc goes one step at a
-/// time: the drag or the member being drawn, then back to Select, then the selection. Returns
-/// whether Esc was pressed with none of these left to undo.
-fn keys(app: &mut WordApp, ui: &Ui, src: &Structure, st: &Structure, state: &mut State) -> bool {
+/// Paints a translucent rounded HUD status pill anchored at `anchor_pos`.
+fn paint_hud_pill(painter: &egui::Painter, anchor_pos: Pos2, align: Align2, text: &str) {
+    let galley = painter.layout_no_wrap(text.to_string(), FontId::proportional(11.0), Color32::from_gray(0x28));
+    let pad = vec2(7.0, 3.0);
+    let size = galley.size() + pad * 2.0;
+    let r = align.anchor_size(anchor_pos, size);
+    painter.rect_filled(r, 3.0, Color32::from_rgba_unmultiplied(255, 255, 255, 224));
+    painter.rect_stroke(r, 3.0, Stroke::new(0.8, Color32::from_gray(205)), egui::StrokeKind::Inside);
+    painter.galley(r.min + pad, galley, Color32::from_gray(0x28));
+}
+
+/// Paints live target highlights & ghost previews for `Support`, `Hinge`, `Force`, `Couple`, and
+/// `Distributed` tools while hovering at `p`.
+fn paint_tool_ghost(
+    painter: &egui::Painter,
+    st: &Structure,
+    v: View,
+    p: Pos2,
+    state: &State,
+    accent: Color32,
+    over_target: &mut bool,
+) {
+    let load_col = Color32::from_rgb(0xB0, 0x3A, 0x2E).linear_multiply(0.65);
+    match state.tool {
+        Tool::Support(kind) => {
+            if let Some(id) = pick_node(st, v, p)
+                && let Some(n) = st.node(&id)
+            {
+                *over_target = true;
+                let np = v.to_screen(n.x.value, n.y.value);
+                painter.circle_stroke(np, 7.5, Stroke::new(2.0, accent));
+                let tag = format!("{}: {}", ts(kind_label(Some(kind))), crate::i18n::fmt(ts("Node {n}"), &[("n", &id)]));
+                grips::paint_tag(painter, v.rect, p, &tag);
+            }
+        }
+        Tool::Hinge => {
+            if let Some(id) = pick_node(st, v, p)
+                && let Some(n) = st.node(&id)
+            {
+                *over_target = true;
+                let np = v.to_screen(n.x.value, n.y.value);
+                painter.circle(np, 4.5, Color32::WHITE, Stroke::new(1.8, accent));
+            } else if let Some((id, end_b)) = pick_member_end(st, v, p)
+                && let Some(m) = st.member(&id)
+                && let (Some(a), Some(b)) = (st.node(&m.a), st.node(&m.b))
+            {
+                *over_target = true;
+                let (pa, pb) = (v.to_screen(a.x.value, a.y.value), v.to_screen(b.x.value, b.y.value));
+                let d = pb - pa;
+                let u = if d.length() > 0.0 { d / d.length() } else { vec2(1.0, 0.0) };
+                let hp = if end_b { pb - u * 6.5 } else { pa + u * 6.5 };
+                painter.circle(hp, 4.0, Color32::WHITE, Stroke::new(1.8, accent));
+                let end_name = if end_b { &m.b } else { &m.a };
+                grips::paint_tag(painter, v.rect, p, &crate::i18n::fmt(ts("Hinge at end {n}"), &[("n", end_name)]));
+            }
+        }
+        Tool::Force | Tool::Couple => {
+            let landing = if let Some(id) = pick_node(st, v, p) {
+                st.node(&id).map(|n| (v.to_screen(n.x.value, n.y.value), crate::i18n::fmt(ts("At node {n}"), &[("n", &id)])))
+            } else if let Some((id, at)) = pick_member(st, v, p) {
+                let len = st.member(&id).and_then(|m| st.length(m)).unwrap_or(0.0);
+                let sat = round(round_at(at, len, state));
+                edits::point_on(st, &id, sat).map(|(wx, wy)| {
+                    let lu = ts(st.length_unit.symbol());
+                    (
+                        v.to_screen(wx, wy),
+                        format!("{} · {} = {} {lu}", crate::i18n::fmt(ts("Member {n}"), &[("n", &id)]), ts("at"), short(sat)),
+                    )
+                })
+            } else {
+                None
+            };
+            if let Some((lp, label)) = landing {
+                *over_target = true;
+                if state.tool == Tool::Force {
+                    let tail = lp - vec2(0.0, 11.0 * MM);
+                    painter.line_segment([tail, lp - vec2(0.0, 5.0)], Stroke::new(1.8, load_col));
+                    painter.add(Shape::convex_polygon(
+                        vec![lp, lp + vec2(-3.5, -7.0), lp + vec2(3.5, -7.0)],
+                        load_col,
+                        Stroke::NONE,
+                    ));
+                } else {
+                    painter.circle_stroke(lp, 4.0 * MM, Stroke::new(1.8, load_col));
+                }
+                grips::paint_tag(painter, v.rect, p, &label);
+            }
+        }
+        Tool::Distributed => {
+            if let Some((id, _)) = pick_member(st, v, p)
+                && let Some(m) = st.member(&id)
+                && let (Some(a), Some(b)) = (st.node(&m.a), st.node(&m.b))
+            {
+                *over_target = true;
+                let (pa, pb) = (v.to_screen(a.x.value, a.y.value), v.to_screen(b.x.value, b.y.value));
+                let off = vec2(0.0, -7.0 * MM);
+                painter.add(Shape::closed_line(vec![pa, pb, pb + off, pa + off], Stroke::new(1.5, load_col)));
+                grips::paint_tag(painter, v.rect, p, &crate::i18n::fmt(ts("Member {n}"), &[("n", &id)]));
+            }
+        }
+        _ => {}
+    }
+}
+
+/// Esc, Delete, the arrows, Tab, tool shortcuts and Select All on the sheet.
+fn keys(app: &mut WordApp, ui: &Ui, resp: &egui::Response, src: &Structure, st: &Structure, v: View, state: &mut State) -> bool {
     use egui::{Key, Modifiers};
     let busy = state.gesture.is_some() || state.start.is_some() || state.tool != Tool::Select || !state.sel.is_empty();
     let selected = !state.sel.is_empty();
-    let (esc, esc_free, del, all, arrows, shift) = ui.input_mut(|i| {
+    let hovered = resp.hover_pos();
+    let (esc, esc_free, del, all, tab, tool_key, arrows, shift) = ui.input_mut(|i| {
         let esc = busy && i.consume_key(Modifiers::NONE, Key::Escape);
         let esc_free = !busy && i.key_pressed(Key::Escape);
         let del = selected && (i.consume_key(Modifiers::NONE, Key::Delete) || i.consume_key(Modifiers::NONE, Key::Backspace));
         let all = i.consume_key(Modifiers::COMMAND, Key::A);
-        let mut count = |k: Key| if selected { f64::from(u32::try_from(i.count_and_consume_key(Modifiers::NONE, k)).unwrap_or(0)) } else { 0.0 };
+        let tab = hovered.is_some() && i.consume_key(Modifiers::NONE, Key::Tab);
+        let mut tkey = None;
+        for (k, t) in [
+            (Key::V, Tool::Select),
+            (Key::R, Tool::Rotate),
+            (Key::N, Tool::Node),
+            (Key::M, Tool::Member),
+            (Key::F, Tool::Force),
+            (Key::C, Tool::Couple),
+            (Key::D, Tool::Distributed),
+            (Key::H, Tool::Hinge),
+            (Key::E, Tool::Erase),
+        ] {
+            if i.consume_key(Modifiers::NONE, k) {
+                tkey = Some(t);
+            }
+        }
+        let shift = i.modifiers.shift;
+        let arrow_mods = if shift { Modifiers::SHIFT } else { Modifiers::NONE };
+        let can_arrow = selected || state.tool == Tool::Rotate;
+        let mut count = |k: Key| if can_arrow { f64::from(u32::try_from(i.count_and_consume_key(arrow_mods, k)).unwrap_or(0)) } else { 0.0 };
         let dir = (count(Key::ArrowRight) - count(Key::ArrowLeft), count(Key::ArrowUp) - count(Key::ArrowDown));
-        (esc, esc_free, del, all, dir, i.modifiers.shift)
+        (esc, esc_free, del, all, tab, tkey, dir, shift)
     });
     if esc {
         if state.gesture.take().is_some() || state.start.take().is_some() {
@@ -890,6 +1614,20 @@ fn keys(app: &mut WordApp, ui: &Ui, src: &Structure, st: &Structure, state: &mut
             state.tool = Tool::Select;
         } else {
             state.sel.clear();
+        }
+    }
+    if let Some(t) = tool_key {
+        state.tool = t;
+        state.start = None;
+        state.gesture = None;
+    }
+    if tab && let Some(p) = hovered {
+        let candidates = hits(st, v, p);
+        if !candidates.is_empty() {
+            state.cycle = state.cycle.wrapping_add(1);
+            if let Some(chosen) = candidates.get(state.cycle % candidates.len()).cloned() {
+                state.select(chosen);
+            }
         }
     }
     if all {
@@ -902,12 +1640,31 @@ fn keys(app: &mut WordApp, ui: &Ui, src: &Structure, st: &Structure, state: &mut
         }
     }
     if arrows != (0.0, 0.0) {
-        let g = if state.grid > 0.0 { state.grid } else { 0.1 };
-        let k = if shift { 10.0 } else { 1.0 };
-        let ids = moved_nodes(st, &state.sel);
-        if !ids.is_empty() {
-            let moved = moved(src, &ids, arrows.0 * g * k, arrows.1 * g * k);
-            let _ = app.run("structure.set", json!({"structure": moved}));
+        if state.tool == Tool::Rotate
+            && let Some(rt) = rotate::active_target(st, &state.sel)
+            && let Some(vis) = rotate::visual_angle(st, &rt)
+            && let Some(cur_stored) = rotate::stored_angle_for_visual(st, &rt, vis)
+        {
+            let step_deg = if shift { 1.0 } else { 15.0 };
+            let delta = (-arrows.0 + arrows.1) * step_deg;
+            rotate::commit_target(app, src, st, &rt, cur_stored + delta, true);
+        } else {
+            let g = if state.grid > 0.0 { state.grid } else { 0.1 };
+            let k = if shift { 10.0 } else { 1.0 };
+            let ids = moved_nodes(st, &state.sel);
+            if !ids.is_empty() {
+                let moved = moved(src, &ids, arrows.0 * g * k, arrows.1 * g * k);
+                let _ = app.run("structure.set", json!({"structure": moved}));
+            } else if let Some(Sel::Load(idx)) = state.primary().cloned()
+                && let Some((m_id, cur_at)) = load_on_member(st, idx)
+            {
+                let len = st.member(&m_id).and_then(|m| st.length(m)).unwrap_or(0.0);
+                let step_s = (arrows.0 + arrows.1) * g * k;
+                let new_at = (cur_at + step_s).clamp(0.0, len);
+                if let Some(lj) = slid(src, idx, cur_at, new_at) {
+                    let _ = app.run("structure.load", json!({"index": idx, "load": lj}));
+                }
+            }
         }
     }
     esc_free
@@ -1748,6 +2505,22 @@ fn load_links(app: &mut WordApp, ui: &mut Ui, src: &Structure, st: &Structure, s
     });
 }
 
+/// The editor's view and grid after the structure's lengths were multiplied by `k` (a change of
+/// unit): the sheet shows the same thing, the grid is as wide on it.
+fn rescale(s: &mut State, k: f64) {
+    if !(k.is_finite() && k > 0.0) {
+        return;
+    }
+    s.view = s.view.map(|(cx, cy, px)| (cx * k, cy * k, px / k));
+    s.grid = (s.grid * k).clamp(MIN_GRID, MAX_GRID);
+    s.start = s.start.map(|(x, y)| (x * k, y * k));
+    s.gesture = None;
+}
+
+/// The grid's step (in the structure's length unit) is kept within these.
+pub(crate) const MIN_GRID: f64 = 0.01;
+pub(crate) const MAX_GRID: f64 = 10_000.0;
+
 /// With nothing selected: the structure's title and units, what it is made of.
 fn structure_props(app: &mut WordApp, ui: &mut Ui, src: &Structure) {
     section(ui, ts("Structure"));
@@ -1763,6 +2536,7 @@ fn structure_props(app: &mut WordApp, ui: &mut Ui, src: &Structure) {
         craft_ui::ComboBox::from_id_salt("structure_prop_lu").width(70.0).selected_text(lu).show_ui(ui, |ui| {
             for u in ["m", "cm", "mm"] {
                 if ui.selectable_label(lu == u, u).clicked() && lu != u {
+                    // The numbers are converted (1 m becomes 100 cm); the view follows (`State::prune`).
                     let _ = app.run("structure.set", json!({"lengthUnit": u}));
                 }
             }
@@ -2187,6 +2961,24 @@ mod tests {
         assert_eq!(grabbed(&st, &Sel::Member("1".into()), (5.0, 0.0)), Some((6.0, 0.0)), "the nearer end");
         let free = State { snap: false, ..State::default() };
         assert_eq!(step((0.0, 0.0), (0.6, 0.1), Some((0.3, 0.0)), &free), (0.6, 0.1));
+    }
+
+    /// A change of length unit converts the structure (1 m is 100 cm): the view and the grid
+    /// follow, so the sheet shows the same thing.
+    #[test]
+    fn a_change_of_unit_rescales_the_view_and_the_grid() {
+        let mut st = Structure::default();
+        let mut state = State { view: Some((3.0, 1.0, 50.0)), grid: 0.5, ..State::default() };
+        state.prune(&st);
+        assert_eq!(state.view, Some((3.0, 1.0, 50.0)));
+        st.length_unit = strix_structure::LengthUnit::Cm;
+        state.prune(&st);
+        let (cx, cy, px) = state.view.unwrap();
+        assert!((cx - 300.0).abs() < 1e-9 && (cy - 100.0).abs() < 1e-9 && (px - 0.5).abs() < 1e-12);
+        assert!((state.grid - 50.0).abs() < 1e-9);
+        st.length_unit = strix_structure::LengthUnit::M;
+        state.prune(&st);
+        assert!((state.grid - 0.5).abs() < 1e-12);
     }
 
     /// Loads are selected by index: when their number changes, they leave the selection.
