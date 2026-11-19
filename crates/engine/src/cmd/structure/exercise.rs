@@ -17,11 +17,13 @@ use wordcraft_doc::{Block, InlineObject, Paragraph, Pos, StoryRef, para_block};
 use crate::{CmdError, CmdResult, Session, p};
 
 pub(super) fn run(s: &mut Session, v: &Value) -> CmdResult {
-    let mut st = match super::structure_param(v)? {
+    let given = super::structure_param(v)?;
+    let convert = given.is_none();
+    let mut st = match given {
         Some(st) => st,
         None => super::template(p::str(v, "template").unwrap_or("beam"))?,
     };
-    super::apply_settings(&mut st, v)?;
+    super::apply_settings(&mut st, v, convert)?;
     st.group = super::free_group(s);
     st.view = View::All;
     super::working::keep_labels(&mut st, v);

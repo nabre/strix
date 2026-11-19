@@ -2,7 +2,10 @@
 
 use strix_calc::{Options, Quantity, Value, Worksheet};
 
-use crate::{Action, Load, LoadAxes, LoadPer, Member, Node, NotableKind, Num, Status, Structure, Support, SupportKind, analyse, notables};
+use crate::{
+    Action, ForceUnit, LengthUnit, Load, LoadAxes, LoadPer, Member, Node, NotableKind, Num, Status, Structure, Support, SupportKind, analyse,
+    notables,
+};
 
 fn node(id: &str, x: f64, y: f64) -> Node {
     Node { id: id.into(), x: x.into(), y: y.into(), hinge: false }
@@ -250,6 +253,40 @@ fn portal_frame_with_a_horizontal_load() {
     // H_A = 10 to the left at A bends it with its right side stretched? Check the magnitude.
     assert_close!(an.members[0].forces(4.0, false).m.abs(), 40.0);
     assert_close!(an.members[1].forces(0.0, true).m.abs(), 40.0);
+}
+
+#[test]
+fn a_change_of_units_keeps_the_structure() {
+    let mut st = simple_beam();
+    st.loads.push(force_on("1", 2.0, 5.0));
+    st.members[0].e = Some(Num::new(2.1e8)); // kN/m²
+    st.members[0].i = Some(Num::new(1e-4)); // m⁴
+    st.members[0].area = Some(Num::new(0.07)); // m²
+    st.supports[1].angle = Num::new(30.0);
+    st.convert_units(LengthUnit::Cm, ForceUnit::N);
+    assert_eq!((st.length_unit, st.force_unit), (LengthUnit::Cm, ForceUnit::N));
+    assert_eq!(st.nodes[1].x.value, 600.0);
+    assert_eq!(st.supports[1].angle.value, 30.0, "angles don't change");
+    let Load::Distributed { q1, .. } = &st.loads[0] else { panic!() };
+    assert_eq!(q1.value, 100.0, "10 kN/m = 100 N/cm");
+    let Load::Force { at, value, .. } = &st.loads[1] else { panic!() };
+    assert_eq!((at.value, value.value), (200.0, 5000.0));
+    let m = &st.members[0];
+    assert_eq!(m.e.as_ref().unwrap().value, 2.1e7, "N/cm²");
+    assert_eq!(m.i.as_ref().unwrap().value, 1e4, "cm⁴");
+    assert_eq!(m.area.as_ref().unwrap().value, 700.0, "cm², without binary noise");
+    // And back: the same numbers as before.
+    let mut back = st.clone();
+    back.convert_units(LengthUnit::M, ForceUnit::KN);
+    let mut orig = simple_beam();
+    orig.loads.push(force_on("1", 2.0, 5.0));
+    assert_eq!(back.nodes, orig.nodes);
+    assert_eq!(back.loads, orig.loads);
+    // An expression is kept as written.
+    let mut e = simple_beam();
+    e.nodes[1].x = Num { value: 6.0, expr: Some("L".into()) };
+    e.convert_units(LengthUnit::Mm, ForceUnit::KN);
+    assert_eq!(e.nodes[1].x.expr.as_deref(), Some("L"));
 }
 
 #[test]
@@ -704,4 +741,76 @@ fn the_free_body_names_the_unknowns_resultants_and_parts() {
     assert!(t.iter().filter(|x| x.as_str() == "1.25 m").count() >= 2, "{t:?}");
     let json = st.to_json();
     assert!(json.contains("\"view\":\"equilibrium\""), "{json}");
+}
+
+/// The beam of the owner's report: 10 kN/m over its first 2 m, 10 kN upwards at 4.5 m.
+fn upward_force_beam(roller: SupportKind) -> Structure {
+    let mut st = simple_beam();
+    st.supports = vec![support("A", SupportKind::Pin, 0.0), support("B", roller, 0.0)];
+    st.loads = vec![
+        Load::Distributed {
+            member: "1".into(),
+            q1: 10.0.into(),
+            q2: None,
+            from: Num::default(),
+            to: Some(2.0.into()),
+            angle: Num::new(-90.0),
+            axes: LoadAxes::Global,
+            per: LoadPer::Length,
+        },
+        Load::Force { node: None, member: Some("1".into()), at: 4.5.into(), value: 10.0.into(), angle: Num::new(90.0) },
+    ];
+    st
+}
+
+#[test]
+fn the_dimensions_keep_clear_of_the_supports_and_the_loads_below_the_beam() {
+    use strix_plot::PlotPrim;
+    const DIM: [u8; 3] = [0x55, 0x55, 0x55];
+    const GREY: [u8; 3] = [0x9A, 0x9A, 0x9A];
+    for roller in [SupportKind::Roller, SupportKind::RollerCircle] {
+        let st = upward_force_beam(roller);
+        let prims = st.schema_prims(10.0, (0.0, 0.0), Options::default());
+        // The bottom of everything but the dimensions (their lines are DIM, extension lines GREY).
+        let mut bottom = f64::MIN;
+        let mut dims_top = f64::MAX;
+        for p in &prims {
+            match p {
+                PlotPrim::Path { pts, stroke, .. } => {
+                    let low = pts.iter().map(|q| q.1).fold(f64::MIN, f64::max);
+                    match stroke.map(|s| s.0) {
+                        Some(DIM) => dims_top = dims_top.min(pts.iter().map(|q| q.1).fold(f64::MAX, f64::min)),
+                        Some(GREY) => {}
+                        _ => bottom = bottom.max(low),
+                    }
+                }
+                PlotPrim::Dot { at, r, .. } => bottom = bottom.max(at.1 + r),
+                PlotPrim::Text { at, text, .. } => {
+                    if text.contains("kN") {
+                        bottom = bottom.max(at.1);
+                    }
+                }
+                PlotPrim::TextAt { at, text, height, color, .. } if *color == DIM && text.ends_with(" m") => {
+                    dims_top = dims_top.min(at.1 - height);
+                }
+                PlotPrim::TextAt { at, text, height, .. } if text.contains("kN") => bottom = bottom.max(at.1 + height / 2.0),
+                _ => {}
+            }
+        }
+        // The upward force's arrow and its name hang below the beam: the chain goes under them.
+        assert!(bottom > 0.0 && dims_top > bottom, "{roller:?}: dimensions from {dims_top}, drawing down to {bottom}");
+    }
+}
+
+#[test]
+fn a_roller_drawn_as_a_circle_restrains_like_a_roller() {
+    let a = analyse(&upward_force_beam(SupportKind::Roller));
+    let b = analyse(&upward_force_beam(SupportKind::RollerCircle));
+    assert!(a.status.is_solved() && b.status.is_solved());
+    let forces = |an: &crate::Analysis| an.reactions.iter().map(|r| (r.fx, r.fy, r.m)).collect::<Vec<_>>();
+    assert_eq!(forces(&a), forces(&b));
+    assert_eq!(SupportKind::parse("rollerCircle"), Some(SupportKind::RollerCircle));
+    assert_eq!(SupportKind::RollerCircle.name(), "rollerCircle");
+    let json = upward_force_beam(SupportKind::RollerCircle).to_json();
+    assert!(json.contains("\"rollerCircle\""), "{json}");
 }

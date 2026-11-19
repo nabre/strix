@@ -80,11 +80,11 @@ pub(in crate::cmd::structure) fn parts(
     let u = units(st, comma);
     let w = Writer { st, u: &u, labels: &labels, shear: shear_name(st), us: unknowns(st, an) };
     let members: Vec<(&MemberResult, Vec<Stretch>)> = an.members.iter().map(|m| (m, stretches(m))).collect();
-    let mut axial_lines = vec![Line::words(forces)];
+    let mut axial_lines = vec![Line::heading(forces)];
     let mut shear_lines = Vec::new();
     let mut moment_lines = Vec::new();
     for (m, parts) in &members {
-        w.laws(m, parts, Action::Axial, &mut axial_lines);
+        w.laws(m, &w.axial_parts(m, parts), Action::Axial, &mut axial_lines);
         w.laws(m, parts, Action::Shear, &mut shear_lines);
         w.laws(m, parts, Action::Moment, &mut moment_lines);
     }
@@ -227,6 +227,31 @@ impl Writer<'_> {
         format!("{}_{tag}({}) = {}", self.letter(action), super::at(x, &self.u.l, self.u.comma), self.unit(action))
     }
 
+    /// Member `m`'s stretches for N: neighbours with the same law of N joined, so N's
+    /// intervals end only where an axial load (or a load's axial part) acts, not at every
+    /// load across the member.
+    fn axial_parts(&self, m: &MemberResult, parts: &[Stretch]) -> Vec<Stretch> {
+        let named = |s: &Stretch| super::named::laws(self.st, &self.us, m, s, self.u)[0].clone();
+        let mut out: Vec<(Stretch, Option<String>)> = Vec::new();
+        for s in parts {
+            let name = named(s);
+            if let Some((last, last_name)) = out.last_mut() {
+                let scale = last.n.iter().chain(s.n.iter()).fold(1e-12_f64, |a, c| a.max(c.abs()));
+                let xm = s.x1.abs().max(1.0);
+                let same = (0..4).all(|k| {
+                    let (a, b) = (last.n.get(k).copied().unwrap_or(0.0), s.n.get(k).copied().unwrap_or(0.0));
+                    ((a - b) * xm.powi(k as i32)).abs() <= 1e-9 * scale * xm.powi(3)
+                });
+                if same && *last_name == name && (last.x1 - s.x0).abs() <= 1e-9 * (1.0 + m.length) {
+                    last.x1 = s.x1;
+                    continue;
+                }
+            }
+            out.push((*s, name));
+        }
+        out.into_iter().map(|(s, _)| s).collect()
+    }
+
     /// Member `m`'s laws of `action`, stretch by stretch, with their values at the stretch's ends
     /// (a constant N: its law alone).
     fn laws(&self, m: &MemberResult, parts: &[Stretch], action: Action, out: &mut Vec<Line>) {
@@ -244,7 +269,9 @@ impl Writer<'_> {
                 Action::Moment => &s.m,
             };
             if action != Action::Axial || c[1..].iter().any(|c| *c != 0.0) {
-                out.push(Line::eqs(vec![self.at(&tag, action, s.x0), self.at(&tag, action, s.x1)], false));
+                // One value a line.
+                out.push(Line::eqs(vec![self.at(&tag, action, s.x0)], false));
+                out.push(Line::eqs(vec![self.at(&tag, action, s.x1)], false));
             }
         }
     }
@@ -270,7 +297,7 @@ impl Writer<'_> {
                     } else {
                         for (j, at) in found.iter().enumerate() {
                             let name = if found.len() > 1 { format!("x_({tag},{})", j + 1) } else { x.clone() };
-                            let def = format!("{name} = {}", signed(*at, &self.u.l, self.u.comma));
+                            let def = format!("{name} = {}", super::bare(&signed(*at, &self.u.l, self.u.comma)));
                             let check = format!("{}_{tag}({name}) = {}", self.shear, self.u.f);
                             out.push((Line::eqs(vec![def, check], false), true));
                         }
@@ -284,7 +311,8 @@ impl Writer<'_> {
                     let jump = self.labels.jump.replace("{T}", &self.shear);
                     let place = format!("x = {} {}", num(x, self.u.comma), self.u.l);
                     out.push((Line::words(format!("{} {} ({}–{}), {place}: {jump}:", self.labels.member, src.id, src.a, src.b)), false));
-                    out.push((Line::eqs(vec![self.at(&before, Action::Shear, x), self.at(&after, Action::Shear, x)], false), true));
+                    out.push((Line::eqs(vec![self.at(&before, Action::Shear, x)], false), true));
+                    out.push((Line::eqs(vec![self.at(&after, Action::Shear, x)], false), true));
                 }
             }
         }

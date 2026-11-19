@@ -1,6 +1,6 @@
 //! `structure.*` commands: insertion, results, edits, calculations, student copies, saving.
 
-use serde_json::json;
+use serde_json::{Value, json};
 use wordcraft_doc::graphic::GraphicKind;
 use wordcraft_doc::{Block, Document, InlineObject};
 
@@ -82,6 +82,30 @@ fn settings_and_conventions() {
     let r = s.run("structure.set", &json!({"convention": "italian"})).unwrap();
     assert_eq!(r["structure"]["diagrams"]["m"]["positive"], "down");
     assert!(s.run("structure.set", &json!({"lengthUnit": "ft"})).is_err());
+}
+
+#[test]
+fn a_change_of_unit_converts_the_numbers() {
+    let mut s = Session::new(Document::new());
+    s.run("structure.insert", &json!({"template": "beam"})).unwrap();
+    let before = s.run("structure.get", &json!({})).unwrap();
+    let x = |r: &Value| r["structure"]["nodes"][1]["x"].as_f64().unwrap();
+    let r = s.run("structure.set", &json!({"lengthUnit": "cm"})).unwrap();
+    assert_eq!(r["structure"]["lengthUnit"], "cm");
+    assert_eq!(x(&r), x(&before) * 100.0, "{r}");
+    // The reactions don't change (same forces), the members' lengths are in cm.
+    let (ra, rb) = (r["reactions"].as_array().unwrap(), before["reactions"].as_array().unwrap());
+    assert_eq!(ra.len(), rb.len());
+    for (a, b) in ra.iter().zip(rb) {
+        for k in ["fx", "fy"] {
+            assert!((a[k].as_f64().unwrap() - b[k].as_f64().unwrap()).abs() < 1e-9, "{a} vs {b}");
+        }
+    }
+    let len = |r: &Value| r["members"][0]["length"].as_f64().unwrap();
+    assert!((len(&r) - len(&before) * 100.0).abs() < 1e-9);
+    // "convert": false only relabels.
+    let r = s.run("structure.set", &json!({"lengthUnit": "m", "convert": false})).unwrap();
+    assert_eq!(x(&r), x(&before) * 100.0);
 }
 
 #[test]
@@ -264,7 +288,8 @@ fn the_working_names_the_loads() {
     assert!(!t.contains('⚠'), "{t}");
     // Defined with their sizes; the zero force is not numbered.
     assert!(has(&t, "Loads:"), "{t}");
-    let defs = ["q_1=(10 kN/m)", "q_(2,1)=(2 kN/m)", "q_(2,2)=(5 kN/m)", "q_(3,2)=(4 kN/m)", "F_4=(12 kN)", "C_5=(6 kN·m)"];
+    // Without parentheses round a plain value (`q_1 = 10 kN/m`, not `q_1 = (10 kN/m)`).
+    let defs = ["q_1=10 kN/m", "q_(2,1)=2 kN/m", "q_(2,2)=5 kN/m", "q_(3,2)=4 kN/m", "F_4=12 kN", "C_5=6 kN·m"];
     let flat: String = t.chars().filter(|c| !c.is_whitespace()).collect();
     let mut from = 0;
     for d in defs {
@@ -538,4 +563,88 @@ fn the_reactions_working_draws_the_free_body() {
     assert!(reactions < first);
     s.run("structure.working", &json!({})).unwrap();
     assert_eq!(views(&s), [View::All, View::Equilibrium]);
+}
+
+/// Each value at a station is a line of its own, in the working and in an exercise's parts.
+#[test]
+fn each_value_at_a_station_has_its_own_line() {
+    let one_each = |t: &str| {
+        for l in t.lines() {
+            // Values at a number of metres: `M_1(3 m)`, `T_1a(0 m)`.
+            let n = l.match_indices("_1").filter(|(i, _)| {
+                let rest = l.get(i + 2..).unwrap_or("");
+                let rest = rest.trim_start_matches(|c: char| c.is_ascii_lowercase());
+                rest.strip_prefix('(').is_some_and(|r| r.starts_with(|c: char| c.is_ascii_digit()))
+            });
+            assert!(n.count() <= 1, "{l}\n{t}");
+        }
+    };
+    let t = template_working("beam");
+    assert!(has(&t, "M_1(3 m)=45 kN·m"), "{t}");
+    one_each(&t);
+    let mut s = Session::new(Document::new());
+    s.run("structure.exercise", &json!({})).unwrap();
+    let t = text_of(&s);
+    assert!(t.contains("M_1"), "{t}");
+    one_each(&t);
+}
+
+/// The working is laid out in blocks a page break never splits: a heading stays with the
+/// equations it heads and equations with the next ones, wherever the text above puts it.
+#[test]
+fn page_breaks_never_split_a_block_of_the_working() {
+    use wordcraft_doc::Pos;
+    for filler in [0usize, 10, 20, 25, 30, 35, 40] {
+        let mut s = Session::new(Document::new());
+        for _ in 0..filler {
+            s.run("text.insert", &json!({"text": "Filler line of text."})).unwrap();
+            s.run("text.newParagraph", &json!({})).unwrap();
+        }
+        s.run("structure.insert", &json!({"template": "frame"})).unwrap();
+        s.run("structure.working", &json!({})).unwrap();
+        let n = s.doc.body.len();
+        let kept: Vec<usize> =
+            (0..n).filter(|&i| matches!(s.doc.body.get(i).map(|b| &**b), Some(Block::Para(p)) if p.props.keep_next == Some(true))).collect();
+        assert!(kept.len() > 5, "the working's blocks are kept with their next paragraph ({filler})");
+        let l = s.layout();
+        let page = |i: usize| l.caret(&Pos::body(i, 0)).map(|c| c.page);
+        assert!(l.pages.len() > 1 || filler == 0, "the working runs over a page ({filler})");
+        for i in kept {
+            assert_eq!(page(i), page(i + 1), "paragraph {i} is kept with the next ({filler} lines above)");
+        }
+    }
+}
+
+/// In an exercise, N's intervals end only where an axial load acts: the stretches the other
+/// loads make are joined while N's law stays the same.
+#[test]
+fn the_axial_force_s_intervals_end_only_at_axial_loads() {
+    let mut s = Session::new(Document::new());
+    let st = json!({
+        "nodes": [{"id": "A", "x": 0, "y": 0}, {"id": "B", "x": 6, "y": 0}],
+        "members": [{"id": "1", "a": "A", "b": "B"}],
+        "supports": [{"node": "A", "kind": "pin"}, {"node": "B", "kind": "roller"}],
+        "loads": [
+            {"type": "force", "member": "1", "at": 2, "value": 10},
+            {"type": "force", "member": "1", "at": 4.5, "value": 10}
+        ]
+    });
+    s.run("structure.exercise", &json!({"structure": st})).unwrap();
+    let t = text_of(&s);
+    // T and M have three stretches, N one law from 0 m to 6 m.
+    assert!(has(&t, "T_1c(x)") && has(&t, "N_1(x)") && !has(&t, "N_1a(x)") && !has(&t, "N_1b(x)"), "{t}");
+    // An askew force: N changes there, and only there.
+    let mut s = Session::new(Document::new());
+    let st = json!({
+        "nodes": [{"id": "A", "x": 0, "y": 0}, {"id": "B", "x": 6, "y": 0}],
+        "members": [{"id": "1", "a": "A", "b": "B"}],
+        "supports": [{"node": "A", "kind": "pin"}, {"node": "B", "kind": "roller"}],
+        "loads": [
+            {"type": "force", "member": "1", "at": 2, "value": 10},
+            {"type": "force", "member": "1", "at": 4.5, "value": 10, "angle": -45}
+        ]
+    });
+    s.run("structure.exercise", &json!({"structure": st})).unwrap();
+    let t = text_of(&s);
+    assert!(has(&t, "T_1c(x)") && has(&t, "N_1a(x)") && has(&t, "N_1b(x)") && !has(&t, "N_1c(x)"), "{t}");
 }

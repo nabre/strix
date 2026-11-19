@@ -101,15 +101,24 @@ struct Line {
     /// In place of words and equations, the free body the reactions' equations balance (the
     /// structure drawn with [`View::Equilibrium`](strix_structure::View)).
     figure: bool,
+    /// Kept on the page with the line after it: a heading (words ending with `:`, a noted
+    /// equation's label) never stays alone at the bottom of a page ([`paragraphs_with`]).
+    keep: bool,
 }
 
 impl Line {
     fn words(label: String) -> Line {
-        Line { label, note: None, after: String::new(), equations: Vec::new(), display: false, stepped: false, figure: false }
+        let keep = label.trim_end().ends_with(':');
+        Line { label, note: None, after: String::new(), equations: Vec::new(), display: false, stepped: false, figure: false, keep }
+    }
+
+    /// Words that head what follows them, whatever they end with.
+    fn heading(label: String) -> Line {
+        Line { keep: true, ..Line::words(label) }
     }
 
     fn eqs(equations: Vec<String>, display: bool) -> Line {
-        Line { label: String::new(), note: None, after: String::new(), equations, display, stepped: false, figure: false }
+        Line { label: String::new(), note: None, after: String::new(), equations, display, stepped: false, figure: false, keep: false }
     }
 
     fn figure() -> Line {
@@ -117,7 +126,12 @@ impl Line {
     }
 
     fn noted(label: String, note: String, after: String) -> Line {
-        Line { label, note: Some(note), after, equations: Vec::new(), display: false, stepped: false, figure: false }
+        Line { label, note: Some(note), after, equations: Vec::new(), display: false, stepped: false, figure: false, keep: true }
+    }
+
+    /// Only equations: the rest of the block its heading opened.
+    fn continues(&self) -> bool {
+        self.label.is_empty() && self.note.is_none() && !self.equations.is_empty()
     }
 }
 
@@ -198,19 +212,31 @@ fn paragraphs(lines: &[Line], props: &wordcraft_doc::CharProps) -> Result<Vec<Pa
 
 /// [`paragraphs`], the free body (`figure`) in a paragraph of its own where a line asks for it
 /// (none without it).
+///
+/// Laid out in blocks, so a page break never splits one: a heading (`Line::keep`) and each
+/// line of equations followed by more equations are kept with the next paragraph, and a
+/// stepped equation's lines are kept together. The page then breaks before a block that
+/// doesn't fit, wherever the text above has put it (Word's keep with next, saved with the
+/// document); a block taller than a page breaks as usual.
 fn paragraphs_with(lines: &[Line], props: &wordcraft_doc::CharProps, figure: Option<&InlineObject>) -> Result<Vec<Paragraph>, CmdError> {
     let props = props.clone();
     let mut out = Vec::new();
-    for line in lines {
+    // Only lines that become paragraphs (a figure without its drawing is left out).
+    let shown: Vec<&Line> = lines.iter().filter(|l| !l.figure || figure.is_some()).collect();
+    for (k, line) in shown.iter().enumerate() {
+        let keep = shown.get(k + 1).is_some_and(|next| line.keep || (next.continues() && !line.figure));
         if line.figure {
             if let Some(obj) = figure {
                 let mut para = Paragraph::with_text("", props.clone());
                 para.insert_object(0, obj.clone(), &props).map_err(|e| CmdError::Failed(e.to_string()))?;
+                para.props.keep_next = keep.then_some(true);
                 out.push(para);
             }
             continue;
         }
         let mut para = Paragraph::with_text(&line.label, props.clone());
+        para.props.keep_next = keep.then_some(true);
+        para.props.keep_lines = line.stepped.then_some(true);
         if let Some(note) = &line.note {
             let math = Math { nodes: parse_linear(note), calc: false, ..Math::default() };
             let obj = InlineObject::Equation { linear: to_linear(&math.nodes), math, display: false };
@@ -374,7 +400,7 @@ fn unknowns(st: &Structure, an: &strix_structure::Analysis) -> Vec<Unknown> {
                 push("H", Acts::Along((1.0, 0.0)), r.fx);
                 push("V", Acts::Along((0.0, 1.0)), r.fy);
             }
-            SupportKind::Roller | SupportKind::Link | SupportKind::Slider => {
+            SupportKind::Roller | SupportKind::RollerCircle | SupportKind::Link | SupportKind::Slider => {
                 let phi = r.angle.to_radians();
                 let n = (-phi.sin(), phi.cos());
                 if n.0.abs() < 1e-9 {
@@ -556,7 +582,7 @@ impl Units {
         }
     }
 
-    /// The definitions of the loads' names: `F_1 = (20 kN)`, `q_(1,1) = (5 kN/m)` (sizes: the
+    /// The definitions of the loads' names: `F_1 = 20 kN`, `q_(1,1) = 5 kN/m`, `F_2 = (70 kN)/3` (sizes: the
     /// equations' signs give the directions), in the names' order.
     fn definitions(&self, st: &Structure) -> Vec<String> {
         let mut out: Vec<(usize, String)> = Vec::new();
@@ -564,17 +590,17 @@ impl Units {
             let Some(name) = name else { continue };
             let n = name.number;
             match l {
-                Load::Force { value, .. } => out.push((n, format!("{} = {}", name.linear(), self.force(value.value)))),
-                Load::Moment { value, .. } => out.push((n, format!("{} = {}", name.linear(), self.moment(value.value)))),
+                Load::Force { value, .. } => out.push((n, format!("{} = {}", name.linear(), bare(&self.force(value.value))))),
+                Load::Moment { value, .. } => out.push((n, format!("{} = {}", name.linear(), bare(&self.moment(value.value))))),
                 Load::Distributed { q1, q2, .. } => {
                     let (a, b) = (q1.value, q2.as_ref().map_or(q1.value, |q| q.value));
                     if !name.varying {
-                        out.push((n, format!("{} = {}", name.linear(), self.spread(a))));
+                        out.push((n, format!("{} = {}", name.linear(), bare(&self.spread(a)))));
                         continue;
                     }
                     for (end, q) in [(1, a), (2, b)] {
                         if q != 0.0 {
-                            out.push((n, format!("{} = {}", name.linear_end(end), self.spread(q))));
+                            out.push((n, format!("{} = {}", name.linear_end(end), bare(&self.spread(q)))));
                         }
                     }
                 }
@@ -849,7 +875,7 @@ fn stretch_header(src: &strix_structure::Member, s: &strix_structure::Stretch, u
 
 fn lines(st: &Structure, an: &strix_structure::Analysis, labels: &Labels, comma: bool) -> Vec<Line> {
     let u = units(st, comma);
-    let mut out = vec![Line::words(labels.heading.clone())];
+    let mut out = vec![Line::heading(labels.heading.clone())];
     // The loads' names, defined before the equations that use them.
     let defs = u.definitions(st);
     if !defs.is_empty() {
@@ -949,7 +975,7 @@ fn lines(st: &Structure, an: &strix_structure::Analysis, labels: &Labels, comma:
                 Acts::Turns => format!("{}·{}", u.f, u.l),
                 Acts::Along(_) => u.f.clone(),
             };
-            out.push(Line::eqs(vec![format!("{} = {}", k.name, signed(k.value, &unit, comma))], false));
+            out.push(Line::eqs(vec![format!("{} = {}", k.name, bare(&signed(k.value, &unit, comma)))], false));
         }
     }
     out.push(Line::words(labels.signs.clone()));
@@ -960,7 +986,7 @@ fn lines(st: &Structure, an: &strix_structure::Analysis, labels: &Labels, comma:
             .iter()
             .map(|m| {
                 let n = m.forces(m.length * 0.5, true).n;
-                format!("N_{} = {}", sub(&m.id, 0), signed(n, &u.f, comma))
+                format!("N_{} = {}", sub(&m.id, 0), bare(&signed(n, &u.f, comma)))
             })
             .collect();
         for chunk in defs.chunks(4) {
@@ -968,7 +994,7 @@ fn lines(st: &Structure, an: &strix_structure::Analysis, labels: &Labels, comma:
         }
         return out;
     }
-    out.push(Line::words(format!("{}: {}", labels.forces, labels.conventions)));
+    out.push(Line::heading(format!("{}: {}", labels.forces, labels.conventions)));
     let shear = shear_name(st);
     for m in &an.members {
         if out.len() >= MAX_LINES {
@@ -1022,9 +1048,9 @@ fn member_lines(st: &Structure, us: &[Unknown], m: &MemberResult, u: &Units, lab
         out.push(stretch_header(src, s, u, labels));
         // With the reactions' and the loads' names where they can be, else the numbers.
         let [n, v, mo] = named::laws(st, us, m, s, u);
-        out.push(Line::eqs(vec![format!("N_{tag}(x) = {}", n.unwrap_or_else(|| law(&s.n, [f, &fl, &fl2, &fl3], u.comma)))], true));
-        out.push(Line::eqs(vec![format!("{shear}_{tag}(x) = {}", v.unwrap_or_else(|| law(&s.v, [f, &fl, &fl2, &fl3], u.comma)))], true));
-        out.push(Line::eqs(vec![format!("M_{tag}(x) = {}", mo.unwrap_or_else(|| law(&s.m, [&fm, f, &fl, &fl2], u.comma)))], true));
+        out.push(Line::eqs(vec![format!("N_{tag}(x) = {}", bare(&n.unwrap_or_else(|| law(&s.n, [f, &fl, &fl2, &fl3], u.comma))))], true));
+        out.push(Line::eqs(vec![format!("{shear}_{tag}(x) = {}", bare(&v.unwrap_or_else(|| law(&s.v, [f, &fl, &fl2, &fl3], u.comma))))], true));
+        out.push(Line::eqs(vec![format!("M_{tag}(x) = {}", bare(&mo.unwrap_or_else(|| law(&s.m, [&fm, f, &fl, &fl2], u.comma))))], true));
         let mut values = Vec::new();
         if s.n[1..].iter().any(|c| *c != 0.0) {
             values.push(format!("N_{tag}({}) = {f}", at(s.x0)));
@@ -1037,7 +1063,8 @@ fn member_lines(st: &Structure, us: &[Unknown], m: &MemberResult, u: &Units, lab
             values.push(format!("M_{tag}({}) = {fm}", at(*x)));
         }
         values.push(format!("M_{tag}({}) = {fm}", at(s.x1)));
-        out.push(Line::eqs(values, false));
+        // One value a line, each under the other.
+        out.extend(values.into_iter().map(|v| Line::eqs(vec![v], false)));
     }
 }
 

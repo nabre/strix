@@ -231,12 +231,23 @@ pub(super) fn structure_editor(app: &mut WordApp, ui: &mut Ui) {
     let tools = crate::structure_pane::tools(ui.ctx());
     let tool = |name: &str| crate::widgets::ButtonAction::new("ui.structureTool", json!({"tool": name}), tools.tool == name);
     let big_tool = |ui: &mut Ui, app: &mut WordApp, icon: &str, label: &str, name: &str| {
-        crate::widgets::big_checked(ui, app, icon, label, "ui.structureTool", json!({"tool": name}), tools.tool == name);
+        let on = tools.tool == name;
+        let resp = crate::widgets::big_checked(ui, app, icon, label, "ui.structureTool", json!({"tool": name}), on);
+        let a11y = tl!(label).replace('\n', " ");
+        resp.widget_info(|| egui::WidgetInfo::selected(egui::Role::Button, true, on, &a11y));
     };
     group(ui, "Selection", None, app, |ui, app| {
         big_tool(ui, app, "cadSelect", "Select", "select");
+        big_tool(ui, app, "structureRotate", "Rotate", "rotate");
         stack(ui, |ui| {
-            small(ui, app, "cadDelete", Some("Erase"), "Click a node or a member to remove it (a node with what uses it)", tool("erase"));
+            small(
+                ui,
+                app,
+                "cadDelete",
+                Some("Erase"),
+                "Click a load, support, member or node to remove it (a node with what uses it)",
+                tool("erase"),
+            );
         });
     });
     group(ui, "Draw", None, app, |ui, app| {
@@ -250,8 +261,18 @@ pub(super) fn structure_editor(app: &mut WordApp, ui: &mut Ui) {
             small(ui, app, "structureRoller", Some("Roller"), "Click a node to put it on a roller (carrello)", tool("roller"));
         });
         stack(ui, |ui| {
+            small(
+                ui,
+                app,
+                "structureRollerCircle",
+                Some("Roller (circle)"),
+                "Click a node to put it on a roller drawn as a circle (carrello)",
+                tool("rollerCircle"),
+            );
             small(ui, app, "structureLink", Some("Link"), "Click a node to hold it with a link (pendolo)", tool("link"));
             small(ui, app, "structureSlider", Some("Slider"), "Click a node to hold it with a slider (glifo)", tool("slider"));
+        });
+        stack(ui, |ui| {
             small(ui, app, "structureHinge", Some("Internal hinge"), "Click a node to make it an internal hinge, or not", tool("hinge"));
         });
     });
@@ -276,7 +297,12 @@ pub(super) fn structure_editor(app: &mut WordApp, ui: &mut Ui) {
                 ui.add_space(4.0);
                 ui.label(tl!("Grid"));
                 let mut grid = tools.grid;
-                let r = ui.add(egui::DragValue::new(&mut grid).range(0.01..=100.0).speed(0.05).max_decimals(3));
+                let r = ui.add(
+                    egui::DragValue::new(&mut grid)
+                        .range(crate::structure_pane::MIN_GRID..=crate::structure_pane::MAX_GRID)
+                        .speed(0.05)
+                        .max_decimals(3),
+                );
                 if r.on_hover_text(tl!("The grid's step, in the structure's length unit")).changed() {
                     let _ = app.run("ui.structureGrid", json!({"size": grid}));
                 }
