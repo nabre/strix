@@ -948,20 +948,31 @@ impl Parser<'_> {
         }
     }
 
-    /// A limit of an integral: a signed postfix (`0`, `-1`, `π`, `(a+b)`).
+    /// A limit of an integral: a signed postfix (`0`, `-1`, `π`, `(a+b)`), a number with the unit
+    /// written against it (`∫_0m^6m`: the linear format of a limit `0 m` typed in the equation,
+    /// whose script runs to the next operator, so the unit takes no power here).
     pub(crate) fn limit(&mut self) -> R<Expr> {
-        match self.peek() {
+        let e = match self.peek() {
             Some(Tok::Minus) => {
                 self.bump();
                 let inner = self.nested(Self::postfix)?;
-                self.node(Expr::Neg(Box::new(inner)))
+                self.node(Expr::Neg(Box::new(inner)))?
             }
             Some(Tok::Plus) => {
                 self.bump();
-                self.nested(Self::postfix)
+                self.nested(Self::postfix)?
             }
-            _ => self.nested(Self::postfix),
+            _ => self.nested(Self::postfix)?,
+        };
+        if crate::format::is_numeric(&e)
+            && self.unit_at(self.i)
+            && let Some(Tok::Ident(name)) = self.peek().cloned()
+        {
+            self.bump();
+            let unit = self.node(Expr::Unit(name))?;
+            return self.bin(BinOp::Mul, e, unit);
         }
+        Ok(e)
     }
 
     /// The integer power written on a function name before its argument: `⁻¹`, `²`, `^-1`,

@@ -440,6 +440,9 @@ mod tests {
         assert_eq!(last(&["∫_0^2 ⅆt ="]), "∫_0^2 ⅆt = 2");
         // Units: a speed over time is a distance.
         assert_eq!(last(&["a = 3 m/s^2", "∫_(0 s)^(2 s) a·t dt ="]), "∫_(0 s)^(2 s) a·t dt = 6 m");
+        // As a document's equation writes them: the unit against the number, the script ending at `^`.
+        assert_eq!(last(&["f(x) = (6m)-x", "∫_0m^6m▒(f(x)^2dx) ="]), "∫_0m^6m▒(f(x)^2dx) = 72 m³");
+        assert_eq!(last(&["∫_(-1m)^2m▒(x dx) ="]), "∫_(-1m)^2m▒(x dx) = 1.5 m²");
         // The integration variable is bound, not an unknown to solve for.
         assert_eq!(last(&["a = 2", "∫_0^a x dx ="]), "∫_0^a x dx = 2");
         assert!(error(&["∫_0^1 x ="]).is_some());

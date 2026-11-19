@@ -3871,6 +3871,15 @@ structure	x from {a} to {b}	x de {a} à {b}
 	A right-aligned line for the score obtained against the total: computed from the points, or typed in	Une ligne alignée à droite pour les points obtenus sur le total : calculés à partir des points, ou saisis
 	Axial forces	Efforts normaux dans les barres
 	From the equations solved together	D’après les équations résolues ensemble
+	Hyperstatic structure of degree 1, solved by the force method. Redundant: {X}. Without the constraint that gives it, the structure left (the released structure) is isostatic.	Structure hyperstatique de degré 1, résolue par la méthode des forces. Inconnue hyperstatique : {X}. Sans la liaison correspondante, il reste la structure isostatique associée.
+	Hyperstatic structure of degree 2, solved by the force method. Redundants: {X}. Without the constraints that give them, the structure left (the released structure) is isostatic.	Structure hyperstatique de degré 2, résolue par la méthode des forces. Inconnues hyperstatiques : {X}. Sans les liaisons correspondantes, il reste la structure isostatique associée.
+	System 0, the released structure under the loads:	Système 0, la structure isostatique associée sous les charges :
+	System {i}, the released structure under only	Système {i}, la structure isostatique associée sous la seule
+	Congruence: where a constraint was taken away, the real structure doesn't move along its redundant. The displacements of the released structure by the principle of virtual work,	Compatibilité : là où une liaison a été supprimée, la structure réelle ne se déplace pas selon son inconnue hyperstatique. Les déplacements de la structure isostatique associée par le principe des travaux virtuels,
+	(EI constant: multiplied by EI; axial strains neglected):	(EI constant : multipliés par EI ; déformations axiales négligées) :
+	(EA constant: multiplied by EA):	(EA constant : multipliés par EA) :
+	(axial strains neglected):	(déformations axiales négligées) :
+	Solved by Cramer's rule (δ_21 = δ_12):	Résolues par la règle de Cramer (δ_21 = δ_12) :
 	Hyperstatic: from the solution by the stiffness method	Structure hyperstatique : d’après la résolution par la méthode des déplacements
 	Insert Analysis	Insérer l’analyse
 	Internal forces	Efforts internes

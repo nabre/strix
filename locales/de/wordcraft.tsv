@@ -3880,6 +3880,15 @@ template	Letter	Brief
 	Member	Stab
 	Axial forces	Stabkräfte
 	From the equations solved together	Aus den gemeinsam gelösten Gleichungen
+	Hyperstatic structure of degree 1, solved by the force method. Redundant: {X}. Without the constraint that gives it, the structure left (the released structure) is isostatic.	Statisch unbestimmt vom Grad 1, gelöst mit dem Kraftgrößenverfahren. Überzählige Größe: {X}. Ohne die zugehörige Bindung bleibt das Grundsystem, statisch bestimmt.
+	Hyperstatic structure of degree 2, solved by the force method. Redundants: {X}. Without the constraints that give them, the structure left (the released structure) is isostatic.	Statisch unbestimmt vom Grad 2, gelöst mit dem Kraftgrößenverfahren. Überzählige Größen: {X}. Ohne die zugehörigen Bindungen bleibt das Grundsystem, statisch bestimmt.
+	System 0, the released structure under the loads:	System 0, das Grundsystem unter den Lasten:
+	System {i}, the released structure under only	System {i}, das Grundsystem nur unter
+	Congruence: where a constraint was taken away, the real structure doesn't move along its redundant. The displacements of the released structure by the principle of virtual work,	Verträglichkeit: Wo eine Bindung entfernt wurde, verschiebt sich das wirkliche Tragwerk nicht in Richtung ihrer überzähligen Größe. Die Verschiebungen des Grundsystems nach dem Prinzip der virtuellen Arbeit,
+	(EI constant: multiplied by EI; axial strains neglected):	(EI konstant: mit EI multipliziert; Längsdehnungen vernachlässigt):
+	(EA constant: multiplied by EA):	(EA konstant: mit EA multipliziert):
+	(axial strains neglected):	(Längsdehnungen vernachlässigt):
+	Solved by Cramer's rule (δ_21 = δ_12):	Gelöst mit der cramerschen Regel (δ_21 = δ_12):
 	Hyperstatic: from the solution by the stiffness method	Statisch unbestimmt: aus der Lösung mit dem Weggrößenverfahren
 	Internal forces	Schnittgrößen
 	part about the hinge	Teilsystem um das Gelenk

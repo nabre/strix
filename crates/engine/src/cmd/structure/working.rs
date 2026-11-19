@@ -26,6 +26,7 @@ use wordcraft_doc::{Block, InlineObject};
 use crate::{CmdError, CmdResult, Session};
 
 mod arms;
+mod force;
 mod live;
 mod named;
 mod questions;
@@ -43,6 +44,17 @@ struct Labels {
     signs: String,
     hyperstatic: String,
     together: String,
+    /// The force method's words ([`force`]): with one redundant and with two (`{X}`: their names).
+    force1: String,
+    force2: String,
+    system0: String,
+    /// `{i}` the system's number, then `X = 1`.
+    system: String,
+    congruence: String,
+    eiconst: String,
+    eaconst: String,
+    noaxial: String,
+    cramer: String,
     forces: String,
     conventions: String,
     member: String,
@@ -70,6 +82,24 @@ impl Labels {
             signs: get("signs", "Reactions are positive along x, along y and counter-clockwise: a negative one acts the other way."),
             hyperstatic: get("hyperstatic", "Hyperstatic: from the solution by the stiffness method"),
             together: get("together", "From the equations solved together"),
+            force1: get(
+                "force1",
+                "Hyperstatic structure of degree 1, solved by the force method. Redundant: {X}. Without the constraint that gives it, the structure left (the released structure) is isostatic.",
+            ),
+            force2: get(
+                "force2",
+                "Hyperstatic structure of degree 2, solved by the force method. Redundants: {X}. Without the constraints that give them, the structure left (the released structure) is isostatic.",
+            ),
+            system0: get("system0", "System 0, the released structure under the loads:"),
+            system: get("system", "System {i}, the released structure under only"),
+            congruence: get(
+                "congruence",
+                "Congruence: where a constraint was taken away, the real structure doesn't move along its redundant. The displacements of the released structure by the principle of virtual work,",
+            ),
+            eiconst: get("eiconst", "(EI constant: multiplied by EI; axial strains neglected):"),
+            eaconst: get("eaconst", "(EA constant: multiplied by EA):"),
+            noaxial: get("noaxial", "(axial strains neglected):"),
+            cramer: get("cramer", "Solved by Cramer's rule (δ_21 = δ_12):"),
             forces: get("forces", "Internal forces"),
             conventions: get(
                 "conventions",
@@ -385,6 +415,11 @@ struct Unknown {
     acts: Acts,
     /// Its value from the solution (for a redundant).
     value: f64,
+    /// Its support (index in the structure's) and place among the support's constraints (the
+    /// order of its components here), and the support's kind.
+    support: usize,
+    place: usize,
+    kind: SupportKind,
 }
 
 fn unknowns(st: &Structure, an: &strix_structure::Analysis) -> Vec<Unknown> {
@@ -393,8 +428,11 @@ fn unknowns(st: &Structure, an: &strix_structure::Analysis) -> Vec<Unknown> {
         let Some(n) = st.node(&r.node) else { continue };
         let at = (n.x.value, n.y.value);
         let s = sub(&r.node, k + 1);
-        let mut push =
-            |prefix: &str, acts: Acts, value: f64| out.push(Unknown { name: format!("{prefix}_{s}"), node: r.node.clone(), at, acts, value });
+        let mut place = 0;
+        let mut push = |prefix: &str, acts: Acts, value: f64| {
+            out.push(Unknown { name: format!("{prefix}_{s}"), node: r.node.clone(), at, acts, value, support: r.support, place, kind: r.kind });
+            place += 1;
+        };
         match r.kind {
             SupportKind::Fixed | SupportKind::Pin => {
                 push("H", Acts::Along((1.0, 0.0)), r.fx);
@@ -945,8 +983,21 @@ fn lines(st: &Structure, an: &strix_structure::Analysis, labels: &Labels, comma:
     let mut known = vec![false; us.len()];
     let mut defined: std::collections::HashSet<String> = std::collections::HashSet::new();
     let mut said_redundant = false;
+    // A hyperstatic structure's redundants by the force method, before the equations that use them.
+    if let Some((section, reds)) = force::section(st, an, &us, &eqs, &u, labels) {
+        out.extend(section);
+        for i in reds {
+            if let Some(slot) = known.get_mut(i) {
+                *slot = true;
+            }
+        }
+        said_redundant = true;
+    }
     while known.iter().any(|k| !k) && out.len() < MAX_LINES {
-        if let Some(pos) = eqs.iter().position(|e| e.open(&known).len() == 1) {
+        // A translation first when it isolates an unknown (`ΣF_y` for the second vertical
+        // reaction once a rotation gave the first), so no further moment equation is written.
+        let isolates = |e: &Equation| e.open(&known).len() == 1;
+        if let Some(pos) = eqs.iter().position(|e| !e.moment && isolates(e)).or_else(|| eqs.iter().position(isolates)) {
             let e = eqs.remove(pos);
             if let Some(&i) = e.open(&known).first()
                 && let Some(slot) = known.get_mut(i)
