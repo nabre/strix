@@ -2,7 +2,10 @@
 
 use strix_calc::{Options, Quantity, Value, Worksheet};
 
-use crate::{Action, Load, LoadAxes, LoadPer, Member, Node, NotableKind, Num, Status, Structure, Support, SupportKind, analyse, notables};
+use crate::{
+    Action, ForceUnit, LengthUnit, Load, LoadAxes, LoadPer, Member, Node, NotableKind, Num, Status, Structure, Support, SupportKind, analyse,
+    notables,
+};
 
 fn node(id: &str, x: f64, y: f64) -> Node {
     Node { id: id.into(), x: x.into(), y: y.into(), hinge: false }
@@ -250,6 +253,40 @@ fn portal_frame_with_a_horizontal_load() {
     // H_A = 10 to the left at A bends it with its right side stretched? Check the magnitude.
     assert_close!(an.members[0].forces(4.0, false).m.abs(), 40.0);
     assert_close!(an.members[1].forces(0.0, true).m.abs(), 40.0);
+}
+
+#[test]
+fn a_change_of_units_keeps_the_structure() {
+    let mut st = simple_beam();
+    st.loads.push(force_on("1", 2.0, 5.0));
+    st.members[0].e = Some(Num::new(2.1e8)); // kN/m²
+    st.members[0].i = Some(Num::new(1e-4)); // m⁴
+    st.members[0].area = Some(Num::new(0.07)); // m²
+    st.supports[1].angle = Num::new(30.0);
+    st.convert_units(LengthUnit::Cm, ForceUnit::N);
+    assert_eq!((st.length_unit, st.force_unit), (LengthUnit::Cm, ForceUnit::N));
+    assert_eq!(st.nodes[1].x.value, 600.0);
+    assert_eq!(st.supports[1].angle.value, 30.0, "angles don't change");
+    let Load::Distributed { q1, .. } = &st.loads[0] else { panic!() };
+    assert_eq!(q1.value, 100.0, "10 kN/m = 100 N/cm");
+    let Load::Force { at, value, .. } = &st.loads[1] else { panic!() };
+    assert_eq!((at.value, value.value), (200.0, 5000.0));
+    let m = &st.members[0];
+    assert_eq!(m.e.as_ref().unwrap().value, 2.1e7, "N/cm²");
+    assert_eq!(m.i.as_ref().unwrap().value, 1e4, "cm⁴");
+    assert_eq!(m.area.as_ref().unwrap().value, 700.0, "cm², without binary noise");
+    // And back: the same numbers as before.
+    let mut back = st.clone();
+    back.convert_units(LengthUnit::M, ForceUnit::KN);
+    let mut orig = simple_beam();
+    orig.loads.push(force_on("1", 2.0, 5.0));
+    assert_eq!(back.nodes, orig.nodes);
+    assert_eq!(back.loads, orig.loads);
+    // An expression is kept as written.
+    let mut e = simple_beam();
+    e.nodes[1].x = Num { value: 6.0, expr: Some("L".into()) };
+    e.convert_units(LengthUnit::Mm, ForceUnit::KN);
+    assert_eq!(e.nodes[1].x.expr.as_deref(), Some("L"));
 }
 
 #[test]

@@ -29,7 +29,7 @@ pub fn specs() -> Vec<CommandSpec> {
             r#"→ {"structure": object, "resolved": object (its numbers' values), "status": "isostatic"|"hyperstatic"|"labile"|"invalid"|"empty", "degree"?: n, "message": string, "truss": bool, "reactions": [{"node", "kind", "fx", "fy", "m"}], "members": [{"id", "length", "n": [...], "v": [...], "m": [...]}], "errors": [...]} (notable values: {"x", "value", "kind": "end"|"extreme"|"zero"})"#,
         ),
         CommandSpec::new("structure.set", "Set Structure", PLACE, set).when(selected).params(
-            r#"{"structure"?: object|string, "title"?: string, "width"?: mm, "lengthUnit"?: "m"|"cm"|"mm", "forceUnit"?: "kN"|"N"|"daN", "answer"?: bool, "convention"?: "italian", "diagrams"?: object (merged: {"n"|"v"|"m": {"show"?, "positive"?: "up"|"down", "amplitude"?}, "reactions"?, "values"?, "hatch"?, "signs"?, "dimensions"?, "stations"?}), "titles"?: {"n"?, "v"?, "m"?}, "layout"?: "auto"|"column"|"grid"} → updates the selected structure and redraws it"#,
+            r#"{"structure"?: object|string, "title"?: string, "width"?: mm, "lengthUnit"?: "m"|"cm"|"mm", "forceUnit"?: "kN"|"N"|"daN" (the numbers converted: 1 m becomes 100 cm; not with "structure" or "convert": false), "convert"?: bool, "answer"?: bool, "convention"?: "italian", "diagrams"?: object (merged: {"n"|"v"|"m": {"show"?, "positive"?: "up"|"down", "amplitude"?}, "reactions"?, "values"?, "hatch"?, "signs"?, "dimensions"?, "stations"?}), "titles"?: {"n"?, "v"?, "m"?}, "layout"?: "auto"|"column"|"grid"} → updates the selected structure and redraws it"#,
         ),
         CommandSpec::new("structure.node", "Structure Node", PLACE, node).when(selected).params(
             r#"{"id"?: string, "x"?: num|expr, "y"?: num|expr, "hinge"?: bool, "rename"?: string, "remove"?: bool} → adds a node (a new name when id is absent or new), changes it, or removes it with what uses it"#,
@@ -214,18 +214,29 @@ fn merge(base: &mut Value, patch: &Value) {
     }
 }
 
-fn apply_settings(st: &mut Structure, v: &Value) -> Result<(), CmdError> {
+fn apply_settings(st: &mut Structure, v: &Value, convert: bool) -> Result<(), CmdError> {
     if let Some(t) = p::str(v, "title") {
         st.title = t.to_string();
     }
     if let Some(w) = v.get("width").and_then(Value::as_f64).filter(|w| w.is_finite()) {
         st.width = w;
     }
+    let mut lu = st.length_unit;
+    let mut fu = st.force_unit;
     if let Some(u) = p::str(v, "lengthUnit") {
-        st.length_unit = strix_structure::LengthUnit::parse(u).ok_or_else(|| CmdError::Params(format!("lengthUnit: \"{u}\" is not m, cm or mm")))?;
+        lu = strix_structure::LengthUnit::parse(u).ok_or_else(|| CmdError::Params(format!("lengthUnit: \"{u}\" is not m, cm or mm")))?;
     }
     if let Some(u) = p::str(v, "forceUnit") {
-        st.force_unit = strix_structure::ForceUnit::parse(u).ok_or_else(|| CmdError::Params(format!("forceUnit: \"{u}\" is not kN, N or daN")))?;
+        fu = strix_structure::ForceUnit::parse(u).ok_or_else(|| CmdError::Params(format!("forceUnit: \"{u}\" is not kN, N or daN")))?;
+    }
+    // A change of unit keeps the structure as it is (1 m becomes 100 cm), unless its numbers
+    // come in the same call (a structure given with them, or "convert": false): those are
+    // already in the new units.
+    if convert && p::bool(v, "convert").unwrap_or(true) {
+        st.convert_units(lu, fu);
+    } else {
+        st.length_unit = lu;
+        st.force_unit = fu;
     }
     if let Some(a) = p::bool(v, "answer") {
         st.answer = a;
@@ -256,11 +267,13 @@ fn apply_settings(st: &mut Structure, v: &Value) -> Result<(), CmdError> {
 }
 
 fn insert(s: &mut Session, v: &Value) -> CmdResult {
-    let mut st = match structure_param(v)? {
+    let given = structure_param(v)?;
+    let convert = given.is_none();
+    let mut st = match given {
         Some(st) => st,
         None => template(p::str(v, "template").unwrap_or("beam"))?,
     };
-    apply_settings(&mut st, v)?;
+    apply_settings(&mut st, v, convert)?;
     let obj = graphic(s, &st.sanitized());
     let props = s.typing_props();
     let at = super::delete_selection(s)?;
@@ -378,11 +391,12 @@ fn edit(s: &mut Session, edit: impl FnOnce(&mut Structure) -> Result<(), CmdErro
 
 fn set(s: &mut Session, v: &Value) -> CmdResult {
     let replacement = structure_param(v)?;
+    let convert = replacement.is_none();
     edit(s, |st| {
         if let Some(new) = replacement {
             *st = new;
         }
-        apply_settings(st, v)
+        apply_settings(st, v, convert)
     })
 }
 

@@ -1,6 +1,6 @@
 //! `structure.*` commands: insertion, results, edits, calculations, student copies, saving.
 
-use serde_json::json;
+use serde_json::{Value, json};
 use wordcraft_doc::graphic::GraphicKind;
 use wordcraft_doc::{Block, Document, InlineObject};
 
@@ -82,6 +82,30 @@ fn settings_and_conventions() {
     let r = s.run("structure.set", &json!({"convention": "italian"})).unwrap();
     assert_eq!(r["structure"]["diagrams"]["m"]["positive"], "down");
     assert!(s.run("structure.set", &json!({"lengthUnit": "ft"})).is_err());
+}
+
+#[test]
+fn a_change_of_unit_converts_the_numbers() {
+    let mut s = Session::new(Document::new());
+    s.run("structure.insert", &json!({"template": "beam"})).unwrap();
+    let before = s.run("structure.get", &json!({})).unwrap();
+    let x = |r: &Value| r["structure"]["nodes"][1]["x"].as_f64().unwrap();
+    let r = s.run("structure.set", &json!({"lengthUnit": "cm"})).unwrap();
+    assert_eq!(r["structure"]["lengthUnit"], "cm");
+    assert_eq!(x(&r), x(&before) * 100.0, "{r}");
+    // The reactions don't change (same forces), the members' lengths are in cm.
+    let (ra, rb) = (r["reactions"].as_array().unwrap(), before["reactions"].as_array().unwrap());
+    assert_eq!(ra.len(), rb.len());
+    for (a, b) in ra.iter().zip(rb) {
+        for k in ["fx", "fy"] {
+            assert!((a[k].as_f64().unwrap() - b[k].as_f64().unwrap()).abs() < 1e-9, "{a} vs {b}");
+        }
+    }
+    let len = |r: &Value| r["members"][0]["length"].as_f64().unwrap();
+    assert!((len(&r) - len(&before) * 100.0).abs() < 1e-9);
+    // "convert": false only relabels.
+    let r = s.run("structure.set", &json!({"lengthUnit": "m", "convert": false})).unwrap();
+    assert_eq!(x(&r), x(&before) * 100.0);
 }
 
 #[test]

@@ -831,6 +831,33 @@ impl Structure {
         errors
     }
 
+    /// Changes its units keeping what it measures: a 1 m beam becomes 100 cm long, 10 kN/m
+    /// becomes 0.1 kN/cm. Literal numbers are rescaled; an expression is kept as written and
+    /// gets its new value from the next [`Structure::resolve`] (a parameter with a unit converts
+    /// by itself). Angles do not change.
+    pub fn convert_units(&mut self, lu: LengthUnit, fu: ForceUnit) {
+        let l = self.length_unit.si() / lu.si();
+        let f = self.force_unit.si() / fu.si();
+        self.length_unit = lu;
+        self.force_unit = fu;
+        if l == 1.0 && f == 1.0 {
+            return;
+        }
+        for (n, kind) in self.nums_mut() {
+            let k = match kind {
+                NumKind::Angle => continue,
+                NumKind::Length => l,
+                NumKind::Force => f,
+                NumKind::Moment => f * l,
+                NumKind::Distributed => f / l,
+                NumKind::Modulus => f / (l * l),
+                NumKind::Inertia => l * l * l * l,
+                NumKind::Area => l * l,
+            };
+            n.value = round_converted(n.value * k).clamp(-MAX_COORD, MAX_COORD);
+        }
+    }
+
     /// The structure with its numbers' values only (their expressions dropped): what it is now.
     pub fn values_only(&self) -> Structure {
         let mut copy = self.clone();
@@ -882,6 +909,15 @@ impl Structure {
     pub fn next_member_id(&self) -> String {
         (1..).map(|k| k.to_string()).find(|id| self.member(id).is_none()).unwrap_or_default()
     }
+}
+
+/// A converted value without binary noise (`0.07 × 100` is 7, not 7.000000000000001): 12
+/// significant digits.
+fn round_converted(v: f64) -> f64 {
+    if v == 0.0 || !v.is_finite() {
+        return v;
+    }
+    format!("{v:.11e}").parse().unwrap_or(v)
 }
 
 /// A worksheet with `ws`'s parameters where lengths are plain numbers in unit `lu`.
