@@ -38,7 +38,7 @@ pub(super) fn section(
         return None;
     }
     let mode = Mode::of(st, an.truss)?;
-    if an.truss && reds.iter().any(|&i| us.get(i).is_some_and(|k| k.acts == Acts::Turns)) {
+    if an.truss && reds.iter().any(|&i| us.get(i).is_some_and(|k| matches!(k.acts, Acts::Turns(_)))) {
         return None;
     }
     let released: Vec<(usize, usize)> = reds.iter().filter_map(|&i| us.get(i).map(|k| (k.support, k.place))).collect();
@@ -102,7 +102,7 @@ fn closure(eqs: &[Equation], mut known: Vec<bool>) -> Vec<bool> {
 fn rank(k: &Unknown) -> usize {
     match (k.kind, k.acts) {
         (SupportKind::Roller | SupportKind::RollerCircle | SupportKind::Link, Acts::Along(_)) => 0,
-        (_, Acts::Turns) => 1,
+        (_, Acts::Turns(_)) => 1,
         (SupportKind::Slider, _) => 2,
         (SupportKind::Pin, _) => 3,
         (SupportKind::Fixed, _) => 4,
@@ -119,7 +119,7 @@ fn unit_structure(st: &Structure, k: &Unknown) -> Structure {
             value: Num::new(1.0),
             angle: Num::new(d.1.atan2(d.0).to_degrees()),
         },
-        Acts::Turns => Load::Moment { node: Some(k.node.clone()), member: None, at: Num::new(0.0), value: Num::new(1.0) },
+        Acts::Turns(sense) => Load::Moment { node: Some(k.node.clone()), member: None, at: Num::new(0.0), value: Num::new(sense) },
     };
     Structure { loads: vec![load], ..st.clone() }
 }
@@ -238,7 +238,7 @@ impl Writer<'_> {
                 if eqs.is_empty() {
                     continue;
                 }
-                let mut line = stretch_header(src, p.stretch, u, self.labels);
+                let mut line = stretch_header(src, p.stretch, &p.tag, u, self.labels);
                 line.equations = eqs;
                 line.keep = false;
                 out.push(line);
@@ -363,7 +363,7 @@ impl Writer<'_> {
             return if kind == BENDING { law(c, [&fm, f, &fl, &fl2], self.u.comma) } else { law(c, [f, &fl, &fl2, &fl3], self.u.comma) };
         }
         // The power of the length in the law's constant term.
-        let couple = self.reds.get(s - 1).is_some_and(|k| k.acts == Acts::Turns);
+        let couple = self.reds.get(s - 1).is_some_and(|k| matches!(k.acts, Acts::Turns(_)));
         let p0 = match (kind, couple) {
             (BENDING, false) => 1,
             (BENDING, true) | (_, false) => 0,
@@ -417,7 +417,7 @@ impl Writer<'_> {
         let bending = !self.truss;
         // (force, length) powers of a system's law.
         let law = |s: usize| -> (i32, i32) {
-            let couple = s > 0 && self.reds.get(s - 1).is_some_and(|k| k.acts == Acts::Turns);
+            let couple = s > 0 && self.reds.get(s - 1).is_some_and(|k| matches!(k.acts, Acts::Turns(_)));
             match (bending, s == 0, couple) {
                 (true, true, _) => (1, 1),
                 (true, false, false) => (0, 1),

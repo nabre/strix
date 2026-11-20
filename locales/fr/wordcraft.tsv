@@ -4056,3 +4056,28 @@ structure	Focus this item alone	Sélectionner uniquement cet élément
 structure	Select the member	Sélectionner la barre
 structure	Swap ends	Inverser les extrémités
 structure	Reverse the member's local axis (a ↔ b), keeping loads in place	Inverse l’axe local de la barre (a ↔ b) en gardant les charges en place
+structure	Diagram Names	Noms des diagrammes
+structure	Full Names	Noms complets
+structure	Name the panels Axial force, Shear force and Bending moment	Nommer les panneaux Effort normal, Effort tranchant et Moment fléchissant
+structure	Axial force	Effort normal
+structure	Shear force	Effort tranchant
+structure	Bending moment	Moment fléchissant
+structure	Symbols	Symboles
+structure	Name the panels by their symbols	Nommer les panneaux par leurs symboles
+structure	Written over the diagrams' panels; the working keeps the symbols.	Écrits au-dessus des panneaux des diagrammes ; le développement garde les symboles.
+structure	Positive Senses	Sens positifs
+structure	Rotation	Rotation
+structure	Positive to the right	Positif vers la droite
+structure	Positive to the left	Positif vers la gauche
+structure	Positive upwards	Positif vers le haut
+structure	Positive downwards	Positif vers le bas
+structure	Positive counter-clockwise	Positif dans le sens antihoraire
+structure	Positive clockwise	Positif dans le sens horaire
+structure	The reactions are taken positive so and the equilibrium equations sum so; the free body shows the symbol.	Les réactions sont prises positives dans ces sens et les équations d’équilibre sont sommées ainsi ; le corps libre montre le symbole.
+structure	Reactions are taken positive the way their arrows point in the free body: a negative one acts the other way.	Les réactions sont prises positives dans le sens de leurs flèches sur le corps libre : une réaction négative agit en sens inverse.
+structure	Counter-clockwise	Antihoraire
+structure	Clockwise	Horaire
+structure	Stretch	Tronçon
+structure	Cut at x from {a}: the part before the cut (drawn in full) balances its loads, its reactions and N, {T}, M on the cut (drawn positive):	Coupure à x de {a} : la partie avant la coupure (en plein) équilibre ses charges, ses réactions et N, {T}, M sur la coupure (dessinés positifs) :
+structure	Values at the ends of the stretch:	Valeurs aux extrémités du tronçon :
+structure	Values at the ends of the stretch and where M is greatest:	Valeurs aux extrémités du tronçon et là où M est maximal :

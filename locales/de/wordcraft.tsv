@@ -4057,3 +4057,28 @@ structure	Focus this item alone	Nur dieses Element auswählen
 structure	Select the member	Stab auswählen
 structure	Swap ends	Enden vertauschen
 structure	Reverse the member's local axis (a ↔ b), keeping loads in place	Kehrt die lokale Stabachse (a ↔ b) um, wobei die Lasten an ihrem Ort bleiben
+structure	Diagram Names	Diagrammnamen
+structure	Full Names	Volle Namen
+structure	Name the panels Axial force, Shear force and Bending moment	Die Felder Normalkraft, Querkraft und Biegemoment nennen
+structure	Axial force	Normalkraft
+structure	Shear force	Querkraft
+structure	Bending moment	Biegemoment
+structure	Symbols	Symbole
+structure	Name the panels by their symbols	Die Felder mit ihren Symbolen benennen
+structure	Written over the diagrams' panels; the working keeps the symbols.	Über den Feldern der Diagramme geschrieben; der Rechenweg behält die Symbole.
+structure	Positive Senses	Positive Richtungen
+structure	Rotation	Drehung
+structure	Positive to the right	Positiv nach rechts
+structure	Positive to the left	Positiv nach links
+structure	Positive upwards	Positiv nach oben
+structure	Positive downwards	Positiv nach unten
+structure	Positive counter-clockwise	Positiv gegen den Uhrzeigersinn
+structure	Positive clockwise	Positiv im Uhrzeigersinn
+structure	The reactions are taken positive so and the equilibrium equations sum so; the free body shows the symbol.	Die Auflagerreaktionen werden so positiv angenommen und die Gleichgewichtsbedingungen so summiert; das Freikörperbild zeigt das Symbol.
+structure	Reactions are taken positive the way their arrows point in the free body: a negative one acts the other way.	Auflagerreaktionen werden in Richtung ihrer Pfeile im Freikörperbild positiv angenommen: Eine negative wirkt in die Gegenrichtung.
+structure	Counter-clockwise	Gegen den Uhrzeigersinn
+structure	Clockwise	Im Uhrzeigersinn
+structure	Stretch	Abschnitt
+structure	Cut at x from {a}: the part before the cut (drawn in full) balances its loads, its reactions and N, {T}, M on the cut (drawn positive):	Schnitt bei x von {a}: Der Teil vor dem Schnitt (voll gezeichnet) ist im Gleichgewicht mit seinen Lasten, seinen Reaktionen und N, {T}, M am Schnitt (positiv gezeichnet):
+structure	Values at the ends of the stretch:	Werte an den Enden des Abschnitts:
+structure	Values at the ends of the stretch and where M is greatest:	Werte an den Enden des Abschnitts und dort, wo M am größten ist:

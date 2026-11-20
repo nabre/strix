@@ -4137,3 +4137,28 @@ structure	Focus this item alone	Seleziona solo questo elemento
 structure	Select the member	Seleziona l'asta
 structure	Swap ends	Inverti estremi
 structure	Reverse the member's local axis (a ↔ b), keeping loads in place	Inverte l'asse locale dell'asta (a ↔ b) mantenendo i carichi al loro posto
+structure	Diagram Names	Nomi dei diagrammi
+structure	Full Names	Nomi estesi
+structure	Name the panels Axial force, Shear force and Bending moment	Intitola i pannelli Sforzo normale, Sforzo di taglio e Momento flettente
+structure	Axial force	Sforzo normale
+structure	Shear force	Sforzo di taglio
+structure	Bending moment	Momento flettente
+structure	Symbols	Simboli
+structure	Name the panels by their symbols	Intitola i pannelli con i loro simboli
+structure	Written over the diagrams' panels; the working keeps the symbols.	Scritti sopra i pannelli dei diagrammi; il procedimento usa sempre i simboli.
+structure	Positive Senses	Versi positivi
+structure	Rotation	Rotazione
+structure	Positive to the right	Positivo verso destra
+structure	Positive to the left	Positivo verso sinistra
+structure	Positive upwards	Positivo verso l'alto
+structure	Positive downwards	Positivo verso il basso
+structure	Positive counter-clockwise	Positivo in senso antiorario
+structure	Positive clockwise	Positivo in senso orario
+structure	The reactions are taken positive so and the equilibrium equations sum so; the free body shows the symbol.	Le reazioni sono assunte positive in questi versi e le equazioni di equilibrio sommano così; il corpo libero mostra il simbolo.
+structure	Reactions are taken positive the way their arrows point in the free body: a negative one acts the other way.	Le reazioni sono assunte positive nel verso delle loro frecce nel corpo libero: una reazione negativa agisce nel verso opposto.
+structure	Counter-clockwise	Antiorario
+structure	Clockwise	Orario
+structure	Stretch	Tratto
+structure	Cut at x from {a}: the part before the cut (drawn in full) balances its loads, its reactions and N, {T}, M on the cut (drawn positive):	Sezione a distanza x da {a}: la parte prima della sezione (a tratto pieno) è in equilibrio con i suoi carichi, le sue reazioni e N, {T}, M sulla sezione (disegnati positivi):
+structure	Values at the ends of the stretch:	Valori agli estremi del tratto:
+structure	Values at the ends of the stretch and where M is greatest:	Valori agli estremi del tratto e dove M è massimo:

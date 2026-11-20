@@ -13,6 +13,7 @@ use crate::solve::{Analysis, MemberResult, Status, analyse};
 mod annotate;
 mod conventions;
 mod equilibrium;
+mod section;
 pub use annotate::{Chains, chains};
 
 type P = (f64, f64);
@@ -512,6 +513,8 @@ impl Ctx<'_> {
 
     fn reactions(&mut self, f: &Frame) {
         let an = self.an;
+        let pos = self.st.positive;
+        let (sx, sy, sr) = (pos.sx(), pos.sy(), pos.sr());
         for r in &an.reactions {
             let Some(p) = self.node_p(f, &r.node) else { continue };
             let phi = r.angle.to_radians();
@@ -519,11 +522,16 @@ impl Ctx<'_> {
             let mut comps: Vec<(P, f64)> = Vec::new();
             match r.kind {
                 SupportKind::Fixed | SupportKind::Pin => {
-                    comps.push(((1.0, 0.0), r.fx));
-                    comps.push(((0.0, 1.0), r.fy));
+                    // Each along the way it counts positive: crossed out when it came out negative.
+                    comps.push(((sx, 0.0), r.fx * sx));
+                    comps.push(((0.0, sy), r.fy * sy));
                 }
                 SupportKind::Roller | SupportKind::RollerCircle | SupportKind::Link | SupportKind::Slider => {
-                    let n = (-phi.sin(), phi.cos());
+                    // Across the roller; along an axis, the way that axis counts positive.
+                    let mut n = (-phi.sin(), phi.cos());
+                    if (n.0.abs() < 1e-9 && n.1 * sy < 0.0) || (n.1.abs() < 1e-9 && n.0 * sx < 0.0) {
+                        n = (-n.0, -n.1);
+                    }
                     comps.push((n, r.fx * n.0 + r.fy * n.1));
                 }
             }
@@ -561,9 +569,10 @@ impl Ctx<'_> {
             if r.m != 0.0 {
                 self.pen.couple(p, 5.0, r.m > 0.0, REACTION, 0.4);
                 let mut reach = 6.5;
-                if r.m < 0.0 {
-                    // Taken positive counter-clockwise, it came out negative: crossed out round it.
-                    self.pen.crossed_couple(p, 7.5, REACTION);
+                if r.m * sr < 0.0 {
+                    // Taken positive the way a rotation counts positive, it came out negative:
+                    // crossed out round it.
+                    self.pen.crossed_couple(p, 7.5, sr > 0.0, REACTION);
                     reach = 9.5;
                 }
                 let label = self.moment(r.m.abs());
@@ -1055,7 +1064,8 @@ impl Structure {
                 y += PANEL_GAP;
             }
             first = false;
-            let titled = row.iter().any(|(p, _, _)| cx.panel_title(*p).is_some());
+            // The free body's row shows the senses its equations count positive.
+            let titled = row.iter().any(|(p, _, _)| cx.panel_title(*p).is_some() || matches!(p, Panel::Equilibrium));
             let top = y + if titled { TITLE_ROW } else { 0.0 };
             let height = row.iter().filter_map(|(_, _, b)| b.map(|b| b[3] - b[1])).fold(0.0_f64, f64::max);
             for (c, (panel, prims, bbox)) in row.iter().enumerate() {
@@ -1071,6 +1081,9 @@ impl Structure {
                     if let Some(a) = action {
                         pen.convention((after, y + 3.0), a, color);
                     }
+                }
+                if matches!(panel, Panel::Equilibrium) {
+                    pen.positive((cell * c as f64 + 2.0, y), st.positive);
                 }
                 let Some(b) = bbox else { continue };
                 let prims = student.as_ref().and_then(|s| s.get(i)).map_or(prims, |s| &s.1);
@@ -1174,11 +1187,11 @@ impl Ctx<'_> {
         let fu = st.force_unit.symbol();
         let lu = st.length_unit.symbol();
         match panel {
-            Panel::Schema | Panel::Reactions | Panel::Equilibrium => None,
-            Panel::Truss => Some((format!("{} [{fu}]", st.titles.n), COLOR_N)),
-            Panel::Diagram(Action::Axial) => Some((format!("{} [{fu}]", st.titles.n), COLOR_N)),
-            Panel::Diagram(Action::Shear) => Some((format!("{} [{fu}]", st.titles.v), COLOR_V)),
-            Panel::Diagram(Action::Moment) => Some((format!("{} [{fu}·{lu}]", st.titles.m), COLOR_M)),
+            Panel::Schema | Panel::Reactions | Panel::Equilibrium | Panel::Section => None,
+            // The name given to the diagram (`Sforzo normale`), else its symbol (`N`).
+            Panel::Truss | Panel::Diagram(Action::Axial) => Some((format!("{} [{fu}]", named(&st.names.n, &st.titles.n)), COLOR_N)),
+            Panel::Diagram(Action::Shear) => Some((format!("{} [{fu}]", named(&st.names.v, &st.titles.v)), COLOR_V)),
+            Panel::Diagram(Action::Moment) => Some((format!("{} [{fu}·{lu}]", named(&st.names.m, &st.titles.m)), COLOR_M)),
         }
     }
 
@@ -1204,6 +1217,7 @@ impl Ctx<'_> {
             }
             // Names only, no answers: the same in the student's copy.
             Panel::Equilibrium => self.equilibrium(f),
+            Panel::Section => self.section(f),
             Panel::Truss => {
                 if show {
                     self.truss(f);
@@ -1239,6 +1253,9 @@ fn plan(st: &Structure, an: &Analysis) -> Vec<Panel> {
     }
     if st.view == View::Equilibrium {
         panels.push(Panel::Equilibrium);
+    }
+    if st.view == View::Section {
+        panels.push(Panel::Section);
     }
     if (d.reactions && st.view == View::All) || st.view == View::Reactions {
         panels.push(Panel::Reactions);
@@ -1292,6 +1309,8 @@ enum Panel {
     Reactions,
     /// The free body of the reactions' working ([`View::Equilibrium`]).
     Equilibrium,
+    /// One stretch of a written working, cut ([`View::Section`]).
+    Section,
     Truss,
     Diagram(Action),
 }
@@ -1409,4 +1428,9 @@ mod layout_tests {
         let back = Structure::from_json(&json).unwrap();
         assert_eq!((back.view, back.group.as_str()), (View::Diagrams, "structure-1"));
     }
+}
+
+/// A diagram's panel name: the name given to it, else its symbol.
+fn named<'a>(name: &'a str, symbol: &'a str) -> &'a str {
+    if name.trim().is_empty() { symbol } else { name }
 }

@@ -10,7 +10,8 @@
 //! (`0 kN·m = V_B·6 m − F_1·d_(1,A) ⇒ … ⇒ V_B = 30 kN`): the whole structure's translations and rotations about its
 //! supports, and the rotation of a part about an internal hinge. An unknown no equation isolates
 //! (a hyperstatic structure's redundants) is given its value from the stiffness solution, and said
-//! so. Then, member by member and stretch by stretch, the laws `N(x)`, `T(x)`, `M(x)` as calc
+//! so. Then, member by member and stretch by stretch, each stretch drawn cut half way with the
+//! part before the cut and `N`, `T`, `M` on it ([`Figure::Stretch`]), the laws `N(x)`, `T(x)`, `M(x)` as calc
 //! functions (`x` from the member's first node) and their values at the stretch's ends and
 //! extremes; a truss gets each member's axial force.
 
@@ -62,6 +63,14 @@ struct Labels {
     hinge: String,
     /// A stretch's extent: `{a}` and `{b}` its ends.
     range: String,
+    /// A stretch's name before its tag (`Stretch 1a`).
+    stretch: String,
+    /// How a stretch's laws come from its drawing (`{a}`: the member's first node, `{T}`: the
+    /// shear's name).
+    cut: String,
+    /// Before a stretch's values: at its ends; at its ends and M's extremes.
+    values: String,
+    values_max: String,
     /// An exercise's shear changing sign under a concentrated load (`{T}`: the shear's name).
     jump: String,
     /// An exercise's shear never vanishing nor changing sign.
@@ -79,7 +88,10 @@ impl Labels {
             heading: get("heading", "Working"),
             loads: get("loads", "Loads"),
             reactions: get("reactions", "Reactions"),
-            signs: get("signs", "Reactions are positive along x, along y and counter-clockwise: a negative one acts the other way."),
+            signs: legacy_signs(get(
+                "signs",
+                "Reactions are taken positive the way their arrows point in the free body: a negative one acts the other way.",
+            )),
             hyperstatic: get("hyperstatic", "Hyperstatic: from the solution by the stiffness method"),
             together: get("together", "From the equations solved together"),
             force1: get(
@@ -109,11 +121,45 @@ impl Labels {
             axial: get("axial", "Axial forces"),
             hinge: get("hinge", "part about the hinge"),
             range: get("range", "x from {a} to {b}"),
+            stretch: get("stretch", "Stretch"),
+            cut: get(
+                "cut",
+                "Cut at x from {a}: the part before the cut (drawn in full) balances its loads, its reactions and N, {T}, M on the cut (drawn positive):",
+            ),
+            values: get("values", "Values at the ends of the stretch:"),
+            values_max: get("valuesMax", "Values at the ends of the stretch and where M is greatest:"),
             jump: get("jump", "{T} changes sign under a concentrated load"),
             nozero: get("nozero", "{T} never vanishes nor changes sign: the greatest moment is at an end of a stretch."),
             unsolved: get("unsolved", "The structure can't be solved: its working will be written again as soon as it can."),
         }
     }
+}
+
+/// The sentence on the reactions' signs as it was written before the senses counted positive could
+/// be chosen (along x, along y, counter-clockwise), in each language, and the one now written: a
+/// structure keeps its working's words, and the old ones would be wrong in another convention.
+const LEGACY_SIGNS: [(&str, &str); 4] = [
+    (
+        "Reactions are positive along x, along y and counter-clockwise: a negative one acts the other way.",
+        "Reactions are taken positive the way their arrows point in the free body: a negative one acts the other way.",
+    ),
+    (
+        "Le reazioni sono positive verso x, verso y e in senso antiorario: una reazione negativa agisce nel verso opposto.",
+        "Le reazioni sono assunte positive nel verso delle loro frecce nel corpo libero: una reazione negativa agisce nel verso opposto.",
+    ),
+    (
+        "Auflagerreaktionen sind positiv in Richtung x, in Richtung y und gegen den Uhrzeigersinn: Eine negative wirkt in die Gegenrichtung.",
+        "Auflagerreaktionen werden in Richtung ihrer Pfeile im Freikörperbild positiv angenommen: Eine negative wirkt in die Gegenrichtung.",
+    ),
+    (
+        "Les réactions sont positives selon x, selon y et dans le sens antihoraire : une réaction négative agit en sens inverse.",
+        "Les réactions sont prises positives dans le sens de leurs flèches sur le corps libre : une réaction négative agit en sens inverse.",
+    ),
+];
+
+/// The sentence on the reactions' signs, an old one replaced ([`LEGACY_SIGNS`]).
+fn legacy_signs(t: String) -> String {
+    LEGACY_SIGNS.iter().find(|(old, _)| *old == t).map_or(t, |(_, new)| (*new).to_string())
 }
 
 /// One line of the working: words, then equations (linear format, calculated).
@@ -128,9 +174,8 @@ struct Line {
     display: bool,
     /// Its equations' steps one under the other (a long equilibrium equation fits the page).
     stepped: bool,
-    /// In place of words and equations, the free body the reactions' equations balance (the
-    /// structure drawn with [`View::Equilibrium`](strix_structure::View)).
-    figure: bool,
+    /// In place of words and equations, a drawing of the structure ([`Figure`]).
+    figure: Option<Figure>,
     /// Kept on the page with the line after it: a heading (words ending with `:`, a noted
     /// equation's label) never stays alone at the bottom of a page ([`paragraphs_with`]).
     keep: bool,
@@ -139,7 +184,7 @@ struct Line {
 impl Line {
     fn words(label: String) -> Line {
         let keep = label.trim_end().ends_with(':');
-        Line { label, note: None, after: String::new(), equations: Vec::new(), display: false, stepped: false, figure: false, keep }
+        Line { label, note: None, after: String::new(), equations: Vec::new(), display: false, stepped: false, figure: None, keep }
     }
 
     /// Words that head what follows them, whatever they end with.
@@ -148,20 +193,47 @@ impl Line {
     }
 
     fn eqs(equations: Vec<String>, display: bool) -> Line {
-        Line { label: String::new(), note: None, after: String::new(), equations, display, stepped: false, figure: false, keep: false }
+        Line { label: String::new(), note: None, after: String::new(), equations, display, stepped: false, figure: None, keep: false }
     }
 
-    fn figure() -> Line {
-        Line { figure: true, ..Line::words(String::new()) }
+    /// A drawing, kept on the page with what explains it after it.
+    fn figure(figure: Figure) -> Line {
+        Line { figure: Some(figure), keep: true, ..Line::words(String::new()) }
     }
 
     fn noted(label: String, note: String, after: String) -> Line {
-        Line { label, note: Some(note), after, equations: Vec::new(), display: false, stepped: false, figure: false, keep: true }
+        Line { label, note: Some(note), after, equations: Vec::new(), display: false, stepped: false, figure: None, keep: true }
     }
 
     /// Only equations: the rest of the block its heading opened.
     fn continues(&self) -> bool {
         self.label.is_empty() && self.note.is_none() && !self.equations.is_empty()
+    }
+}
+
+/// A drawing in the working: the structure drawn another way, in its group (so it follows the
+/// structure, written again with the working).
+#[derive(Debug, Clone, PartialEq)]
+enum Figure {
+    /// The free body the reactions' equations balance ([`View::Equilibrium`](strix_structure::View)).
+    FreeBody,
+    /// A stretch of the internal forces' laws, cut ([`View::Section`](strix_structure::View)).
+    Stretch(strix_structure::Cut),
+}
+
+/// The drawings of structure `st` (as written: its parameters, not their values) the working's
+/// figures stand for.
+struct Figures<'a> {
+    s: &'a Session,
+    st: &'a Structure,
+}
+
+impl Figures<'_> {
+    fn draw(&self, figure: &Figure) -> InlineObject {
+        match figure {
+            Figure::FreeBody => free_body(self.s, self.st),
+            Figure::Stretch(cut) => stretch_figure(self.s, self.st, cut),
+        }
     }
 }
 
@@ -224,7 +296,7 @@ fn whole(s: &Session, src: &std::sync::Arc<str>, v: &Value, props: &wordcraft_do
     }
     let comma = crate::cmd::calc::options_now(s).decimal_comma;
     let lines = lines(&r.resolved, &r.analysis, &Labels::from(v), comma);
-    paragraphs_with(&lines, props, Some(&free_body(s, &st)))
+    paragraphs_with(&lines, props, Some(&Figures { s, st: &st }))
 }
 
 /// The free body the reactions' equations balance: structure `st` drawn with its reactions as
@@ -235,30 +307,48 @@ fn free_body(s: &Session, st: &Structure) -> InlineObject {
     super::graphic(s, &fig)
 }
 
+/// The drawing of a stretch: structure `st` cut half way along it, the part before the cut in
+/// full with the internal forces on the cut, the rest faded; narrower than the structure.
+fn stretch_figure(s: &Session, st: &Structure, cut: &strix_structure::Cut) -> InlineObject {
+    let width = (st.width * STRETCH_WIDTH).clamp(60.0_f64.min(st.width), st.width);
+    let fig = Structure {
+        view: strix_structure::View::Section,
+        cut: Some(cut.clone()),
+        title: String::new(),
+        width,
+        working_key: String::new(),
+        ..st.clone()
+    };
+    super::graphic(s, &fig)
+}
+
+/// A stretch's drawing's width, as a share of the structure's.
+const STRETCH_WIDTH: f64 = 0.75;
+
 /// The working's lines as paragraphs in the character formatting `props`.
 fn paragraphs(lines: &[Line], props: &wordcraft_doc::CharProps) -> Result<Vec<Paragraph>, CmdError> {
     paragraphs_with(lines, props, None)
 }
 
-/// [`paragraphs`], the free body (`figure`) in a paragraph of its own where a line asks for it
-/// (none without it).
+/// [`paragraphs`], each drawing (`figure`) in a paragraph of its own where a line asks for it
+/// (none without `figures`).
 ///
 /// Laid out in blocks, so a page break never splits one: a heading (`Line::keep`) and each
 /// line of equations followed by more equations are kept with the next paragraph, and a
 /// stepped equation's lines are kept together. The page then breaks before a block that
 /// doesn't fit, wherever the text above has put it (Word's keep with next, saved with the
 /// document); a block taller than a page breaks as usual.
-fn paragraphs_with(lines: &[Line], props: &wordcraft_doc::CharProps, figure: Option<&InlineObject>) -> Result<Vec<Paragraph>, CmdError> {
+fn paragraphs_with(lines: &[Line], props: &wordcraft_doc::CharProps, figures: Option<&Figures>) -> Result<Vec<Paragraph>, CmdError> {
     let props = props.clone();
     let mut out = Vec::new();
     // Only lines that become paragraphs (a figure without its drawing is left out).
-    let shown: Vec<&Line> = lines.iter().filter(|l| !l.figure || figure.is_some()).collect();
+    let shown: Vec<&Line> = lines.iter().filter(|l| l.figure.is_none() || figures.is_some()).collect();
     for (k, line) in shown.iter().enumerate() {
-        let keep = shown.get(k + 1).is_some_and(|next| line.keep || (next.continues() && !line.figure));
-        if line.figure {
-            if let Some(obj) = figure {
+        let keep = shown.get(k + 1).is_some_and(|next| line.keep || (next.continues() && line.figure.is_none()));
+        if let Some(figure) = &line.figure {
+            if let Some(figures) = figures {
                 let mut para = Paragraph::with_text("", props.clone());
-                para.insert_object(0, obj.clone(), &props).map_err(|e| CmdError::Failed(e.to_string()))?;
+                para.insert_object(0, figures.draw(figure), &props).map_err(|e| CmdError::Failed(e.to_string()))?;
                 para.props.keep_next = keep.then_some(true);
                 out.push(para);
             }
@@ -403,8 +493,9 @@ fn bare(t: &str) -> String {
 enum Acts {
     /// A force along this unit direction.
     Along((f64, f64)),
-    /// A couple.
-    Turns,
+    /// A couple, counter-clockwise when its sense is positive (the way a rotation counts
+    /// positive, [`strix_structure::Positive`]).
+    Turns(f64),
 }
 
 #[derive(Debug, Clone)]
@@ -422,8 +513,11 @@ struct Unknown {
     kind: SupportKind,
 }
 
+/// The reactions as unknowns, each taken positive the way the structure's convention counts its
+/// axis (a couple, its rotation) positive; a roller's askew reaction along its normal.
 fn unknowns(st: &Structure, an: &strix_structure::Analysis) -> Vec<Unknown> {
     let mut out = Vec::new();
+    let (sx, sy, sr) = (st.positive.sx(), st.positive.sy(), st.positive.sr());
     for (k, r) in an.reactions.iter().enumerate() {
         let Some(n) = st.node(&r.node) else { continue };
         let at = (n.x.value, n.y.value);
@@ -435,23 +529,23 @@ fn unknowns(st: &Structure, an: &strix_structure::Analysis) -> Vec<Unknown> {
         };
         match r.kind {
             SupportKind::Fixed | SupportKind::Pin => {
-                push("H", Acts::Along((1.0, 0.0)), r.fx);
-                push("V", Acts::Along((0.0, 1.0)), r.fy);
+                push("H", Acts::Along((sx, 0.0)), r.fx * sx);
+                push("V", Acts::Along((0.0, sy)), r.fy * sy);
             }
             SupportKind::Roller | SupportKind::RollerCircle | SupportKind::Link | SupportKind::Slider => {
                 let phi = r.angle.to_radians();
                 let n = (-phi.sin(), phi.cos());
                 if n.0.abs() < 1e-9 {
-                    push("V", Acts::Along((0.0, 1.0)), r.fy);
+                    push("V", Acts::Along((0.0, sy)), r.fy * sy);
                 } else if n.1.abs() < 1e-9 {
-                    push("H", Acts::Along((1.0, 0.0)), r.fx);
+                    push("H", Acts::Along((sx, 0.0)), r.fx * sx);
                 } else {
                     push("R", Acts::Along(n), r.fx * n.0 + r.fy * n.1);
                 }
             }
         }
         if matches!(r.kind, SupportKind::Fixed | SupportKind::Slider) {
-            push("M", Acts::Turns, r.m);
+            push("M", Acts::Turns(sr), r.m * sr);
         }
     }
     out
@@ -485,6 +579,9 @@ struct Units {
     ends: Vec<(f64, f64)>,
     /// The drawing's dimension chains, which the moment arms are written from ([`arms`]).
     chains: Chains,
+    /// The senses the equations count positive: x, y, rotation (±1, +1 right, up,
+    /// counter-clockwise).
+    signs: (f64, f64, f64),
 }
 
 impl Units {
@@ -663,12 +760,14 @@ impl Units {
 
 const TOL: f64 = 1e-9;
 
-/// Translation along `axis` (0: x, 1: y) of the loads and unknowns in `part` (all when `None`).
+/// Translation along `axis` (0: x, 1: y) of the loads and unknowns, summed the way the axis
+/// counts positive.
 fn translation(axis: usize, us: &[Unknown], rs: &[Resultant], u: &Units, label: String) -> Equation {
     let mut eq = Equation { label, after: ":".to_string(), moment: false, unknowns: Vec::new(), loads: Vec::new(), arms: Vec::new() };
+    let sense = if axis == 0 { u.signs.0 } else { u.signs.1 };
     for (i, k) in us.iter().enumerate() {
         if let Acts::Along(d) = k.acts {
-            let c = if axis == 0 { d.0 } else { d.1 };
+            let c = sense * if axis == 0 { d.0 } else { d.1 };
             if c.abs() > TOL {
                 eq.unknowns.push((i, c, format!("{}{}", k.name, u.factor(c))));
             }
@@ -679,7 +778,7 @@ fn translation(axis: usize, us: &[Unknown], rs: &[Resultant], u: &Units, label: 
             continue;
         }
         let c = if axis == 0 { r.dir.0 } else { r.dir.1 };
-        let v = r.value() * c;
+        let v = sense * r.value() * c;
         if v.abs() > TOL * r.value().abs().max(1e-12) && c.abs() > TOL {
             eq.loads.push((v, u.component(r, axis)));
         }
@@ -687,16 +786,18 @@ fn translation(axis: usize, us: &[Unknown], rs: &[Resultant], u: &Units, label: 
     eq
 }
 
-/// Rotation about `p` of the loads `rs` and the unknowns `us` (counter-clockwise positive).
+/// Rotation about `p` of the loads `rs` and the unknowns `us`, summed the way a rotation counts
+/// positive (counter-clockwise unless the structure says clockwise).
 /// `pivot` is the point's subscript, which names the loads' arms about it (`d_(1,A)`).
 fn rotation(p: (f64, f64), pivot: &str, us: &[(usize, &Unknown)], rs: &[&Resultant], u: &Units, label: String) -> Equation {
     let mut eq = Equation { label, after: ":".to_string(), moment: true, unknowns: Vec::new(), loads: Vec::new(), arms: Vec::new() };
+    let sense = u.signs.2;
     for &(i, k) in us {
         let (dx, dy) = (k.at.0 - p.0, k.at.1 - p.1);
         match k.acts {
-            Acts::Turns => eq.unknowns.push((i, 1.0, k.name.clone())),
+            Acts::Turns(t) => eq.unknowns.push((i, t * sense, k.name.clone())),
             Acts::Along(d) => {
-                let arm = d.1 * dx - d.0 * dy;
+                let arm = sense * (d.1 * dx - d.0 * dy);
                 if arm.abs() > TOL * (1.0 + dx.abs() + dy.abs()) {
                     // Along an axis, the arm is a distance the drawing's chains give.
                     let text = if d.0.abs() < TOL {
@@ -714,10 +815,10 @@ fn rotation(p: (f64, f64), pivot: &str, us: &[(usize, &Unknown)], rs: &[&Resulta
     for r in rs {
         let (dx, dy) = (r.at.0 - p.0, r.at.1 - p.1);
         if let ResultantKind::Couple { value } = r.kind {
-            eq.loads.push((value, u.resultant(r)));
+            eq.loads.push((sense * value, u.resultant(r)));
             continue;
         }
-        let v = r.value();
+        let v = sense * r.value();
         // Fy·dx − Fx·dy, a term each: the vertical part with its horizontal arm, the horizontal
         // part with its vertical arm, each arm named after its force and the point (`d_(1,v,A)`)
         // and worked out before the equation.
@@ -889,7 +990,15 @@ fn units(st: &Structure, comma: bool) -> Units {
             _ => (0.0, 0.0),
         })
         .collect();
-    Units { f: st.force_unit.symbol().to_string(), l: st.length_unit.symbol().to_string(), comma, names: load_names(st), ends, chains: chains(st) }
+    Units {
+        f: st.force_unit.symbol().to_string(),
+        l: st.length_unit.symbol().to_string(),
+        comma,
+        names: load_names(st),
+        ends,
+        chains: chains(st),
+        signs: (st.positive.sx(), st.positive.sy(), st.positive.sr()),
+    }
 }
 
 /// The shear's name in the laws: the diagram's title's letters (`T`, `V`).
@@ -904,16 +1013,17 @@ fn stretch_tag(id: &str, k: usize, count: usize) -> String {
     if count > 1 { format!("{id}{}", char::from(b'a'.saturating_add(u8::try_from(k.min(25)).unwrap_or(25)))) } else { id.to_string() }
 }
 
-/// The words before a stretch's laws: `Member 1 (A–B), x from 0 m to 6 m:`.
-fn stretch_header(src: &strix_structure::Member, s: &strix_structure::Stretch, u: &Units, labels: &Labels) -> Line {
+/// The words before a stretch's laws: `Stretch 1a: Member 1 (A–B), x from 0 m to 6 m:`.
+fn stretch_header(src: &strix_structure::Member, s: &strix_structure::Stretch, tag: &str, u: &Units, labels: &Labels) -> Line {
     let plain = |x: f64| format!("{} {}", num(x, u.comma), u.l);
     let range = labels.range.replace("{a}", &plain(s.x0)).replace("{b}", &plain(s.x1));
-    Line::words(format!("{} {} ({}–{}), {range}:", labels.member, src.id, src.a, src.b))
+    Line::words(format!("{} {tag}: {} {} ({}–{}), {range}:", labels.stretch, labels.member, src.id, src.a, src.b))
 }
 
 fn lines(st: &Structure, an: &strix_structure::Analysis, labels: &Labels, comma: bool) -> Vec<Line> {
     let u = units(st, comma);
-    let mut out = vec![Line::heading(labels.heading.clone())];
+    // The free body the equations balance first, before the loads' names it shows.
+    let mut out = vec![Line::heading(labels.heading.clone()), Line::figure(Figure::FreeBody)];
     // The loads' names, defined before the equations that use them.
     let defs = u.definitions(st);
     if !defs.is_empty() {
@@ -930,8 +1040,6 @@ fn lines(st: &Structure, an: &strix_structure::Analysis, labels: &Labels, comma:
         out.push(Line::eqs(chunk.to_vec(), false));
     }
     out.push(Line::words(format!("{}:", labels.reactions)));
-    // The free body the equations balance, before them.
-    out.push(Line::figure());
     let us = unknowns(st, an);
     // The candidate equations: rotations about the supports first, then the translations, then
     // the parts about the hinges.
@@ -1023,7 +1131,7 @@ fn lines(st: &Structure, an: &strix_structure::Analysis, labels: &Labels, comma:
         if let (Some(k), Some(slot)) = (us.get(i), known.get_mut(i)) {
             *slot = true;
             let unit = match k.acts {
-                Acts::Turns => format!("{}·{}", u.f, u.l),
+                Acts::Turns(_) => format!("{}·{}", u.f, u.l),
                 Acts::Along(_) => u.f.clone(),
             };
             out.push(Line::eqs(vec![format!("{} = {}", k.name, bare(&signed(k.value, &unit, comma)))], false));
@@ -1096,12 +1204,17 @@ fn member_lines(st: &Structure, us: &[Unknown], m: &MemberResult, u: &Units, lab
     for (k, s) in parts.iter().enumerate() {
         let tag = stretch_tag(&id, k, parts.len());
         let at = |x: f64| at(x, l, u.comma);
-        out.push(stretch_header(src, s, u, labels));
+        out.push(stretch_header(src, s, &tag, u, labels));
+        // Where the stretch lies and the part whose equilibrium gives its laws.
+        out.push(Line::figure(Figure::Stretch(strix_structure::Cut { member: m.id.clone(), from: s.x0, to: s.x1, tag: tag.clone() })));
+        out.push(Line::heading(labels.cut.replace("{a}", &src.a).replace("{T}", shear)));
         // With the reactions' and the loads' names where they can be, else the numbers.
         let [n, v, mo] = named::laws(st, us, m, s, u);
         out.push(Line::eqs(vec![format!("N_{tag}(x) = {}", bare(&n.unwrap_or_else(|| law(&s.n, [f, &fl, &fl2, &fl3], u.comma))))], true));
         out.push(Line::eqs(vec![format!("{shear}_{tag}(x) = {}", bare(&v.unwrap_or_else(|| law(&s.v, [f, &fl, &fl2, &fl3], u.comma))))], true));
         out.push(Line::eqs(vec![format!("M_{tag}(x) = {}", bare(&mo.unwrap_or_else(|| law(&s.m, [&fm, f, &fl, &fl2], u.comma))))], true));
+        let inside: Vec<f64> = extremes.iter().copied().filter(|x| *x > s.x0 + 1e-9 && *x < s.x1 - 1e-9).collect();
+        out.push(Line::heading(if inside.is_empty() { labels.values.clone() } else { labels.values_max.clone() }));
         let mut values = Vec::new();
         if s.n[1..].iter().any(|c| *c != 0.0) {
             values.push(format!("N_{tag}({}) = {f}", at(s.x0)));
@@ -1110,8 +1223,8 @@ fn member_lines(st: &Structure, us: &[Unknown], m: &MemberResult, u: &Units, lab
         values.push(format!("{shear}_{tag}({}) = {f}", at(s.x0)));
         values.push(format!("{shear}_{tag}({}) = {f}", at(s.x1)));
         values.push(format!("M_{tag}({}) = {fm}", at(s.x0)));
-        for x in extremes.iter().filter(|x| **x > s.x0 + 1e-9 && **x < s.x1 - 1e-9) {
-            values.push(format!("M_{tag}({}) = {fm}", at(*x)));
+        for x in inside {
+            values.push(format!("M_{tag}({}) = {fm}", at(x)));
         }
         values.push(format!("M_{tag}({}) = {fm}", at(s.x1)));
         // One value a line, each under the other.

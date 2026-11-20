@@ -487,6 +487,86 @@ impl Default for Titles {
     }
 }
 
+/// The diagrams' names written over their panels in place of their symbols (`Sforzo normale` for
+/// `N`); an empty one leaves the symbol. The working keeps writing the symbols (`T_1(x)`).
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct Names {
+    pub n: String,
+    pub v: String,
+    pub m: String,
+}
+
+impl Names {
+    /// The longest name kept (characters).
+    pub const MAX: usize = 40;
+
+    fn is_empty(&self) -> bool {
+        self.n.is_empty() && self.v.is_empty() && self.m.is_empty()
+    }
+}
+
+/// The way x counts positive in the equilibrium equations (`ΣF_x = 0`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum SenseX {
+    #[default]
+    Right,
+    Left,
+}
+
+/// The way y counts positive in the equilibrium equations (`ΣF_y = 0`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum SenseY {
+    #[default]
+    Up,
+    Down,
+}
+
+/// The way a rotation counts positive in the equilibrium equations (`ΣM_A = 0`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum SenseTurn {
+    /// Counter-clockwise.
+    #[default]
+    Ccw,
+    /// Clockwise.
+    Cw,
+}
+
+/// The senses the reactions' working counts positive (its free body draws them as a symbol): the
+/// equilibrium equations sum forces and moments so, and the reactions are taken positive so (a
+/// negative one acts the other way).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(default)]
+pub struct Positive {
+    pub x: SenseX,
+    pub y: SenseY,
+    pub rotation: SenseTurn,
+}
+
+impl Positive {
+    /// +1 when x counts positive to the right, −1 to the left.
+    pub fn sx(&self) -> f64 {
+        if self.x == SenseX::Left { -1.0 } else { 1.0 }
+    }
+
+    /// +1 when y counts positive upwards, −1 downwards.
+    pub fn sy(&self) -> f64 {
+        if self.y == SenseY::Down { -1.0 } else { 1.0 }
+    }
+
+    /// +1 when a rotation counts positive counter-clockwise, −1 clockwise.
+    pub fn sr(&self) -> f64 {
+        if self.rotation == SenseTurn::Cw { -1.0 } else { 1.0 }
+    }
+
+    fn is_default(&self) -> bool {
+        *self == Positive::default()
+    }
+}
+
 /// Which panels a drawing shows: an exercise draws the structure in its statement and the
 /// reactions and the diagrams in its solution, each a drawing of the same structure.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
@@ -512,6 +592,11 @@ pub enum View {
     /// horizontal and vertical parts (`F_(2,h)`, `F_(2,v)`), named as the working names them, with
     /// the dimensions their arms are read from.
     Equilibrium,
+    /// One stretch of a written working ([`Structure::cut`]): the stretch marked on the
+    /// structure, the section half way along it, and the part before the section in full with
+    /// its reactions as unknowns, its loads and the internal forces `N`, `T`, `M` on the cut,
+    /// pointing the way they count positive; the rest faded.
+    Section,
 }
 
 fn is_all(v: &View) -> bool {
@@ -564,6 +649,11 @@ pub struct Structure {
     pub diagrams: Diagrams,
     #[serde(default, skip_serializing_if = "Titles::is_default")]
     pub titles: Titles,
+    #[serde(default, skip_serializing_if = "Names::is_empty")]
+    pub names: Names,
+    /// The senses the reactions' working counts positive.
+    #[serde(default, skip_serializing_if = "Positive::is_default")]
+    pub positive: Positive,
     #[serde(default, skip_serializing_if = "is_auto")]
     pub layout: Layout,
     /// The panels drawn.
@@ -573,6 +663,9 @@ pub struct Structure {
     /// to one is made to the others, each keeping its own view.
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub group: String,
+    /// The stretch a [`View::Section`] drawing shows.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cut: Option<crate::cut::Cut>,
     /// The drawing's width on paper (mm).
     #[serde(default = "default_width")]
     pub width: f64,
@@ -602,9 +695,12 @@ impl Default for Structure {
             loads: Vec::new(),
             diagrams: Diagrams::default(),
             titles: Titles::default(),
+            names: Names::default(),
+            positive: Positive::default(),
             layout: Layout::default(),
             view: View::default(),
             group: String::new(),
+            cut: None,
             width: default_width(),
             answer: true,
             working_labels: std::collections::BTreeMap::new(),
@@ -698,6 +794,7 @@ impl Structure {
         self.title = self.title.chars().filter(|c| !c.is_control()).take(120).collect();
         self.group = self.group.chars().filter(|c| c.is_ascii_alphanumeric() || *c == '-').take(40).collect();
         self.working_key = self.working_key.chars().filter(char::is_ascii_hexdigit).take(16).collect();
+        self.cut = self.cut.take().map(crate::cut::Cut::sanitized);
         self.working_labels = std::mem::take(&mut self.working_labels)
             .into_iter()
             .take(MAX_WORKING_LABELS)
@@ -705,6 +802,9 @@ impl Structure {
             .collect();
         for t in [&mut self.titles.n, &mut self.titles.v, &mut self.titles.m] {
             *t = t.chars().filter(|c| !c.is_control()).take(12).collect();
+        }
+        for t in [&mut self.names.n, &mut self.names.v, &mut self.names.m] {
+            *t = t.trim().chars().filter(|c| !c.is_control()).take(Names::MAX).collect();
         }
         self.nodes.truncate(MAX_NODES);
         self.members.truncate(MAX_MEMBERS);
