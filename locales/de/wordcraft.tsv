@@ -4081,4 +4081,4 @@ structure	Clockwise	Im Uhrzeigersinn
 structure	Stretch	Abschnitt
 structure	Cut at x from {a}: the part before the cut (drawn in full) balances its loads, its reactions and N, {T}, M on the cut (drawn positive):	Schnitt bei x von {a}: Der Teil vor dem Schnitt (voll gezeichnet) ist im Gleichgewicht mit seinen Lasten, seinen Reaktionen und N, {T}, M am Schnitt (positiv gezeichnet):
 structure	Values at the ends of the stretch:	Werte an den Enden des Abschnitts:
-structure	Values at the ends of the stretch and where M is greatest:	Werte an den Enden des Abschnitts und dort, wo M am größten ist:
+structure	Values at the ends of the stretch and at M's extremes:	Werte an den Enden des Abschnitts und an den Extremstellen von M:

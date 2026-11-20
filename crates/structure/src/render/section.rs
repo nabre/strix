@@ -58,34 +58,48 @@ impl Ctx<'_> {
             return;
         };
 
-        // Everything faded, then the part before the cut over it.
-        self.members(f, faded, MEMBER_W, true);
-        for m in &st.members {
-            let whole = m.id != geo.member && left_nodes.contains(&m.a) && left_nodes.contains(&m.b);
+        // The other members faded, then the part before the cut over them.
+        let others = Structure { members: st.members.iter().filter(|m| m.id != geo.member).cloned().collect(), ..st.clone() };
+        let pen = std::mem::take(&mut self.pen);
+        let mut cx = Ctx { st: &others, an: self.an, opts: self.opts, pen, amp_cap: self.amp_cap, placed: Vec::new() };
+        cx.members(f, faded, MEMBER_W, true);
+        self.pen = cx.pen;
+        for m in &others.members {
+            let whole = left_nodes.contains(&m.a) && left_nodes.contains(&m.b);
             if whole && let (Some(a), Some(b)) = (self.node_p(f, &m.a), self.node_p(f, &m.b)) {
                 self.pen.line(a, b, BLACK, MEMBER_W);
             }
         }
-        // The gap after the cut (as far as the member goes), then the member up to the cut.
-        let room = ((geo.len - geo.cut) * f.k).max(0.0);
-        self.pen.line(add(ps, mul(pe, 0.3)), add(ps, mul(pe, GAP.min(room))), [255, 255, 255], MEMBER_W + 0.6);
+        // The member cut: in full up to the cut, then a gap (nothing painted over what lies
+        // there), then faded to its end.
         self.pen.line(at(0.0), ps, BLACK, MEMBER_W);
+        let resume = geo.cut + GAP / f.k.max(1e-9);
+        if resume < geo.len {
+            self.pen.line(at(resume), at(geo.len), faded, MEMBER_W);
+        }
+        if let Some(m) = st.member(&geo.member) {
+            let node_hinged = |id: &str| st.node(id).is_some_and(|n| n.hinge);
+            if m.hinge_a && !node_hinged(&m.a) {
+                self.pen.dot(add(at(0.0), mul(pe, 1.6)), 0.8, [255, 255, 255], Some((BLACK, 0.3)));
+            }
+            if m.hinge_b && !node_hinged(&m.b) && resume < geo.len {
+                self.pen.dot(add(at(geo.len), mul(pe, -1.6)), 0.8, [255, 255, 255], Some((faded, 0.3)));
+            }
+        }
         self.supports(f, lighter(GREY, 0.45));
 
         // The loads: all faded, then those on the part before the cut, a distributed load the
         // cut crosses up to it (named unless it varies: its far end's name would be wrong).
-        self.loads_as(f, lighter(LOAD, 0.65), false, &|_| true);
+        self.loads_as(f, lighter(LOAD, 0.65), false, &|_, _| true);
         let part = geo.loads_before(st, &in_left);
         let mine = Structure { loads: part.iter().map(|(l, _)| l.clone()).collect(), ..st.clone() };
         let picked: Vec<(bool, bool)> = part.iter().map(|(_, k)| (k.0, k.1)).collect();
         let pen = std::mem::take(&mut self.pen);
         let mut cx = Ctx { st: &mine, an: self.an, opts: self.opts, pen, amp_cap: self.amp_cap, placed: Vec::new() };
-        let pick = |l: &Load, named: bool| {
-            let k = mine.loads.iter().position(|x| std::ptr::eq(x, l));
-            k.and_then(|k| picked.get(k)).is_some_and(|&(on, plain)| on && (plain == named))
-        };
-        cx.loads_as(f, LOAD, true, &|l| pick(l, true));
-        cx.loads_as(f, LOAD, false, &|l| pick(l, false));
+        // `mine.loads` and `picked` are in the same order: the load's index picks it.
+        let pick = |k: usize, named: bool| picked.get(k).is_some_and(|&(on, plain)| on && (plain == named));
+        cx.loads_as(f, LOAD, true, &|k, _| pick(k, true));
+        cx.loads_as(f, LOAD, false, &|k, _| pick(k, false));
         self.pen = cx.pen;
 
         self.unknowns_where(f, &in_left);
@@ -300,6 +314,76 @@ mod tests {
         let mut st = beam(Some(Cut { member: "1".into(), from: 0.0, to: 3.0, tag: "1".into() }));
         st.titles.v = "V".into();
         assert!(names(&st).iter().any(|p| p == "V_1"));
+    }
+
+    /// The tag keeps the member's id as the working writes it (`1-2a`), not only its letters.
+    #[test]
+    fn a_stretch_tag_keeps_the_members_id() {
+        let mut st = beam(None);
+        st.members[0].id = "1-2".into();
+        if let Some(Load::Distributed { member, .. }) = st.loads.first_mut() {
+            *member = "1-2".into();
+        }
+        st.cut = Some(Cut { member: "1-2".into(), from: 0.0, to: 6.0, tag: "1-2a".into() });
+        let st = st.sanitized();
+        assert_eq!(st.cut.as_ref().map(|c| c.tag.as_str()), Some("1-2a"));
+        let t = names(&st);
+        assert!(t.iter().any(|p| p == "N_1-2a"), "{t:?}");
+    }
+
+    /// A member running right to left: the part before the cut is its first node's side.
+    #[test]
+    fn a_reversed_member_is_cut_from_its_first_node() {
+        let mut st = beam(Some(Cut { member: "1".into(), from: 0.0, to: 2.0, tag: "1".into() }));
+        st.members[0] = Member { id: "1".into(), a: "B".into(), b: "A".into(), ..Member::default() };
+        let t = names(&st);
+        assert!(t.iter().any(|p| p == "V_B") && t.iter().any(|p| p == "M_1"), "{t:?}");
+        assert!(!t.iter().any(|p| p == "V_A" || p == "H_A"), "{t:?}");
+    }
+
+    /// A column fixed at its foot: its reactions, the couple among them, and the forces on the cut.
+    #[test]
+    fn a_vertical_member_is_cut() {
+        let node = |id: &str, y: f64| Node { id: id.into(), x: 0.0.into(), y: y.into(), hinge: false };
+        let st = Structure {
+            nodes: vec![node("A", 0.0), node("B", 4.0)],
+            members: vec![Member { id: "1".into(), a: "A".into(), b: "B".into(), ..Member::default() }],
+            supports: vec![Support { node: "A".into(), kind: SupportKind::Fixed, angle: Num::default() }],
+            loads: vec![Load::Force { node: Some("B".into()), member: None, at: Num::default(), value: 10.0.into(), angle: Num::new(0.0) }],
+            view: View::Section,
+            cut: Some(Cut { member: "1".into(), from: 0.0, to: 4.0, tag: "1".into() }),
+            ..Structure::default()
+        };
+        let t = names(&st);
+        for name in ["H_A", "V_A", "M_A", "N_1", "T_1", "M_1", "x"] {
+            assert!(t.iter().any(|p| p == name), "{name}: {t:?}");
+        }
+    }
+
+    /// A varying distributed load the cut crosses is drawn up to the cut without its name (its far
+    /// end's would be wrong there).
+    #[test]
+    fn a_varying_load_across_the_cut_goes_unnamed() {
+        let mut st = beam(Some(Cut { member: "1".into(), from: 0.0, to: 6.0, tag: "1".into() }));
+        if let Some(Load::Distributed { q2, .. }) = st.loads.first_mut() {
+            *q2 = Some(20.0.into());
+        }
+        let t = names(&st);
+        assert!(t.iter().any(|p| p == "N_1"), "{t:?}");
+        assert!(!t.iter().any(|p| p.starts_with("q₁ =") || p.starts_with("q₂ =")), "{t:?}");
+    }
+
+    /// A member closing a ring has no part before its cut alone: the stretch is marked on the
+    /// structure drawn whole, without the internal forces.
+    #[test]
+    fn a_member_in_a_ring_draws_no_internal_forces() {
+        let node = |id: &str, x: f64, y: f64| Node { id: id.into(), x: x.into(), y: y.into(), hinge: false };
+        let member = |id: &str, a: &str, b: &str| Member { id: id.into(), a: a.into(), b: b.into(), ..Member::default() };
+        let mut st = beam(Some(Cut { member: "1".into(), from: 0.0, to: 6.0, tag: "1".into() }));
+        st.nodes.push(node("C", 3.0, 3.0));
+        st.members.extend([member("2", "B", "C"), member("3", "C", "A")]);
+        let t = names(&st);
+        assert!(!t.iter().any(|p| p == "N_1" || p == "M_1"), "{t:?}");
     }
 
     /// A cut naming nothing, or with junk numbers, draws the structure and never panics.

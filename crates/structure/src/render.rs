@@ -390,11 +390,11 @@ impl Ctx<'_> {
     }
 
     fn loads(&mut self, f: &Frame) {
-        self.loads_as(f, LOAD, true, &|_| true);
+        self.loads_as(f, LOAD, true, &|_, _| true);
     }
 
     /// The loads `which` picks, in colour `col`, with their names and values when `labelled`.
-    fn loads_as(&mut self, f: &Frame, col: Rgb, labelled: bool, which: &dyn Fn(&Load) -> bool) {
+    fn loads_as(&mut self, f: &Frame, col: Rgb, labelled: bool, which: &dyn Fn(usize, &Load) -> bool) {
         let st = self.st;
         let qmax = st
             .loads
@@ -411,7 +411,7 @@ impl Ctx<'_> {
             None => value,
         };
         for (k, l) in st.loads.iter().enumerate() {
-            if !which(l) {
+            if !which(k, l) {
                 continue;
             }
             match l {
@@ -1315,6 +1315,11 @@ enum Panel {
     Diagram(Action),
 }
 
+/// A diagram's panel name: the name given to it, else its symbol.
+fn named<'a>(name: &'a str, symbol: &'a str) -> &'a str {
+    if name.trim().is_empty() { symbol } else { name }
+}
+
 #[cfg(test)]
 mod layout_tests {
     use super::{prim_box, union};
@@ -1428,9 +1433,4 @@ mod layout_tests {
         let back = Structure::from_json(&json).unwrap();
         assert_eq!((back.view, back.group.as_str()), (View::Diagrams, "structure-1"));
     }
-}
-
-/// A diagram's panel name: the name given to it, else its symbol.
-fn named<'a>(name: &'a str, symbol: &'a str) -> &'a str {
-    if name.trim().is_empty() { symbol } else { name }
 }

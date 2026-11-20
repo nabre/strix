@@ -250,6 +250,23 @@ fn the_working_follows_the_positive_senses() {
     assert!(!cw.contains('⚠'), "{cw}");
     assert!(has(&ccw, "M_A&=30 kN·m") && has(&cw, "M_A&=-30 kN·m"), "{ccw}\n{cw}");
     assert!(s.run("structure.set", &json!({"positive": {"rotation": "anticlockwise"}})).is_err());
+    // Hyperstatic, by the force method: other senses change the reactions' signs (and so the
+    // signs they are written with in the laws), not the internal forces' values.
+    let values = |t: &str| -> Vec<String> {
+        t.lines()
+            .map(|l| l.chars().filter(|c| !c.is_whitespace()).collect::<String>())
+            .filter(|l| l.starts_with("M_") && l.contains(")=") && !l.contains("(x)="))
+            .collect()
+    };
+    let mut s = Session::new(Document::new());
+    s.run("structure.insert", &json!({"template": "continuous"})).unwrap();
+    s.run("structure.working", &json!({})).unwrap();
+    let plain = text_of(&s);
+    s.run("structure.set", &json!({"positive": {"y": "down", "rotation": "cw"}})).unwrap();
+    let turned = text_of(&s);
+    assert!(!turned.contains('⚠'), "{turned}");
+    assert!(!values(&plain).is_empty(), "{plain}");
+    assert_eq!(values(&plain), values(&turned), "{plain}\n{turned}");
 }
 
 #[test]

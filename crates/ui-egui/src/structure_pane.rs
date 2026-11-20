@@ -566,7 +566,7 @@ pub(crate) fn working_labels() -> Value {
         "stretch": ts("Stretch"),
         "cut": ts("Cut at x from {a}: the part before the cut (drawn in full) balances its loads, its reactions and N, {T}, M on the cut (drawn positive):"),
         "values": ts("Values at the ends of the stretch:"),
-        "valuesMax": ts("Values at the ends of the stretch and where M is greatest:"),
+        "valuesMax": ts("Values at the ends of the stretch and at M's extremes:"),
         "unsolved": ts("The structure can't be solved: its working will be written again as soon as it can."),
     }})
 }

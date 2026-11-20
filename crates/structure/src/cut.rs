@@ -29,7 +29,8 @@ impl Cut {
     /// Clean names, finite numbers, `from` before `to`.
     pub(crate) fn sanitized(mut self) -> Cut {
         self.member = self.member.trim().chars().filter(|c| !c.is_control()).take(24).collect();
-        self.tag = self.tag.chars().filter(|c| c.is_alphanumeric()).take(12).collect();
+        // As the member's id is kept (`1-2`), with its stretch's letter: the working writes it so.
+        self.tag = self.tag.trim().chars().filter(|c| !c.is_control()).take(26).collect();
         let clean = |v: f64| if v.is_finite() { v.clamp(-crate::MAX_COORD, crate::MAX_COORD) } else { 0.0 };
         let (a, b) = (clean(self.from), clean(self.to));
         (self.from, self.to) = if a <= b { (a, b) } else { (b, a) };

@@ -77,7 +77,7 @@ impl Ctx<'_> {
             }
             _ => false,
         };
-        self.loads_as(f, faded, false, &|l| matches!(l, Load::Distributed { .. }) || askew_force(l));
+        self.loads_as(f, faded, false, &|_, l| matches!(l, Load::Distributed { .. }) || askew_force(l));
         let names = load_names(st);
         let mut stations: Vec<(String, f64)> = Vec::new();
         for r in resultants(st) {

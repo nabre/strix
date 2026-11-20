@@ -127,7 +127,7 @@ impl Labels {
                 "Cut at x from {a}: the part before the cut (drawn in full) balances its loads, its reactions and N, {T}, M on the cut (drawn positive):",
             ),
             values: get("values", "Values at the ends of the stretch:"),
-            values_max: get("valuesMax", "Values at the ends of the stretch and where M is greatest:"),
+            values_max: get("valuesMax", "Values at the ends of the stretch and at M's extremes:"),
             jump: get("jump", "{T} changes sign under a concentrated load"),
             nozero: get("nozero", "{T} never vanishes nor changes sign: the greatest moment is at an end of a stretch."),
             unsolved: get("unsolved", "The structure can't be solved: its working will be written again as soon as it can."),
@@ -1235,6 +1235,18 @@ fn member_lines(st: &Structure, us: &[Unknown], m: &MemberResult, u: &Units, lab
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The sentence on the signs written before the senses could be chosen is replaced in each
+    /// language; one the author wrote is kept.
+    #[test]
+    fn old_sign_sentences_are_replaced() {
+        for (old, new) in LEGACY_SIGNS {
+            assert_eq!(legacy_signs(old.to_string()), new);
+            assert_eq!(legacy_signs(new.to_string()), new);
+        }
+        let mine = "Reazioni positive come nel disegno.";
+        assert_eq!(legacy_signs(mine.to_string()), mine);
+    }
 
     #[test]
     fn numbers_as_calc_reads_them() {

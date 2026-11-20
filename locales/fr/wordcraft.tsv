@@ -4080,4 +4080,4 @@ structure	Clockwise	Horaire
 structure	Stretch	Tronçon
 structure	Cut at x from {a}: the part before the cut (drawn in full) balances its loads, its reactions and N, {T}, M on the cut (drawn positive):	Coupure à x de {a} : la partie avant la coupure (en plein) équilibre ses charges, ses réactions et N, {T}, M sur la coupure (dessinés positifs) :
 structure	Values at the ends of the stretch:	Valeurs aux extrémités du tronçon :
-structure	Values at the ends of the stretch and where M is greatest:	Valeurs aux extrémités du tronçon et là où M est maximal :
+structure	Values at the ends of the stretch and at M's extremes:	Valeurs aux extrémités du tronçon et aux extremums de M :

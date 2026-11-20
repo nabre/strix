@@ -29,7 +29,8 @@ mod tests;
 pub use cut::{Cut, part_before};
 pub use diagram::{Action, Notable, NotableKind, notables};
 pub use model::{
-    Diagram, Diagrams, ForceUnit, Layout, LengthUnit, Load, LoadAxes, LoadPer, Member, Names, Node, Num, Positive, SenseTurn, SenseX, SenseY, Side, Structure, Support, SupportKind, Titles, View,
+    Diagram, Diagrams, ForceUnit, Layout, LengthUnit, Load, LoadAxes, LoadPer, Member, Names, Node, Num, Positive, SenseTurn, SenseX, SenseY, Side,
+    Structure, Support, SupportKind, Titles, View,
 };
 pub use names::{LoadName, load_names};
 pub use render::{Chains, StructureRendered, chains};
