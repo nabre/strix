@@ -1,11 +1,11 @@
-//! One stretch of a written working ([`View::Section`](crate::View)): the stretch marked on the
-//! structure by a pale band, the member cut half way along it, and the part before the cut (the
+//! One stretch of a written working ([`View::Section`](crate::View)): the stretch marked by a pale
+//! band up to the cut, the member cut half way along it, and the part before the cut (the
 //! member's first end's side) drawn in full — its members, its loads with their names, its
 //! reactions as unknowns (`V_A`) — with the internal forces the rest of the structure puts on
 //! the cut, `N`, `T`, `M` with the stretch's tag (`N_1a`), pointing the way they count positive
-//! (`N` pulling, `T` turning the part clockwise, `M` stretching the reference fibres); the rest of
-//! the structure faded beyond a gap, and the section's distance `x` from the member's first node
-//! dimensioned. Its laws are the equilibrium of what is drawn in full.
+//! (`N` pulling, `T` turning the part clockwise, `M` stretching the reference fibres); nothing of
+//! the rest of the structure; and the section's distance `x` from the member's first node as a
+//! progressive (a circle at its origin, an arrow at the cut). Its laws are the equilibrium of what is drawn in full.
 
 use super::{BLACK, COLOR_M, COLOR_N, COLOR_V, Ctx, Frame, GREY, LOAD, MEMBER_W, P, add, lighter, mul, pd};
 use crate::cut::part_before;
@@ -14,14 +14,15 @@ use crate::model::{Load, Num, Structure};
 /// The band marking the stretch: a pale amber, under the members.
 const BAND: [u8; 3] = [0xF7, 0xDB, 0x91];
 const BAND_W: f64 = 3.2;
-/// The gap left after the cut before the faded rest of the member (paper mm).
-const GAP: f64 = 14.0;
 /// The internal forces' arrows and the moment's arc (paper mm).
 const N_LEN: f64 = 7.5;
 const T_LEN: f64 = 6.0;
 const M_R: f64 = 4.5;
 /// The dimension of `x`: its distance from the member (paper mm).
 const DIM_OFF: f64 = 11.5;
+/// The progressive `x`: its origin's circle and its arrow's head (paper mm).
+const X_ORIGIN_R: f64 = 0.8;
+const X_HEAD: f64 = 2.8;
 
 impl Ctx<'_> {
     /// The drawing of the stretch [`Structure::cut`] names (the structure alone without one).
@@ -39,18 +40,11 @@ impl Ctx<'_> {
         let ps = at(geo.cut);
         let left = part_before(st, &geo.member, &geo.start, &geo.end);
         let in_left = |id: &str| left.as_ref().is_some_and(|l| l.iter().any(|x| x == id));
-        let faded = lighter(GREY, 0.45);
-
-        // The stretch, marked under the members, with a tick across each end.
-        self.pen.line(at(geo.from), at(geo.to), BAND, BAND_W);
-        let tick = lighter([0xC8, 0x8A, 0x10], 0.2);
-        for s in [geo.from, geo.to] {
-            let p = at(s);
-            self.pen.line(add(p, mul(pn, BAND_W * 0.8)), add(p, mul(pn, -BAND_W * 0.8)), tick, 0.3);
-        }
 
         let Some(left_nodes) = &left else {
-            // A member in a closed ring: no part lies before the cut alone.
+            // A member in a closed ring: no part lies before the cut alone. The stretch is marked
+            // on the structure drawn whole.
+            self.band(at(geo.from), at(geo.to), pn);
             self.members(f, BLACK, MEMBER_W, true);
             self.supports(f, GREY);
             self.loads(f);
@@ -58,39 +52,31 @@ impl Ctx<'_> {
             return;
         };
 
-        // The other members faded, then the part before the cut over them.
-        let others = Structure { members: st.members.iter().filter(|m| m.id != geo.member).cloned().collect(), ..st.clone() };
-        let pen = std::mem::take(&mut self.pen);
-        let mut cx = Ctx { st: &others, an: self.an, opts: self.opts, pen, amp_cap: self.amp_cap, placed: Vec::new() };
-        cx.members(f, faded, MEMBER_W, true);
-        self.pen = cx.pen;
-        for m in &others.members {
-            let whole = left_nodes.contains(&m.a) && left_nodes.contains(&m.b);
-            if whole && let (Some(a), Some(b)) = (self.node_p(f, &m.a), self.node_p(f, &m.b)) {
-                self.pen.line(a, b, BLACK, MEMBER_W);
-            }
-        }
-        // The member cut: in full up to the cut, then a gap (nothing painted over what lies
-        // there), then faded to its end.
+        // Only the part before the cut: the stretch marked up to the cut, under the members.
+        self.band(at(geo.from), at(geo.to.min(geo.cut)), pn);
+        // The member cut, up to the cut, with its first end's hinge.
         self.pen.line(at(0.0), ps, BLACK, MEMBER_W);
-        let resume = geo.cut + GAP / f.k.max(1e-9);
-        if resume < geo.len {
-            self.pen.line(at(resume), at(geo.len), faded, MEMBER_W);
-        }
         if let Some(m) = st.member(&geo.member) {
             let node_hinged = |id: &str| st.node(id).is_some_and(|n| n.hinge);
             if m.hinge_a && !node_hinged(&m.a) {
                 self.pen.dot(add(at(0.0), mul(pe, 1.6)), 0.8, [255, 255, 255], Some((BLACK, 0.3)));
             }
-            if m.hinge_b && !node_hinged(&m.b) && resume < geo.len {
-                self.pen.dot(add(at(geo.len), mul(pe, -1.6)), 0.8, [255, 255, 255], Some((faded, 0.3)));
-            }
         }
-        self.supports(f, lighter(GREY, 0.45));
+        // The other members wholly before the cut, with their hinges (and the nodes').
+        let part = Structure {
+            nodes: st.nodes.iter().filter(|n| left_nodes.contains(&n.id)).cloned().collect(),
+            members: st.members.iter().filter(|m| m.id != geo.member && left_nodes.contains(&m.a) && left_nodes.contains(&m.b)).cloned().collect(),
+            ..st.clone()
+        };
+        let pen = std::mem::take(&mut self.pen);
+        let mut cx = Ctx { st: &part, an: self.an, opts: self.opts, pen, amp_cap: self.amp_cap, placed: Vec::new() };
+        cx.members(f, BLACK, MEMBER_W, true);
+        self.pen = cx.pen;
+        // Its supports faded: their reactions stand for them.
+        self.supports_where(f, lighter(GREY, 0.45), &in_left);
 
-        // The loads: all faded, then those on the part before the cut, a distributed load the
-        // cut crosses up to it (named unless it varies: its far end's name would be wrong).
-        self.loads_as(f, lighter(LOAD, 0.65), false, &|_, _| true);
+        // Its loads, a distributed load the cut crosses up to it (named unless it varies: its far
+        // end's name would be wrong).
         let part = geo.loads_before(st, &in_left);
         let mine = Structure { loads: part.iter().map(|(l, _)| l.clone()).collect(), ..st.clone() };
         let picked: Vec<(bool, bool)> = part.iter().map(|(_, k)| (k.0, k.1)).collect();
@@ -105,7 +91,16 @@ impl Ctx<'_> {
         self.unknowns_where(f, &in_left);
         self.internal_forces(ps, pe, pn, &geo.tag);
         self.cut_dimension(at(0.0), ps, pn);
-        self.node_names(f);
+        self.node_names_where(f, &in_left);
+    }
+
+    /// The pale band marking a stretch from `a` to `b` (paper), with a tick across each end.
+    fn band(&mut self, a: P, b: P, pn: P) {
+        self.pen.line(a, b, BAND, BAND_W);
+        let tick = lighter([0xC8, 0x8A, 0x10], 0.2);
+        for p in [a, b] {
+            self.pen.line(add(p, mul(pn, BAND_W * 0.8)), add(p, mul(pn, -BAND_W * 0.8)), tick, 0.3);
+        }
     }
 
     /// `N`, `T`, `M` on the cut at `ps` of a member running along paper direction `pe` (`pn` its
@@ -141,7 +136,7 @@ impl Ctx<'_> {
     }
 
     /// The section's distance `x` from the member's first node `pa` to the cut `ps`, on the
-    /// member's −y side.
+    /// member's −y side, as a progressive: a small circle at its origin, an arrow at the cut.
     fn cut_dimension(&mut self, pa: P, ps: P, pn: P) {
         if (ps.0 - pa.0).hypot(ps.1 - pa.1) < 2.0 {
             return;
@@ -151,11 +146,13 @@ impl Ctx<'_> {
         for (from, to) in [(pa, a), (ps, b)] {
             self.pen.line(add(from, mul(out, DIM_OFF - 2.5)), add(to, mul(out, 1.2)), BLACK, 0.18);
         }
-        self.pen.line(a, b, BLACK, 0.22);
         let d = super::unit((b.0 - a.0, b.1 - a.1));
-        for (p, s) in [(a, 1.0), (b, -1.0)] {
-            self.pen.arrow(add(p, mul(d, s * 2.0)), p, BLACK, 0.22);
-        }
+        // The line from the circle's rim to the arrow's head, the head larger than a force's.
+        let base = add(b, mul(d, -X_HEAD));
+        self.pen.line(add(a, mul(d, X_ORIGIN_R)), base, BLACK, 0.22);
+        let n = (-d.1, d.0);
+        self.pen.fill(vec![b, add(base, mul(n, X_HEAD * 0.34)), add(base, mul(n, -X_HEAD * 0.34))], BLACK, None);
+        self.pen.dot(a, X_ORIGIN_R, [255, 255, 255], Some((BLACK, 0.25)));
         let mid = mul(add(a, b), 0.5);
         self.pen.beside(add(mid, mul(out, 0.4)), out, "x".to_string(), BLACK);
     }
@@ -306,6 +303,33 @@ mod tests {
         assert!(!t.iter().any(|p| p == "V_B"), "{t:?}");
         let back = Structure::from_json(&st.to_json()).unwrap();
         assert_eq!((back.view, back.cut.as_ref().map(|c| c.tag.as_str())), (View::Section, Some("1a")));
+    }
+
+    /// Only the part before the cut is drawn: no name, support or load past it (one force on the
+    /// far side), the member stopping at the cut; `x` starts at a small circle.
+    #[test]
+    fn a_stretch_draws_nothing_past_the_cut() {
+        let mut st = beam(Some(Cut { member: "1".into(), from: 0.0, to: 2.0, tag: "1".into() }));
+        st.loads.push(Load::Force { node: None, member: Some("1".into()), at: 5.0.into(), value: 10.0.into(), angle: Num::new(-90.0) });
+        let t = names(&st);
+        assert!(!t.iter().any(|p| p == "B" || p.starts_with("F")), "{t:?}");
+        let prims = st.render(None).plot.prims;
+        let xs: Vec<f64> = prims
+            .iter()
+            .filter_map(|p| match p {
+                strix_plot::PlotPrim::Path { pts, .. } => Some(pts.iter().map(|q| q.0).fold(f64::MIN, f64::max)),
+                _ => None,
+            })
+            .collect();
+        let far = xs.iter().copied().fold(f64::MIN, f64::max);
+        // The band runs from A to the cut, 1 m: B stands 6 of them from A, nothing past 2.
+        let band = prims.iter().find_map(|p| match p {
+            strix_plot::PlotPrim::Path { pts, stroke: Some((c, _)), .. } if *c == super::BAND => Some((pts[0].0, pts[1].0)),
+            _ => None,
+        });
+        let (a, cut) = band.unwrap();
+        assert!(far < a + 2.0 * (cut - a), "{far} {a} {cut}");
+        assert!(prims.iter().any(|p| matches!(p, strix_plot::PlotPrim::Dot { .. })), "x's origin");
     }
 
     /// The shear's letter follows the diagram's title.

@@ -467,7 +467,7 @@ fn an_exercise_working_follows_any_of_its_drawings() {
     s.run("structure.exercise", &json!({"labels": {"loads": "Carichi"}})).unwrap();
     assert!(has(&text_of(&s), "F_1=q_1·6 m"));
     // The diagram of M in the solution, changed: the statement and every part follow.
-    select_structure(&mut s, 6);
+    select_structure(&mut s, 7);
     s.run("structure.load", &shortened(4.0)).unwrap();
     let t = text_of(&s);
     assert!(has(&t, "F_1=q_1·4 m") && !has(&t, "F_1=q_1·6 m"), "{t}");
