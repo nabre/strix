@@ -4156,6 +4156,10 @@ structure	Positive counter-clockwise	Positivo in senso antiorario
 structure	Positive clockwise	Positivo in senso orario
 structure	The reactions are taken positive so and the equilibrium equations sum so; the free body shows the symbol.	Le reazioni sono assunte positive in questi versi e le equazioni di equilibrio sommano così; il corpo libero mostra il simbolo.
 structure	Reactions are taken positive the way their arrows point in the free body: a negative one acts the other way.	Le reazioni sono assunte positive nel verso delle loro frecce nel corpo libero: una reazione negativa agisce nel verso opposto.
+structure	Right	Destra
+structure	Left	Sinistra
+structure	Up	Su
+structure	Down	Giù
 structure	Counter-clockwise	Antiorario
 structure	Clockwise	Orario
 structure	Stretch	Tratto

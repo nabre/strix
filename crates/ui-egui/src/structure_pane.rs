@@ -3080,8 +3080,9 @@ fn positive_ui(app: &mut WordApp, ui: &mut Ui, src: &Structure) {
             });
             ui.end_row();
         };
-        pick(ui, "x", "x", [("right", "→", pos.x == SenseX::Right), ("left", "←", pos.x == SenseX::Left)]);
-        pick(ui, "y", "y", [("up", "↑", pos.y == SenseY::Up), ("down", "↓", pos.y == SenseY::Down)]);
+        // Words, not arrows: the interface's fonts may lack the arrows' glyphs.
+        pick(ui, "x", "x", [("right", ts("Right"), pos.x == SenseX::Right), ("left", ts("Left"), pos.x == SenseX::Left)]);
+        pick(ui, "y", "y", [("up", ts("Up"), pos.y == SenseY::Up), ("down", ts("Down"), pos.y == SenseY::Down)]);
         pick(
             ui,
             "Rotation",
