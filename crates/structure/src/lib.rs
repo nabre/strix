@@ -14,6 +14,7 @@
 //! Hostile input never panics: counts are capped, numbers clamped, names cleaned.
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
 
+mod cut;
 mod diagram;
 mod linalg;
 mod model;
@@ -25,9 +26,11 @@ mod working;
 #[cfg(test)]
 mod tests;
 
+pub use cut::{Cut, part_before};
 pub use diagram::{Action, Notable, NotableKind, notables};
 pub use model::{
-    Diagram, Diagrams, ForceUnit, Layout, LengthUnit, Load, LoadAxes, LoadPer, Member, Node, Num, Side, Structure, Support, SupportKind, Titles, View,
+    Diagram, Diagrams, ForceUnit, Layout, LengthUnit, Load, LoadAxes, LoadPer, Member, Names, Node, Num, Positive, SenseTurn, SenseX, SenseY, Side,
+    Structure, Support, SupportKind, Titles, View,
 };
 pub use names::{LoadName, load_names};
 pub use render::{Chains, StructureRendered, chains};

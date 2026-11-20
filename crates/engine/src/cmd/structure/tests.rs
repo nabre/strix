@@ -84,6 +84,27 @@ fn settings_and_conventions() {
     assert!(s.run("structure.set", &json!({"lengthUnit": "ft"})).is_err());
 }
 
+/// The diagrams' panels take the names given to them, merged key by key; the working keeps the
+/// symbols; an empty name gives the symbol back.
+#[test]
+fn the_diagrams_take_custom_names() {
+    let mut s = Session::new(Document::new());
+    s.run("structure.insert", &json!({"template": "beam"})).unwrap();
+    let r = s.run("structure.set", &json!({"names": {"n": "Sforzo normale", "v": "Sforzo di taglio"}})).unwrap();
+    assert_eq!(r["structure"]["names"]["n"], "Sforzo normale");
+    let r = s.run("structure.set", &json!({"names": {"m": "Momento flettente", "n": ""}})).unwrap();
+    assert_eq!(r["structure"]["names"]["v"], "Sforzo di taglio");
+    assert_eq!(r["structure"]["names"]["m"], "Momento flettente");
+    assert_eq!(r["structure"]["names"]["n"], "");
+    // The symbols stay the default ones (not saved).
+    assert!(r["structure"]["titles"].is_null());
+    assert!(super::selected_structure_texts(&s).iter().any(|t| t == "Momento flettente"));
+    assert!(s.run("structure.set", &json!({"names": {"v": 3}})).is_err());
+    s.run("structure.working", &json!({})).unwrap();
+    let text: String = s.doc.body.iter().filter_map(|b| if let Block::Para(p) = &**b { Some(p.text.clone()) } else { None }).collect();
+    assert!(!text.contains("Sforzo"), "{text}");
+}
+
 #[test]
 fn a_change_of_unit_converts_the_numbers() {
     let mut s = Session::new(Document::new());
@@ -191,6 +212,61 @@ fn the_working_solves_the_reactions_and_writes_the_laws() {
     assert!(!t.contains('⚠'), "{t}");
     assert!(has(&t, "Hyperstatic"), "{t}");
     assert!(has(&t, "=62.5 kN") || has(&t, "V_B=(125 kN)/2"), "{t}");
+}
+
+/// The senses chosen as positive: the reactions are taken positive so and the equations sum so,
+/// the laws unchanged.
+#[test]
+fn the_working_follows_the_positive_senses() {
+    let mut s = Session::new(Document::new());
+    s.run("structure.insert", &json!({"template": "beam"})).unwrap();
+    let r = s.run("structure.set", &json!({"positive": {"y": "down", "rotation": "cw"}})).unwrap();
+    assert_eq!(r["structure"]["positive"]["y"], "down");
+    assert_eq!(r["structure"]["positive"]["x"], "right");
+    s.run("structure.working", &json!({})).unwrap();
+    let t = text_of(&s);
+    assert!(!t.contains('⚠'), "{t}");
+    // Clockwise: the load turns positive about A, V_B taken downwards comes out negative.
+    assert!(has(&t, "0 kN·m&=V_B·6 m+F_1·d_(1,A)") && has(&t, "V_B&=-30 kN"), "{t}");
+    assert!(has(&t, "V_A&=-30 kN"), "{t}");
+    assert!(has(&t, "M_1(3 m)=45 kN·m"), "{t}");
+    assert!(has(&t, "taken positive the way their arrows point"), "{t}");
+    // A frame with x to the left: its horizontal reaction changes sign.
+    let mut s = Session::new(Document::new());
+    s.run("structure.insert", &json!({"template": "frame"})).unwrap();
+    s.run("structure.set", &json!({"positive": {"x": "left"}})).unwrap();
+    s.run("structure.working", &json!({})).unwrap();
+    let t = text_of(&s);
+    assert!(!t.contains('⚠'), "{t}");
+    assert!(has(&t, "H_A&=10 kN") && has(&t, "V_D&=36.667 kN"), "{t}");
+    assert!(has(&t, "M_2(6 m)=0 kN·m"), "{t}");
+    // A cantilever's fixed end, clockwise: its couple too.
+    let mut s = Session::new(Document::new());
+    s.run("structure.insert", &json!({"template": "cantilever"})).unwrap();
+    s.run("structure.working", &json!({})).unwrap();
+    let ccw = text_of(&s);
+    s.run("structure.set", &json!({"positive": {"rotation": "cw"}})).unwrap();
+    let cw = text_of(&s);
+    assert!(!cw.contains('⚠'), "{cw}");
+    assert!(has(&ccw, "M_A&=30 kN·m") && has(&cw, "M_A&=-30 kN·m"), "{ccw}\n{cw}");
+    assert!(s.run("structure.set", &json!({"positive": {"rotation": "anticlockwise"}})).is_err());
+    // Hyperstatic, by the force method: other senses change the reactions' signs (and so the
+    // signs they are written with in the laws), not the internal forces' values.
+    let values = |t: &str| -> Vec<String> {
+        t.lines()
+            .map(|l| l.chars().filter(|c| !c.is_whitespace()).collect::<String>())
+            .filter(|l| l.starts_with("M_") && l.contains(")=") && !l.contains("(x)="))
+            .collect()
+    };
+    let mut s = Session::new(Document::new());
+    s.run("structure.insert", &json!({"template": "continuous"})).unwrap();
+    s.run("structure.working", &json!({})).unwrap();
+    let plain = text_of(&s);
+    s.run("structure.set", &json!({"positive": {"y": "down", "rotation": "cw"}})).unwrap();
+    let turned = text_of(&s);
+    assert!(!turned.contains('⚠'), "{turned}");
+    assert!(!values(&plain).is_empty(), "{plain}");
+    assert_eq!(values(&plain), values(&turned), "{plain}\n{turned}");
 }
 
 #[test]
@@ -391,7 +467,7 @@ fn an_exercise_working_follows_any_of_its_drawings() {
     s.run("structure.exercise", &json!({"labels": {"loads": "Carichi"}})).unwrap();
     assert!(has(&text_of(&s), "F_1=q_1·6 m"));
     // The diagram of M in the solution, changed: the statement and every part follow.
-    select_structure(&mut s, 5);
+    select_structure(&mut s, 6);
     s.run("structure.load", &shortened(4.0)).unwrap();
     let t = text_of(&s);
     assert!(has(&t, "F_1=q_1·4 m") && !has(&t, "F_1=q_1·6 m"), "{t}");
@@ -552,15 +628,16 @@ fn views(s: &Session) -> Vec<strix_structure::View> {
         .collect()
 }
 
-/// The reactions' working draws the free body its equations balance, under its heading and before
-/// the first equation, in the structure's group; written again, it stays one.
+/// The reactions' working draws the free body its equations balance first, under the working's
+/// heading and before the loads and the first equation, in the structure's group; written again,
+/// it stays one.
 #[test]
 fn the_reactions_working_draws_the_free_body() {
     use strix_structure::View;
     let mut s = Session::new(Document::new());
     s.run("structure.insert", &json!({"template": "beam"})).unwrap();
     s.run("structure.working", &json!({})).unwrap();
-    assert_eq!(views(&s), [View::All, View::Equilibrium]);
+    assert_eq!(views(&s), [View::All, View::Equilibrium, View::Section]);
     let t = text_of(&s);
     let (reactions, first) = (t.find("Reactions:").unwrap(), t.find("ΣM").unwrap());
     let figure = s
@@ -569,11 +646,13 @@ fn the_reactions_working_draws_the_free_body() {
         .iter()
         .position(|b| matches!(&**b, Block::Para(p) if p.objects.iter().any(|o| matches!(o, InlineObject::Graphic { graphic, .. } if graphic.structure.as_deref().is_some_and(|j| j.contains("equilibrium"))))))
         .unwrap();
-    let heading = s.doc.body.iter().position(|b| matches!(&**b, Block::Para(p) if p.text.contains("Reactions:"))).unwrap();
+    let heading = s.doc.body.iter().position(|b| matches!(&**b, Block::Para(p) if p.text.contains("Working"))).unwrap();
+    let loads = s.doc.body.iter().position(|b| matches!(&**b, Block::Para(p) if p.text.contains("Loads:"))).unwrap();
     assert_eq!(figure, heading + 1);
+    assert!(figure < loads);
     assert!(reactions < first);
     s.run("structure.working", &json!({})).unwrap();
-    assert_eq!(views(&s), [View::All, View::Equilibrium]);
+    assert_eq!(views(&s), [View::All, View::Equilibrium, View::Section]);
 }
 
 /// Each value at a station is a line of its own, in the working and in an exercise's parts.
@@ -778,4 +857,40 @@ fn the_force_method_uses_the_sections_given() {
     assert!(has(&t, "(m_(1,1)(x)^2)/(EI_1)") && has(&t, "(n_(1,1)(x)^2)/(EA_1)") && has(&t, "=0.00546 m/kN"), "{t}");
     let roller = reactions.iter().find(|r| r["node"] == "C").unwrap();
     assert!(has(&t, &format!("V_C&={} kN", shown(roller["fy"].as_f64().unwrap()))), "{roller}\n{t}");
+}
+
+/// Each stretch of the internal forces' laws has its drawing right under its heading (the
+/// stretch, cut half way, in the structure's group, narrower than the structure), then the words
+/// saying how the laws come from it, the laws, and its values under their own heading.
+#[test]
+fn each_stretch_is_drawn_cut_before_its_laws() {
+    let mut s = Session::new(Document::new());
+    s.run("structure.insert", &json!({"template": "beam"})).unwrap();
+    s.run("structure.load", &json!({"load": {"type": "force", "member": "1", "at": 2, "value": 10, "angle": -90}})).unwrap();
+    s.run("structure.working", &json!({"labels": {"stretch": "Tratto", "values": "Valori:", "valuesMax": "Valori e massimo:"}})).unwrap();
+    let paras: Vec<&wordcraft_doc::para::Paragraph> =
+        s.doc.body.iter().filter_map(|b| if let Block::Para(p) = &**b { Some(p) } else { None }).collect();
+    let cut_of = |p: &wordcraft_doc::para::Paragraph| {
+        p.objects.iter().find_map(|o| match o {
+            InlineObject::Graphic { graphic, .. } => {
+                let st = strix_structure::Structure::from_json(graphic.structure.as_deref()?).ok()?;
+                (st.view == strix_structure::View::Section).then_some((st.cut?, st.width, st.group))
+            }
+            _ => None,
+        })
+    };
+    let mut seen = Vec::new();
+    for (k, p) in paras.iter().enumerate() {
+        let Some((cut, width, group)) = cut_of(p) else { continue };
+        let header = paras[k - 1].text.clone();
+        assert!(header.starts_with(&format!("Tratto {}: Member 1 (A–B)", cut.tag)), "{header}");
+        assert!(paras[k + 1].text.contains("Cut at x from A"), "{}", paras[k + 1].text);
+        assert!(width < 160.0 && group == "structure-1", "{width} {group}");
+        seen.push((cut.tag, cut.from, cut.to));
+    }
+    assert_eq!(seen, [("1a".to_string(), 0.0, 2.0), ("1b".to_string(), 2.0, 6.0)]);
+    let t = text_of(&s);
+    // Under the uniform load and the force the moment is greatest inside the second stretch.
+    let (first, second) = (t.find("Valori:").unwrap(), t.find("Valori e massimo:").unwrap());
+    assert!(t.find("M_1a(x)").unwrap() < first && first < t.find("Tratto 1b").unwrap() && t.find("M_1b(x)").unwrap() < second, "{t}");
 }

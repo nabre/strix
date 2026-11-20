@@ -29,7 +29,7 @@ pub fn specs() -> Vec<CommandSpec> {
             r#"→ {"structure": object, "resolved": object (its numbers' values), "status": "isostatic"|"hyperstatic"|"labile"|"invalid"|"empty", "degree"?: n, "message": string, "truss": bool, "reactions": [{"node", "kind", "fx", "fy", "m"}], "members": [{"id", "length", "n": [...], "v": [...], "m": [...]}], "errors": [...]} (notable values: {"x", "value", "kind": "end"|"extreme"|"zero"})"#,
         ),
         CommandSpec::new("structure.set", "Set Structure", PLACE, set).when(selected).params(
-            r#"{"structure"?: object|string, "title"?: string, "width"?: mm, "lengthUnit"?: "m"|"cm"|"mm", "forceUnit"?: "kN"|"N"|"daN" (the numbers converted: 1 m becomes 100 cm; not with "structure" or "convert": false), "convert"?: bool, "answer"?: bool, "convention"?: "italian", "diagrams"?: object (merged: {"n"|"v"|"m": {"show"?, "positive"?: "up"|"down", "amplitude"?}, "reactions"?, "values"?, "hatch"?, "signs"?, "dimensions"?, "stations"?}), "titles"?: {"n"?, "v"?, "m"?}, "layout"?: "auto"|"column"|"grid"} → updates the selected structure and redraws it"#,
+            r#"{"structure"?: object|string, "title"?: string, "width"?: mm, "lengthUnit"?: "m"|"cm"|"mm", "forceUnit"?: "kN"|"N"|"daN" (the numbers converted: 1 m becomes 100 cm; not with "structure" or "convert": false), "convert"?: bool, "answer"?: bool, "convention"?: "italian", "diagrams"?: object (merged: {"n"|"v"|"m": {"show"?, "positive"?: "up"|"down", "amplitude"?}, "reactions"?, "values"?, "hatch"?, "signs"?, "dimensions"?, "stations"?}), "titles"?: {"n"?, "v"?, "m"?} (the symbols, used in the working too), "names"?: {"n"?, "v"?, "m"?} (the panels' names in place of the symbols, e.g. "Sforzo normale"; "" gives the symbol back), "positive"?: {"x"?: "right"|"left", "y"?: "up"|"down", "rotation"?: "ccw"|"cw"} (merged: the senses the reactions' working counts positive, drawn as a symbol by its free body; the reactions are taken positive so and the equilibrium equations sum so), "layout"?: "auto"|"column"|"grid"} → updates the selected structure and redraws it"#,
         ),
         CommandSpec::new("structure.node", "Structure Node", PLACE, node).when(selected).params(
             r#"{"id"?: string, "x"?: num|expr, "y"?: num|expr, "hinge"?: bool, "rename"?: string, "remove"?: bool} → adds a node (a new name when id is absent or new), changes it, or removes it with what uses it"#,
@@ -82,6 +82,7 @@ pub fn selected_structure_texts(s: &Session) -> Vec<String> {
     let Some((_, src)) = selected_source(s) else { return Vec::new() };
     let Ok(st) = Structure::from_json(&src) else { return Vec::new() };
     let mut out = vec![st.title.clone(), st.titles.n.clone(), st.titles.v.clone(), st.titles.m.clone()];
+    out.extend([st.names.n.clone(), st.names.v.clone(), st.names.m.clone()]);
     out.extend(st.nodes.iter().map(|n| n.id.clone()));
     out.extend(st.members.iter().map(|m| m.id.clone()));
     out.extend(st.expressions());
@@ -251,6 +252,16 @@ fn apply_settings(st: &mut Structure, v: &Value, convert: bool) -> Result<(), Cm
         merge(&mut cur, t);
         st.titles = serde_json::from_value(cur).map_err(|e| CmdError::Params(format!("titles: {e}")))?;
     }
+    if let Some(t) = v.get("names").filter(|t| t.is_object()) {
+        let mut cur = serde_json::to_value(&st.names).map_err(|e| CmdError::Failed(e.to_string()))?;
+        merge(&mut cur, t);
+        st.names = serde_json::from_value(cur).map_err(|e| CmdError::Params(format!("names: {e}")))?;
+    }
+    if let Some(t) = v.get("positive").filter(|t| t.is_object()) {
+        let mut cur = serde_json::to_value(st.positive).map_err(|e| CmdError::Failed(e.to_string()))?;
+        merge(&mut cur, t);
+        st.positive = serde_json::from_value(cur).map_err(|e| CmdError::Params(format!("positive: {e}")))?;
+    }
     match p::str(v, "layout") {
         None => {}
         Some("auto") => st.layout = strix_structure::Layout::Auto,
@@ -326,7 +337,7 @@ fn sync_group(s: &mut Session, pos: &wordcraft_doc::Pos, st: &Structure) {
             if let Some(InlineObject::Graphic { graphic, .. }) = p.object_at_mut(off)
                 && let Some(other) = graphic.structure.as_deref().and_then(|src| Structure::from_json(src).ok())
             {
-                let mine = Structure { view: other.view, width: other.width, ..st.clone() };
+                let mine = Structure { view: other.view, width: other.width, cut: other.cut.clone(), ..st.clone() };
                 Arc::make_mut(graphic).structure = Some(mine.to_json().into());
             }
         }

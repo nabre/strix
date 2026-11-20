@@ -493,6 +493,34 @@ fn a_labile_structure_says_so_and_draws_no_diagrams() {
     assert!(texts.iter().any(|t| t.starts_with("labile")), "{texts:?}");
 }
 
+/// A diagram's name is written over its panel in place of its symbol; an empty one gives the symbol
+/// back; a long one is cut.
+#[test]
+fn the_diagrams_names_title_their_panels() {
+    let texts = |st: &Structure| -> Vec<String> {
+        st.render(None)
+            .plot
+            .prims
+            .iter()
+            .filter_map(|p| if let strix_plot::PlotPrim::Text { text, .. } = p { Some(text.clone()) } else { None })
+            .collect()
+    };
+    let mut st = simple_beam();
+    let plain = texts(&st);
+    assert!(plain.iter().any(|t| t == "T [kN]"), "{plain:?}");
+    st.names.v = "Sforzo di taglio".to_string();
+    st.names.m = "Momento flettente".to_string();
+    let named = texts(&st);
+    assert!(named.iter().any(|t| t == "Sforzo di taglio [kN]"), "{named:?}");
+    assert!(named.iter().any(|t| t == "Momento flettente [kN·m]"), "{named:?}");
+    assert!(named.iter().any(|t| t == "N [kN]"), "{named:?}");
+    assert!(!named.iter().any(|t| t == "T [kN]"), "{named:?}");
+    st.names.n = "x".repeat(500);
+    assert_eq!(st.clone().sanitized().names.n.chars().count(), crate::Names::MAX);
+    // Saved only when given.
+    assert!(!simple_beam().to_json().contains("names"));
+}
+
 #[test]
 fn hostile_input_never_panics() {
     for json in [
@@ -765,6 +793,37 @@ fn the_free_body_names_the_unknowns_resultants_and_parts() {
     assert!(t.iter().filter(|x| x.as_str() == "1.25 m").count() >= 2, "{t:?}");
     let json = st.to_json();
     assert!(json.contains("\"view\":\"equilibrium\""), "{json}");
+}
+
+/// The senses counted positive: the free body draws them as a symbol (x, y, a `+` rotation) and
+/// its reactions' arrows point so; the reactions' panel crosses out a reaction that came out
+/// negative in them; saved only when not the default.
+#[test]
+fn the_positive_senses_are_drawn_and_followed() {
+    use crate::{Positive, SenseTurn, SenseY};
+    let mut st = simple_beam();
+    st.view = crate::View::Equilibrium;
+    let plain = st.render(None);
+    let t: Vec<String> = texts(&plain).into_iter().map(|(t, _)| t).collect();
+    for sym in ["x", "y", "+"] {
+        assert!(t.iter().any(|x| x == sym), "{sym}: {t:?}");
+    }
+    st.positive = Positive { y: SenseY::Down, rotation: SenseTurn::Cw, ..Positive::default() };
+    let down = st.render(None);
+    assert_ne!(plain.plot.prims, down.plot.prims, "the arrows and the symbol turn");
+    let json = st.to_json();
+    assert!(json.contains("\"positive\":{\"x\":\"right\",\"y\":\"down\",\"rotation\":\"cw\"}"), "{json}");
+    assert_eq!(Structure::from_json(&json).unwrap().positive, st.positive);
+    assert!(!simple_beam().to_json().contains("\"positive\":{"));
+    // Upwards reactions are negative downwards: crossed out in red.
+    let crossed = |st: &Structure| {
+        st.render(None).plot.prims.iter().any(|p| matches!(p, strix_plot::PlotPrim::Path { stroke: Some((c, _)), .. } if *c == [0xC0, 0x1C, 0x1C]))
+    };
+    st.view = crate::View::Reactions;
+    assert!(crossed(&st));
+    st.positive = Positive::default();
+    assert!(!crossed(&st));
+    assert!(Structure::from_json(r#"{"positive": {"y": "sideways"}}"#).is_err());
 }
 
 /// The beam of the owner's report: 10 kN/m over its first 2 m, 10 kN upwards at 4.5 m.

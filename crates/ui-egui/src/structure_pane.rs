@@ -545,7 +545,7 @@ pub(crate) fn working_labels() -> Value {
         "heading": ts("Working"),
         "loads": ts("Loads"),
         "reactions": ts("Reactions"),
-        "signs": ts("Reactions are positive along x, along y and counter-clockwise: a negative one acts the other way."),
+        "signs": ts("Reactions are taken positive the way their arrows point in the free body: a negative one acts the other way."),
         "hyperstatic": ts("Hyperstatic: from the solution by the stiffness method"),
         "together": ts("From the equations solved together"),
         "force1": ts("Hyperstatic structure of degree 1, solved by the force method. Redundant: {X}. Without the constraint that gives it, the structure left (the released structure) is isostatic."),
@@ -563,6 +563,10 @@ pub(crate) fn working_labels() -> Value {
         "axial": ts("Axial forces"),
         "hinge": ts("part about the hinge"),
         "range": ts("x from {a} to {b}"),
+        "stretch": ts("Stretch"),
+        "cut": ts("Cut at x from {a}: the part before the cut (drawn in full) balances its loads, its reactions and N, {T}, M on the cut (drawn positive):"),
+        "values": ts("Values at the ends of the stretch:"),
+        "valuesMax": ts("Values at the ends of the stretch and at M's extremes:"),
         "unsolved": ts("The structure can't be solved: its working will be written again as soon as it can."),
     }})
 }
@@ -3013,6 +3017,8 @@ fn structure_props(app: &mut WordApp, ui: &mut Ui, info: &Value, src: &Structure
         ui.label("");
         ui.end_row();
     });
+    diagram_names_ui(app, ui, src);
+    positive_ui(app, ui, src);
     section(ui, ts("Made of"));
     props(ui, "structure_counts", |ui| {
         for (label, n) in [("Nodes", src.nodes.len()), ("Members", src.members.len()), ("Supports", src.supports.len()), ("Loads", src.loads.len())] {
@@ -3026,6 +3032,79 @@ fn structure_props(app: &mut WordApp, ui: &mut Ui, info: &Value, src: &Structure
     ui.label(
         RichText::new(ts("Click a node, a member or a load to see its properties; Shift+click or a window adds to the selection.")).small().weak(),
     );
+}
+
+/// The diagrams' panel names (`Sforzo normale` over the `N` panel), each beside its symbol; an
+/// empty one draws the symbol.
+fn diagram_names_ui(app: &mut WordApp, ui: &mut Ui, src: &Structure) {
+    section(ui, ts("Diagram Names"));
+    props(ui, "structure_diagram_names", |ui| {
+        for (key, symbol, name) in [("n", &src.titles.n, &src.names.n), ("v", &src.titles.v, &src.names.v), ("m", &src.titles.m, &src.names.m)] {
+            prop_label(ui, symbol);
+            if let Some(t) = edit_box(ui, ("structure_diagram_name", key), name, 160.0) {
+                let _ = app.run("structure.set", json!({"names": {key: t.trim()}}));
+            }
+            ui.label("");
+            ui.end_row();
+        }
+    });
+    ui.horizontal(|ui| {
+        if ui.small_button(ts("Full Names")).on_hover_text(ts("Name the panels Axial force, Shear force and Bending moment")).clicked() {
+            let names = json!({"n": ts("Axial force"), "v": ts("Shear force"), "m": ts("Bending moment")});
+            let _ = app.run("structure.set", json!({"names": names}));
+        }
+        let named = !src.names.n.is_empty() || !src.names.v.is_empty() || !src.names.m.is_empty();
+        if ui.add_enabled(named, egui::Button::new(ts("Symbols")).small()).on_hover_text(ts("Name the panels by their symbols")).clicked() {
+            let _ = app.run("structure.set", json!({"names": {"n": "", "v": "", "m": ""}}));
+        }
+    });
+    ui.label(RichText::new(ts("Written over the diagrams' panels; the working keeps the symbols.")).small().weak());
+}
+
+/// The senses the reactions' working counts positive (x, y, rotation), each a pair of choices:
+/// the free body draws them as a symbol, the reactions are taken positive so and the equations
+/// sum so.
+fn positive_ui(app: &mut WordApp, ui: &mut Ui, src: &Structure) {
+    use strix_structure::{SenseTurn, SenseX, SenseY};
+    section(ui, ts("Positive Senses"));
+    let pos = src.positive;
+    props(ui, "structure_positive", |ui| {
+        let mut pick = |ui: &mut Ui, label: &str, key: &str, options: [(&str, &str, bool); 2]| {
+            prop_label(ui, ts(label));
+            ui.horizontal(|ui| {
+                for (value, text, on) in options {
+                    if ui.selectable_label(on, text).on_hover_text(ts(value_hint(value))).clicked() && !on {
+                        let _ = app.run("structure.set", json!({"positive": {key: value}}));
+                    }
+                }
+            });
+            ui.end_row();
+        };
+        // Words, not arrows: the interface's fonts may lack the arrows' glyphs.
+        pick(ui, "x", "x", [("right", ts("Right"), pos.x == SenseX::Right), ("left", ts("Left"), pos.x == SenseX::Left)]);
+        pick(ui, "y", "y", [("up", ts("Up"), pos.y == SenseY::Up), ("down", ts("Down"), pos.y == SenseY::Down)]);
+        pick(
+            ui,
+            "Rotation",
+            "rotation",
+            [("ccw", ts("Counter-clockwise"), pos.rotation == SenseTurn::Ccw), ("cw", ts("Clockwise"), pos.rotation == SenseTurn::Cw)],
+        );
+    });
+    ui.label(
+        RichText::new(ts("The reactions are taken positive so and the equilibrium equations sum so; the free body shows the symbol.")).small().weak(),
+    );
+}
+
+/// A positive sense's tooltip.
+fn value_hint(value: &str) -> &'static str {
+    match value {
+        "right" => "Positive to the right",
+        "left" => "Positive to the left",
+        "up" => "Positive upwards",
+        "down" => "Positive downwards",
+        "ccw" => "Positive counter-clockwise",
+        _ => "Positive clockwise",
+    }
 }
 
 fn tables(app: &mut WordApp, ui: &mut Ui, src: &Structure, st: &Structure, state: &mut State) {

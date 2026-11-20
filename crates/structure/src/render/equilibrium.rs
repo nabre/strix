@@ -43,7 +43,7 @@ fn glyph(c: char) -> f64 {
 impl Pen {
     /// `base` with the subscript `sub` (`F` and `2,h`: F₂,ₕ), beside `at` on the side `dir`
     /// points to, as [`Pen::beside`] places a text.
-    fn subscripted(&mut self, at: P, dir: P, base: &str, sub: &str, c: Rgb) {
+    pub(super) fn subscripted(&mut self, at: P, dir: P, base: &str, sub: &str, c: Rgb) {
         let wb = base.chars().map(glyph).sum::<f64>() * TEXT + 0.5;
         let ws = sub.chars().map(glyph).sum::<f64>() * TEXT * SUB;
         let w = wb + ws;
@@ -77,7 +77,7 @@ impl Ctx<'_> {
             }
             _ => false,
         };
-        self.loads_as(f, faded, false, &|l| matches!(l, Load::Distributed { .. }) || askew_force(l));
+        self.loads_as(f, faded, false, &|_, l| matches!(l, Load::Distributed { .. }) || askew_force(l));
         let names = load_names(st);
         let mut stations: Vec<(String, f64)> = Vec::new();
         for r in resultants(st) {
@@ -154,10 +154,21 @@ impl Ctx<'_> {
     }
 
     /// The reactions as unknowns, named as the working names them, each pointing the way it
-    /// counts positive (along x, along y, along a roller's direction; a couple counter-clockwise).
+    /// counts positive (along x, along y, along a roller's direction; a couple turning the way a
+    /// rotation counts positive), as the structure's [`Positive`](crate::Positive) says.
     fn unknowns(&mut self, f: &Frame) {
+        self.unknowns_where(f, &|_| true);
+    }
+
+    /// [`Ctx::unknowns`] of the supports at the nodes `at` picks.
+    pub(super) fn unknowns_where(&mut self, f: &Frame, at: &dyn Fn(&str) -> bool) {
         let an = self.an;
+        let pos = self.st.positive;
+        let (sx, sy) = (pos.sx(), pos.sy());
         for (k, r) in an.reactions.iter().enumerate() {
+            if !at(&r.node) {
+                continue;
+            }
             let Some(p) = self.node_p(f, &r.node) else { continue };
             let s = node_sub(&r.node, k + 1);
             let phi = r.angle.to_radians();
@@ -165,15 +176,15 @@ impl Ctx<'_> {
             let mut comps: Vec<((f64, f64), &str)> = Vec::new();
             match r.kind {
                 SupportKind::Fixed | SupportKind::Pin => {
-                    comps.push(((1.0, 0.0), "H"));
-                    comps.push(((0.0, 1.0), "V"));
+                    comps.push(((sx, 0.0), "H"));
+                    comps.push(((0.0, sy), "V"));
                 }
                 SupportKind::Roller | SupportKind::RollerCircle | SupportKind::Link | SupportKind::Slider => {
                     let n = (-phi.sin(), phi.cos());
                     if n.0.abs() < TOL {
-                        comps.push(((0.0, 1.0), "V"));
+                        comps.push(((0.0, sy), "V"));
                     } else if n.1.abs() < TOL {
-                        comps.push(((1.0, 0.0), "H"));
+                        comps.push(((sx, 0.0), "H"));
                     } else {
                         comps.push((n, "R"));
                     }
@@ -195,7 +206,7 @@ impl Ctx<'_> {
                 self.pen.subscripted(add(far, mul(side, 0.8)), side, letter, &s, REACTION);
             }
             if matches!(r.kind, SupportKind::Fixed | SupportKind::Slider) {
-                self.pen.couple(p, 5.0, true, REACTION, 0.4);
+                self.pen.couple(p, 5.0, pos.sr() > 0.0, REACTION, 0.4);
                 let free = self.free_side_avoiding(&r.node, &taken);
                 self.pen.subscripted(add(p, mul(free, 6.5)), free, "M", &s, REACTION);
             }

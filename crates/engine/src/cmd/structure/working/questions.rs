@@ -11,7 +11,8 @@ use wordcraft_doc::InlineObject;
 use wordcraft_doc::para::Paragraph;
 
 use super::{
-    Labels, Line, Units, free_body, lines, num, paragraphs, paragraphs_with, shear_name, signed, stretch_header, stretch_tag, sub, units, unknowns,
+    Figure, Figures, Labels, Line, Units, lines, num, paragraphs, paragraphs_with, shear_name, signed, stretch_header, stretch_tag, sub, units,
+    unknowns,
 };
 use crate::{CmdError, Session};
 
@@ -45,8 +46,9 @@ pub(in crate::cmd::structure) fn parts(
     if !r.analysis.status.is_solved() {
         return Err(CmdError::Failed(format!("the structure can't be solved: {}", r.analysis.status.describe())));
     }
-    // The free body drawn from the structure as written (its parameters, not their values).
-    let fig = free_body(s, &st);
+    // The drawings from the structure as written (its parameters, not their values).
+    let written = st.clone();
+    let figures = Figures { s, st: &written };
     let (st, an) = (&r.resolved, &r.analysis);
     let comma = crate::cmd::calc::options_now(s).decimal_comma;
     let labels = Labels::from(v);
@@ -57,7 +59,7 @@ pub(in crate::cmd::structure) fn parts(
     let (first, rest) = all.split_at(split);
     // Without the working's heading.
     let first = first.get(1..).unwrap_or(&[]);
-    let mut reactions = paragraphs_with(first, props, Some(&fig))?;
+    let mut reactions = paragraphs_with(first, props, Some(&figures))?;
     // The reactions are the first question's result: the equations solving them, and those
     // giving a redundant its value.
     let names: Vec<String> = unknowns(st, an).into_iter().map(|k| format!("{} = ", k.name)).collect();
@@ -102,7 +104,7 @@ pub(in crate::cmd::structure) fn parts(
         truss: false,
         reactions,
         axial: paragraphs(&cap(axial_lines), props)?,
-        shear: paragraphs(&cap(shear_lines), props)?,
+        shear: paragraphs_with(&cap(shear_lines), props, Some(&figures))?,
         zeros: marked(&zero_lines, &zero_marked, Q_ZEROS)?,
         maxima: marked(&max_lines, &max_marked, Q_MAXIMA)?,
         moments: paragraphs(&cap(moment_lines), props)?,
@@ -261,7 +263,13 @@ impl Writer<'_> {
                 return;
             }
             let (tag, _) = self.names(m, k, parts.len());
-            out.push(stretch_header(src, s, self.u, self.labels));
+            out.push(stretch_header(src, s, &tag, self.u, self.labels));
+            if action == Action::Shear {
+                // Where the stretch lies and the part whose equilibrium gives its laws (N's
+                // stretches may join several of these: drawn with T's).
+                out.push(Line::figure(Figure::Stretch(strix_structure::Cut { member: m.id.clone(), from: s.x0, to: s.x1, tag: tag.clone() })));
+                out.push(Line::heading(self.labels.cut.replace("{a}", &src.a).replace("{T}", &self.shear)));
+            }
             out.push(Line::eqs(vec![self.law(m, &tag, s, action)], true));
             let c = match action {
                 Action::Axial => &s.n,
@@ -286,7 +294,7 @@ impl Writer<'_> {
                     let Some((mr, parts)) = members.get(m) else { continue };
                     let (Some(src), Some(s)) = (self.st.member(&mr.id), parts.get(k)) else { continue };
                     let (tag, x) = self.names(mr, k, parts.len());
-                    out.push((stretch_header(src, s, self.u, self.labels), false));
+                    out.push((stretch_header(src, s, &tag, self.u, self.labels), false));
                     let found: Vec<f64> = xs.iter().flatten().copied().collect();
                     // One zero: T's law solved for it within the stretch (a law of degree two has
                     // another root outside it).
@@ -334,7 +342,7 @@ impl Writer<'_> {
             let (tag, _) = self.names(mr, k, parts.len());
             if !defined.contains(&(m, k)) {
                 defined.push((m, k));
-                out.push((stretch_header(src, s, self.u, self.labels), false));
+                out.push((stretch_header(src, s, &tag, self.u, self.labels), false));
                 out.push((Line::eqs(vec![self.law(mr, &tag, s, Action::Moment)], true), false));
             }
             Some(tag)

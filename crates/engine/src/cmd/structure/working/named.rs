@@ -31,7 +31,7 @@ pub(super) fn laws(st: &Structure, us: &[Unknown], m: &MemberResult, s: &Stretch
     let e = ((b.x.value - a.0) / len, (b.y.value - a.1) / len);
     let n = (-e.1, e.0);
     // The part before the section: the nodes reached from `a` without the member.
-    let Some(left) = left_nodes(st, &src.id, &src.a, &src.b) else { return none };
+    let Some(left) = strix_structure::part_before(st, &src.id, &src.a, &src.b) else { return none };
     let in_left = |id: &str| left.iter().any(|x| x == id);
     let other_member_left = |id: &str| id != src.id && st.member(id).is_some_and(|x| in_left(&x.a) && in_left(&x.b));
     let eps = 1e-9 * (1.0 + len);
@@ -40,7 +40,7 @@ pub(super) fn laws(st: &Structure, us: &[Unknown], m: &MemberResult, s: &Stretch
     for k in us.iter().filter(|k| in_left(&k.node)) {
         match k.acts {
             Acts::Along(d) => agents.push(Agent::Point { name: k.name.clone(), mag: k.value, at: k.at, dir: d }),
-            Acts::Turns => agents.push(Agent::Couple { name: k.name.clone(), mag: k.value, sign: 1.0 }),
+            Acts::Turns(sense) => agents.push(Agent::Couple { name: k.name.clone(), mag: k.value, sign: sense }),
         }
     }
     let rs = resultants(st);
@@ -258,30 +258,4 @@ fn text(terms: &[Term], action: Action, u: &Units) -> String {
         out = if action == Action::Moment { format!("0 {}·{}", u.f, u.l) } else { format!("0 {}", u.f) };
     }
     out
-}
-
-/// The nodes reached from `start` without member `cut`; `None` when `end` is among them (the
-/// member closes a ring: no part lies before its sections alone).
-fn left_nodes(st: &Structure, cut: &str, start: &str, end: &str) -> Option<Vec<String>> {
-    let mut seen = vec![start.to_string()];
-    let mut frontier = vec![start.to_string()];
-    while let Some(v) = frontier.pop() {
-        for m in st.members.iter().filter(|m| m.id != cut) {
-            let other = if m.a == v {
-                &m.b
-            } else if m.b == v {
-                &m.a
-            } else {
-                continue;
-            };
-            if !seen.contains(other) {
-                if seen.len() > st.nodes.len() {
-                    return None;
-                }
-                seen.push(other.clone());
-                frontier.push(other.clone());
-            }
-        }
-    }
-    (!seen.iter().any(|x| x == end)).then_some(seen)
 }
