@@ -15,6 +15,11 @@ const DIM_BELOW: f64 = 12.0;
 const DIM_STEP: f64 = 6.5;
 /// From the structure's rightmost point to the vertical dimension line.
 pub(super) const DIM_RIGHT: f64 = 10.0;
+/// The room kept between what is drawn (supports, loads and their names) and a dimension line,
+/// enough for the distance written beside it.
+const DIM_CLEAR: f64 = 4.5;
+/// Between what is drawn and the start of an extension line.
+const EXT_GAP: f64 = 1.0;
 /// Angles within this many degrees of 0°, 90° or 180° are not written (they are evident).
 const SQUARE_TOL: f64 = 0.5;
 
@@ -112,6 +117,11 @@ fn bearing(st: &Structure, member: &str) -> Option<bool> {
 }
 
 fn measures(st: &Structure) -> Measures {
+    measures_with(st, &[])
+}
+
+/// [`measures`] with more points along members (`(member, distance from its first node)`).
+fn measures_with(st: &Structure, extra: &[(String, f64)]) -> Measures {
     let nodes: Vec<(f64, f64)> =
         st.nodes.iter().filter(|n| st.members.iter().any(|m| m.a == n.id || m.b == n.id)).map(|n| (n.x.value, n.y.value)).collect();
     let mut out = Measures { nodes, on_level: Vec::new(), on_plumb: Vec::new(), inclined: Vec::new() };
@@ -146,6 +156,9 @@ fn measures(st: &Structure) -> Measures {
             }
             _ => {}
         }
+    }
+    for (m, at) in extra {
+        add_at(&mut out, m, *at);
     }
     out
 }
@@ -209,7 +222,13 @@ impl Ctx<'_> {
         if !self.st.diagrams.dimensions {
             return;
         }
-        let ms = measures(self.st);
+        self.dimensions_with(f, &[]);
+    }
+
+    /// [`Self::dimensions`] (whatever the structure's setting) with stations at more points along
+    /// members (`(member, distance from its first node)`): the free body's resultants.
+    pub(super) fn dimensions_with(&mut self, f: &Frame, extra: &[(String, f64)]) {
+        let ms = measures_with(self.st, extra);
         if ms.nodes.len() < 2 {
             return;
         }
@@ -220,14 +239,22 @@ impl Ctx<'_> {
         let lu = self.st.length_unit.symbol();
         let label = |cx: &Self, d: f64| format!("{} {lu}", cx.num(d));
 
+        // What is drawn so far (members, supports, loads, their names): the chains keep clear.
+        let drawn: Vec<[f64; 4]> = self.pen.prims.iter().filter_map(super::prim_box).collect();
+        // The bottom of what is drawn across paper x `px`, and the right of what is across `py`.
+        let bottom_at = |px: f64| drawn.iter().filter(|b| b[0] <= px + 0.2 && b[2] >= px - 0.2).map(|b| b[3]).fold(f64::MIN, f64::max);
+        let right_at = |py: f64| drawn.iter().filter(|b| b[1] <= py + 0.2 && b[3] >= py - 0.2).map(|b| b[2]).fold(f64::MIN, f64::max);
+        let bottom = drawn.iter().map(|b| b[3]).fold(f64::MIN, f64::max);
+        let right = drawn.iter().map(|b| b[2]).fold(f64::MIN, f64::max);
+
         // Along x, below everything.
-        let base = f.p(0.0, ymin).1 + DIM_BELOW;
+        let base = (f.p(0.0, ymin).1 + DIM_BELOW).max(bottom + DIM_CLEAR);
         let lowest = |x: f64| all.iter().filter(|p| (p.0 - x).abs() <= tol).map(|p| f.p(p.0, p.1).1).fold(f64::MIN, f64::max);
         for (r, row) in x_rows(&ms, tol).iter().enumerate() {
             let y = base + DIM_STEP * r as f64;
             for &x in row {
                 let px = f.p(x, 0.0).0;
-                let from = if r == 0 { lowest(x) + 1.5 } else { base + 1.0 };
+                let from = if r == 0 { (lowest(x) + 1.5).max(bottom_at(px) + EXT_GAP) } else { base + 1.0 };
                 self.pen.line((px, from.min(y - 0.5)), (px, y + 1.2), GREY, 0.15);
                 self.pen.line((px - 0.9, y + 0.9), (px + 0.9, y - 0.9), DIM, 0.3);
             }
@@ -246,11 +273,12 @@ impl Ctx<'_> {
         // Along y, at the right.
         let ys = y_stops(&ms, tol);
         if ys.len() >= 2 {
-            let x = f.p(xmax, 0.0).0 + DIM_RIGHT;
+            let x = (f.p(xmax, 0.0).0 + DIM_RIGHT).max(right + DIM_CLEAR);
             let rightmost = |y: f64| all.iter().filter(|p| (p.1 - y).abs() <= tol).map(|p| f.p(p.0, p.1).0).fold(f64::MIN, f64::max);
             for &yy in &ys {
                 let py = f.p(0.0, yy).1;
-                self.pen.line((rightmost(yy) + 1.5, py), (x + 1.2, py), GREY, 0.15);
+                let from = (rightmost(yy) + 1.5).max(right_at(py) + EXT_GAP);
+                self.pen.line((from.min(x - 0.5), py), (x + 1.2, py), GREY, 0.15);
                 self.pen.line((x - 0.9, py + 0.9), (x + 0.9, py - 0.9), DIM, 0.3);
             }
             if let (Some(&a), Some(&b)) = (ys.first(), ys.last()) {
@@ -437,17 +465,14 @@ impl Ctx<'_> {
 
     /// An angle drawn as the dimensions are: a thin extension line along `from` (the reference:
     /// the horizontal, a member), an arc of radius `r` round `p` from `from` to `to` in the
-    /// dimension lines' colour with an oblique tick at each end, and the angle beside it.
+    /// dimension lines' colour with an empty circle at each end, and the angle beside it.
     fn angle_dimension(&mut self, p: P, from: P, to: P, r: f64, text: String) {
         let (a0, a1) = (from.1.atan2(from.0), to.1.atan2(to.0));
         let a1 = if (a1 - a0).abs() > std::f64::consts::PI { a1 + std::f64::consts::TAU * (a0 - a1).signum() } else { a1 };
         self.pen.line(add(p, mul(from, 1.0)), add(p, mul(from, r + 1.2)), GREY, 0.15);
         self.pen.arc(p, r, a0, a1, DIM, 0.2);
         for a in [a0, a1] {
-            let (radial, tangent) = ((a.cos(), a.sin()), (-a.sin(), a.cos()));
-            let mid = add(p, mul(radial, r));
-            let tick = mul(add(radial, tangent), 0.64);
-            self.pen.line(add(mid, mul(tick, -1.0)), add(mid, tick), DIM, 0.3);
+            self.pen.dot(add(p, mul((a.cos(), a.sin()), r)), 0.45, [255, 255, 255], Some((DIM, 0.2)));
         }
         let mid = (a0 + a1) / 2.0;
         let at = add(p, mul((mid.cos(), mid.sin()), r + 3.2));

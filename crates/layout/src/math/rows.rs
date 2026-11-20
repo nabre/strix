@@ -106,7 +106,8 @@ impl Ctx {
             finalize(&mut row, &path, em);
             placed.push((row, rx.max(0.0)));
         }
-        let (mut out, bases) = self.stack_rows(placed, st, em * EQ_ROW_GAP, em * EQ_ROW_SKIP);
+        let (gap, skip) = self.eq_row_spacing(em);
+        let (mut out, bases) = self.stack_rows(placed, st, gap, skip);
         out.w = out.w.max(total);
         (out, bases)
     }

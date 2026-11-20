@@ -17,11 +17,13 @@ use wordcraft_doc::{Block, InlineObject, Paragraph, Pos, StoryRef, para_block};
 use crate::{CmdError, CmdResult, Session, p};
 
 pub(super) fn run(s: &mut Session, v: &Value) -> CmdResult {
-    let mut st = match super::structure_param(v)? {
+    let given = super::structure_param(v)?;
+    let convert = given.is_none();
+    let mut st = match given {
         Some(st) => st,
         None => super::template(p::str(v, "template").unwrap_or("beam"))?,
     };
-    super::apply_settings(&mut st, v)?;
+    super::apply_settings(&mut st, v, convert)?;
     st.group = super::free_group(s);
     st.view = View::All;
     super::working::keep_labels(&mut st, v);
@@ -185,7 +187,10 @@ mod tests {
         assert_eq!(r["group"], "structure-1", "{r}");
         let found = structures(&s);
         let views: Vec<View> = found.iter().map(|f| f.2.view).collect();
-        assert_eq!(views, [View::Structure, View::Reactions, View::Axial, View::Shear, View::Moment]);
+        assert_eq!(
+            views,
+            [View::Structure, View::Equilibrium, View::Reactions, View::Axial, View::Section, View::Shear, View::Section, View::Moment]
+        );
         assert!(found.iter().all(|f| f.2.group == "structure-1"));
         let t = text(&s);
         assert!(t.contains("Trave") && t.contains("Calcola le reazioni.") && t.contains("Dove T = 0?"), "{t}");
@@ -218,12 +223,15 @@ mod tests {
         s.sel = Selection { anchor: at.clone(), focus: Pos { off: off + OBJ.len_utf8(), ..at } };
         s.run("structure.node", &json!({"id": "B", "x": 8})).unwrap();
         let found = structures(&s);
-        assert_eq!(found.len(), 5);
+        assert_eq!(found.len(), 8);
         for (_, _, st) in &found {
             assert_eq!(st.node("B").map(|n| n.x.value), Some(8.0), "{:?}", st.view);
         }
         let views: Vec<View> = found.iter().map(|f| f.2.view).collect();
-        assert_eq!(views, [View::Structure, View::Reactions, View::Axial, View::Shear, View::Moment]);
+        assert_eq!(
+            views,
+            [View::Structure, View::Equilibrium, View::Reactions, View::Axial, View::Section, View::Shear, View::Section, View::Moment]
+        );
     }
 
     /// The equations of the body in reading order: (linear text, result of question).
@@ -294,12 +302,57 @@ mod tests {
         assert!(equations(&s).iter().any(|e| e.0.starts_with("M_") && e.1 == 5));
     }
 
+    /// The moment's part draws each stretch cut too, between its heading and its law of M.
+    #[test]
+    fn the_moments_part_draws_each_stretch_cut() {
+        let st = json!({"nodes": [{"id": "A", "x": 0, "y": 0}, {"id": "B", "x": 4, "y": 0}],
+            "members": [{"id": "1", "a": "A", "b": "B"}],
+            "supports": [{"node": "A", "kind": "pin"}, {"node": "B", "kind": "roller"}],
+            "loads": [{"type": "force", "member": "1", "at": 2, "value": 10, "angle": -90}]});
+        let mut s = Session::new(Document::new());
+        s.run("structure.exercise", &json!({"structure": st})).unwrap();
+        let found = structures(&s);
+        let views: Vec<View> = found.iter().map(|f| f.2.view).collect();
+        assert_eq!(
+            views,
+            [
+                View::Structure,
+                View::Equilibrium,
+                View::Reactions,
+                View::Axial,
+                View::Section,
+                View::Section,
+                View::Shear,
+                View::Section,
+                View::Section,
+                View::Moment
+            ]
+        );
+        let law_after = |i: usize| -> String {
+            s.doc.body[i + 1..]
+                .iter()
+                .filter_map(|b| if let Block::Para(p) = &**b { Some(p) } else { None })
+                .flat_map(|p| p.objects.iter())
+                .find_map(|o| match o {
+                    InlineObject::Equation { linear, .. } => Some(linear.to_string()),
+                    _ => None,
+                })
+                .unwrap()
+        };
+        for (f, tag) in found[7..9].iter().zip(["1a", "1b"]) {
+            assert_eq!(f.2.cut.as_ref().map(|c| c.tag.as_str()), Some(tag));
+            let Block::Para(next) = &*s.doc.body[f.0 + 1] else { panic!() };
+            assert!(next.text.contains("Cut at x from A"), "{}", next.text);
+            assert!(law_after(f.0).starts_with(&format!("M_{tag}(x)=")), "{}", law_after(f.0));
+        }
+    }
+
     #[test]
     fn a_truss_exercise_asks_for_the_reactions_and_the_axial_forces() {
         let mut s = Session::new(Document::new());
         s.run("structure.exercise", &json!({"template": "truss"})).unwrap();
         let views: Vec<View> = structures(&s).iter().map(|f| f.2.view).collect();
-        assert_eq!(views, [View::Structure, View::Reactions, View::Axial]);
+        assert_eq!(views, [View::Structure, View::Equilibrium, View::Reactions, View::Axial]);
         assert!(text(&s).contains("axial force in every member"), "{}", text(&s));
     }
 }

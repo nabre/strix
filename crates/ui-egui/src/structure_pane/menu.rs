@@ -26,11 +26,13 @@ struct Target {
 #[derive(Clone, Debug, PartialEq)]
 enum Act {
     Select,
+    Rotate,
     Draw((f64, f64)),
     AddNode((f64, f64)),
     Support(String, Option<SupportKind>),
     Hinge(String, bool),
     MemberHinge(String, bool, bool),
+    SwapEnds(String),
     Force(Place),
     Couple(Place),
     Distributed(String),
@@ -43,6 +45,7 @@ enum Act {
     Uniform(usize),
     Triangular(usize),
     Perpendicular(usize),
+    Parallel(usize),
     SelectEnds(String),
     SelectLoads,
     Connected(Sel),
@@ -137,6 +140,9 @@ fn items(ui: &mut Ui, st: &Structure, state: &State, t: &Target) -> Option<Act> 
                     item(ui, label, "", current == k, Act::Support(id.clone(), k));
                 }
             });
+            if current.is_some() {
+                item(ui, "Rotate", "R", state.tool == Tool::Rotate, Act::Rotate);
+            }
             let hinge = st.node(&id).is_some_and(|n| n.hinge);
             item(ui, "Internal hinge", "", hinge, Act::Hinge(id.clone(), !hinge));
             join(ui, &id);
@@ -167,6 +173,7 @@ fn items(ui: &mut Ui, st: &Structure, state: &State, t: &Target) -> Option<Act> 
                 item(ui, "Split in half", "", false, Act::Split(id.clone(), mid));
             }
             if let Some(m) = st.member(&id) {
+                item(ui, "Swap ends", "", false, Act::SwapEnds(id.clone()));
                 let a = fmt(ts("Hinge at end {n}"), &[("n", &m.a)]);
                 let b = fmt(ts("Hinge at end {n}"), &[("n", &m.b)]);
                 if ui.add(egui::Button::new(a).selected(m.hinge_a)).clicked() {
@@ -183,31 +190,46 @@ fn items(ui: &mut Ui, st: &Structure, state: &State, t: &Target) -> Option<Act> 
             item(ui, "Delete", "Del", false, Act::Delete);
         }
         (_, Some(Sel::Load(k))) => {
+            let names = strix_structure::load_names(st);
+            let sym = names.get(k).copied().flatten().map(|n| format!("{} · ", n.pretty())).unwrap_or_default();
             match st.loads.get(k) {
                 Some(Load::Force { member, .. }) => {
-                    title(ui, ts("Force").to_string());
+                    title(ui, format!("{sym}{}", ts("Force")));
+                    item(ui, "Rotate", "R", state.tool == Tool::Rotate, Act::Rotate);
                     item(ui, "Reverse", "", false, Act::Reverse(k));
                     ui.menu_button(ts("Direction"), |ui| {
                         item(ui, "Vertical", "", false, Act::Angle(k, -90.0));
+                        item(ui, "Up (+90°)", "", false, Act::Angle(k, 90.0));
                         item(ui, "Horizontal", "", false, Act::Angle(k, 0.0));
+                        item(ui, "Left (180°)", "", false, Act::Angle(k, 180.0));
                         item(ui, "At 45°", "", false, Act::Angle(k, -45.0));
+                        item(ui, "At +45°", "", false, Act::Angle(k, 45.0));
                         if member.is_some() {
+                            ui.separator();
                             item(ui, "Perpendicular to the member", "", false, Act::Perpendicular(k));
+                            item(ui, "Parallel to the member", "", false, Act::Parallel(k));
                         }
                     });
                 }
                 Some(Load::Moment { .. }) => {
-                    title(ui, ts("Couple").to_string());
+                    title(ui, format!("{sym}{}", ts("Couple")));
                     item(ui, "Reverse", "", false, Act::Reverse(k));
                 }
                 Some(Load::Distributed { q2, from, to, angle, axes, .. }) => {
-                    title(ui, ts("Distributed load").to_string());
+                    title(ui, format!("{sym}{}", ts("Distributed load")));
+                    item(ui, "Rotate", "R", state.tool == Tool::Rotate, Act::Rotate);
                     item(ui, "Reverse", "", false, Act::Reverse(k));
                     item(ui, "Uniform", "", q2.is_none(), Act::Uniform(k));
                     item(ui, "Triangular", "", q2.is_some(), Act::Triangular(k));
                     item(ui, "On the whole member", "", from.value == 0.0 && to.is_none(), Act::Whole(k));
                     let perp = *axes == LoadAxes::Local && angle.value == -90.0;
                     item(ui, "Perpendicular to the member", "", perp, Act::Perpendicular(k));
+                    ui.menu_button(ts("Direction"), |ui| {
+                        item(ui, "Vertical", "", false, Act::Angle(k, -90.0));
+                        item(ui, "Horizontal", "", false, Act::Angle(k, 0.0));
+                        item(ui, "At 45°", "", false, Act::Angle(k, -45.0));
+                        item(ui, "Perpendicular to the member", "", perp, Act::Perpendicular(k));
+                    });
                 }
                 None => {}
             }
@@ -292,6 +314,10 @@ fn apply(app: &mut WordApp, src: &Structure, st: &Structure, state: &mut State, 
             state.tool = Tool::Select;
             state.start = None;
         }
+        Act::Rotate => {
+            state.tool = if state.tool == Tool::Rotate { Tool::Select } else { Tool::Rotate };
+            state.start = None;
+        }
         Act::Draw(p) => {
             state.tool = Tool::Member;
             state.start = Some(p);
@@ -315,6 +341,11 @@ fn apply(app: &mut WordApp, src: &Structure, st: &Structure, state: &mut State, 
             let key = if b { "hingeB" } else { "hingeA" };
             let _ = app.run("structure.member", json!({"id": id, key: on}));
         }
+        Act::SwapEnds(id) => {
+            if let Some(out) = edits::reverse_member(src, st, &id) {
+                let _ = set(app, &out);
+            }
+        }
         Act::Force(place) => new_load(app, state, point("force", &place)),
         Act::Couple(place) => new_load(app, state, point("moment", &place)),
         Act::Distributed(id) => new_load(app, state, json!({"type": "distributed", "member": id, "q1": 10.0})),
@@ -337,8 +368,13 @@ fn apply(app: &mut WordApp, src: &Structure, st: &Structure, state: &mut State, 
         Act::Reverse(k) => run_load(app, k, edits::reversed(src, k)),
         Act::Angle(k, deg) => {
             let mut l = src.loads.get(k).cloned();
-            if let Some(Load::Force { angle, .. }) = &mut l {
-                *angle = Num::new(deg);
+            match &mut l {
+                Some(Load::Force { angle, .. }) => *angle = Num::new(deg),
+                Some(Load::Distributed { angle, axes, .. }) => {
+                    *angle = Num::new(deg);
+                    *axes = LoadAxes::Global;
+                }
+                _ => {}
             }
             run_load(app, k, l);
         }
@@ -361,6 +397,14 @@ fn apply(app: &mut WordApp, src: &Structure, st: &Structure, state: &mut State, 
                 _ => return,
             }
             run_load(app, k, l);
+        }
+        Act::Parallel(k) => {
+            let mut l = src.loads.get(k).cloned();
+            if let Some(Load::Force { member: Some(m), angle, .. }) = &mut l {
+                let Some(th) = member_angle(st, m) else { return };
+                *angle = Num::new(round(th));
+                run_load(app, k, l);
+            }
         }
         Act::Whole(k) => {
             let mut l = src.loads.get(k).cloned();

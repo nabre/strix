@@ -10,7 +10,10 @@ use strix_structure::{Action, MemberResult, NotableKind, Stretch, Structure, not
 use wordcraft_doc::InlineObject;
 use wordcraft_doc::para::Paragraph;
 
-use super::{Labels, Line, Units, arg, lines, num, paragraphs, shear_name, signed, stretch_header, stretch_tag, sub, units, unknowns};
+use super::{
+    Figure, Figures, Labels, Line, Units, lines, num, paragraphs, paragraphs_with, shear_name, signed, stretch_header, stretch_tag, sub, units,
+    unknowns,
+};
 use crate::{CmdError, Session};
 
 /// The solution's parts, one per question (a truss has only the reactions and the axial forces:
@@ -43,6 +46,9 @@ pub(in crate::cmd::structure) fn parts(
     if !r.analysis.status.is_solved() {
         return Err(CmdError::Failed(format!("the structure can't be solved: {}", r.analysis.status.describe())));
     }
+    // The drawings from the structure as written (its parameters, not their values).
+    let written = st.clone();
+    let figures = Figures { s, st: &written };
     let (st, an) = (&r.resolved, &r.analysis);
     let comma = crate::cmd::calc::options_now(s).decimal_comma;
     let labels = Labels::from(v);
@@ -53,7 +59,7 @@ pub(in crate::cmd::structure) fn parts(
     let (first, rest) = all.split_at(split);
     // Without the working's heading.
     let first = first.get(1..).unwrap_or(&[]);
-    let mut reactions = paragraphs(first, props)?;
+    let mut reactions = paragraphs_with(first, props, Some(&figures))?;
     // The reactions are the first question's result: the equations solving them, and those
     // giving a redundant its value.
     let names: Vec<String> = unknowns(st, an).into_iter().map(|k| format!("{} = ", k.name)).collect();
@@ -76,11 +82,11 @@ pub(in crate::cmd::structure) fn parts(
     let u = units(st, comma);
     let w = Writer { st, u: &u, labels: &labels, shear: shear_name(st), us: unknowns(st, an) };
     let members: Vec<(&MemberResult, Vec<Stretch>)> = an.members.iter().map(|m| (m, stretches(m))).collect();
-    let mut axial_lines = vec![Line::words(forces)];
+    let mut axial_lines = vec![Line::heading(forces)];
     let mut shear_lines = Vec::new();
     let mut moment_lines = Vec::new();
     for (m, parts) in &members {
-        w.laws(m, parts, Action::Axial, &mut axial_lines);
+        w.laws(m, &w.axial_parts(m, parts), Action::Axial, &mut axial_lines);
         w.laws(m, parts, Action::Shear, &mut shear_lines);
         w.laws(m, parts, Action::Moment, &mut moment_lines);
     }
@@ -98,10 +104,10 @@ pub(in crate::cmd::structure) fn parts(
         truss: false,
         reactions,
         axial: paragraphs(&cap(axial_lines), props)?,
-        shear: paragraphs(&cap(shear_lines), props)?,
+        shear: paragraphs_with(&cap(shear_lines), props, Some(&figures))?,
         zeros: marked(&zero_lines, &zero_marked, Q_ZEROS)?,
         maxima: marked(&max_lines, &max_marked, Q_MAXIMA)?,
-        moments: paragraphs(&cap(moment_lines), props)?,
+        moments: paragraphs_with(&cap(moment_lines), props, Some(&figures))?,
     })
 }
 
@@ -220,7 +226,32 @@ impl Writer<'_> {
 
     /// `T_1a(3 m) = kN`: the law's value at `x`, worked out by calc.
     fn at(&self, tag: &str, action: Action, x: f64) -> String {
-        format!("{}_{tag}({}) = {}", self.letter(action), arg(x, &self.u.l, self.u.comma), self.unit(action))
+        format!("{}_{tag}({}) = {}", self.letter(action), super::at(x, &self.u.l, self.u.comma), self.unit(action))
+    }
+
+    /// Member `m`'s stretches for N: neighbours with the same law of N joined, so N's
+    /// intervals end only where an axial load (or a load's axial part) acts, not at every
+    /// load across the member.
+    fn axial_parts(&self, m: &MemberResult, parts: &[Stretch]) -> Vec<Stretch> {
+        let named = |s: &Stretch| super::named::laws(self.st, &self.us, m, s, self.u)[0].clone();
+        let mut out: Vec<(Stretch, Option<String>)> = Vec::new();
+        for s in parts {
+            let name = named(s);
+            if let Some((last, last_name)) = out.last_mut() {
+                let scale = last.n.iter().chain(s.n.iter()).fold(1e-12_f64, |a, c| a.max(c.abs()));
+                let xm = s.x1.abs().max(1.0);
+                let same = (0..4).all(|k| {
+                    let (a, b) = (last.n.get(k).copied().unwrap_or(0.0), s.n.get(k).copied().unwrap_or(0.0));
+                    ((a - b) * xm.powi(k as i32)).abs() <= 1e-9 * scale * xm.powi(3)
+                });
+                if same && *last_name == name && (last.x1 - s.x0).abs() <= 1e-9 * (1.0 + m.length) {
+                    last.x1 = s.x1;
+                    continue;
+                }
+            }
+            out.push((*s, name));
+        }
+        out.into_iter().map(|(s, _)| s).collect()
     }
 
     /// Member `m`'s laws of `action`, stretch by stretch, with their values at the stretch's ends
@@ -232,7 +263,13 @@ impl Writer<'_> {
                 return;
             }
             let (tag, _) = self.names(m, k, parts.len());
-            out.push(stretch_header(src, s, self.u, self.labels));
+            out.push(stretch_header(src, s, &tag, self.u, self.labels));
+            if matches!(action, Action::Shear | Action::Moment) {
+                // Where the stretch lies and the part whose equilibrium gives its laws, with T's
+                // and with M's (N's stretches may join several of these: drawn with T's).
+                out.push(Line::figure(Figure::Stretch(strix_structure::Cut { member: m.id.clone(), from: s.x0, to: s.x1, tag: tag.clone() })));
+                out.push(Line::heading(self.labels.cut.replace("{a}", &src.a).replace("{T}", &self.shear)));
+            }
             out.push(Line::eqs(vec![self.law(m, &tag, s, action)], true));
             let c = match action {
                 Action::Axial => &s.n,
@@ -240,7 +277,9 @@ impl Writer<'_> {
                 Action::Moment => &s.m,
             };
             if action != Action::Axial || c[1..].iter().any(|c| *c != 0.0) {
-                out.push(Line::eqs(vec![self.at(&tag, action, s.x0), self.at(&tag, action, s.x1)], false));
+                // One value a line.
+                out.push(Line::eqs(vec![self.at(&tag, action, s.x0)], false));
+                out.push(Line::eqs(vec![self.at(&tag, action, s.x1)], false));
             }
         }
     }
@@ -255,18 +294,18 @@ impl Writer<'_> {
                     let Some((mr, parts)) = members.get(m) else { continue };
                     let (Some(src), Some(s)) = (self.st.member(&mr.id), parts.get(k)) else { continue };
                     let (tag, x) = self.names(mr, k, parts.len());
-                    out.push((stretch_header(src, s, self.u, self.labels), false));
+                    out.push((stretch_header(src, s, &tag, self.u, self.labels), false));
                     let found: Vec<f64> = xs.iter().flatten().copied().collect();
                     // One zero: T's law solved for it within the stretch (a law of degree two has
                     // another root outside it).
                     if found.len() == 1 {
-                        let (a, b) = (arg(s.x0, &self.u.l, self.u.comma), arg(s.x1, &self.u.l, self.u.comma));
+                        let (a, b) = (super::at(s.x0, &self.u.l, self.u.comma), super::at(s.x1, &self.u.l, self.u.comma));
                         let eq = format!("0 {} = {}_{tag}({x}); {a} ≤ {x} ≤ {b}", self.u.f, self.shear);
                         out.push((Line { stepped: true, ..Line::eqs(vec![eq], true) }, true));
                     } else {
                         for (j, at) in found.iter().enumerate() {
                             let name = if found.len() > 1 { format!("x_({tag},{})", j + 1) } else { x.clone() };
-                            let def = format!("{name} = {}", signed(*at, &self.u.l, self.u.comma));
+                            let def = format!("{name} = {}", super::bare(&signed(*at, &self.u.l, self.u.comma)));
                             let check = format!("{}_{tag}({name}) = {}", self.shear, self.u.f);
                             out.push((Line::eqs(vec![def, check], false), true));
                         }
@@ -280,7 +319,8 @@ impl Writer<'_> {
                     let jump = self.labels.jump.replace("{T}", &self.shear);
                     let place = format!("x = {} {}", num(x, self.u.comma), self.u.l);
                     out.push((Line::words(format!("{} {} ({}–{}), {place}: {jump}:", self.labels.member, src.id, src.a, src.b)), false));
-                    out.push((Line::eqs(vec![self.at(&before, Action::Shear, x), self.at(&after, Action::Shear, x)], false), true));
+                    out.push((Line::eqs(vec![self.at(&before, Action::Shear, x)], false), true));
+                    out.push((Line::eqs(vec![self.at(&after, Action::Shear, x)], false), true));
                 }
             }
         }
@@ -302,7 +342,7 @@ impl Writer<'_> {
             let (tag, _) = self.names(mr, k, parts.len());
             if !defined.contains(&(m, k)) {
                 defined.push((m, k));
-                out.push((stretch_header(src, s, self.u, self.labels), false));
+                out.push((stretch_header(src, s, &tag, self.u, self.labels), false));
                 out.push((Line::eqs(vec![self.law(mr, &tag, s, Action::Moment)], true), false));
             }
             Some(tag)

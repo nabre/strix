@@ -1,6 +1,6 @@
 //! `structure.*` commands: insertion, results, edits, calculations, student copies, saving.
 
-use serde_json::json;
+use serde_json::{Value, json};
 use wordcraft_doc::graphic::GraphicKind;
 use wordcraft_doc::{Block, Document, InlineObject};
 
@@ -82,6 +82,51 @@ fn settings_and_conventions() {
     let r = s.run("structure.set", &json!({"convention": "italian"})).unwrap();
     assert_eq!(r["structure"]["diagrams"]["m"]["positive"], "down");
     assert!(s.run("structure.set", &json!({"lengthUnit": "ft"})).is_err());
+}
+
+/// The diagrams' panels take the names given to them, merged key by key; the working keeps the
+/// symbols; an empty name gives the symbol back.
+#[test]
+fn the_diagrams_take_custom_names() {
+    let mut s = Session::new(Document::new());
+    s.run("structure.insert", &json!({"template": "beam"})).unwrap();
+    let r = s.run("structure.set", &json!({"names": {"n": "Sforzo normale", "v": "Sforzo di taglio"}})).unwrap();
+    assert_eq!(r["structure"]["names"]["n"], "Sforzo normale");
+    let r = s.run("structure.set", &json!({"names": {"m": "Momento flettente", "n": ""}})).unwrap();
+    assert_eq!(r["structure"]["names"]["v"], "Sforzo di taglio");
+    assert_eq!(r["structure"]["names"]["m"], "Momento flettente");
+    assert_eq!(r["structure"]["names"]["n"], "");
+    // The symbols stay the default ones (not saved).
+    assert!(r["structure"]["titles"].is_null());
+    assert!(super::selected_structure_texts(&s).iter().any(|t| t == "Momento flettente"));
+    assert!(s.run("structure.set", &json!({"names": {"v": 3}})).is_err());
+    s.run("structure.working", &json!({})).unwrap();
+    let text: String = s.doc.body.iter().filter_map(|b| if let Block::Para(p) = &**b { Some(p.text.clone()) } else { None }).collect();
+    assert!(!text.contains("Sforzo"), "{text}");
+}
+
+#[test]
+fn a_change_of_unit_converts_the_numbers() {
+    let mut s = Session::new(Document::new());
+    s.run("structure.insert", &json!({"template": "beam"})).unwrap();
+    let before = s.run("structure.get", &json!({})).unwrap();
+    let x = |r: &Value| r["structure"]["nodes"][1]["x"].as_f64().unwrap();
+    let r = s.run("structure.set", &json!({"lengthUnit": "cm"})).unwrap();
+    assert_eq!(r["structure"]["lengthUnit"], "cm");
+    assert_eq!(x(&r), x(&before) * 100.0, "{r}");
+    // The reactions don't change (same forces), the members' lengths are in cm.
+    let (ra, rb) = (r["reactions"].as_array().unwrap(), before["reactions"].as_array().unwrap());
+    assert_eq!(ra.len(), rb.len());
+    for (a, b) in ra.iter().zip(rb) {
+        for k in ["fx", "fy"] {
+            assert!((a[k].as_f64().unwrap() - b[k].as_f64().unwrap()).abs() < 1e-9, "{a} vs {b}");
+        }
+    }
+    let len = |r: &Value| r["members"][0]["length"].as_f64().unwrap();
+    assert!((len(&r) - len(&before) * 100.0).abs() < 1e-9);
+    // "convert": false only relabels.
+    let r = s.run("structure.set", &json!({"lengthUnit": "m", "convert": false})).unwrap();
+    assert_eq!(x(&r), x(&before) * 100.0);
 }
 
 #[test]
@@ -169,6 +214,72 @@ fn the_working_solves_the_reactions_and_writes_the_laws() {
     assert!(has(&t, "=62.5 kN") || has(&t, "V_B=(125 kN)/2"), "{t}");
 }
 
+/// The senses chosen as positive: the reactions are taken positive so and the equations sum so,
+/// the laws unchanged.
+#[test]
+fn the_working_follows_the_positive_senses() {
+    let mut s = Session::new(Document::new());
+    s.run("structure.insert", &json!({"template": "beam"})).unwrap();
+    let r = s.run("structure.set", &json!({"positive": {"y": "down", "rotation": "cw"}})).unwrap();
+    assert_eq!(r["structure"]["positive"]["y"], "down");
+    assert_eq!(r["structure"]["positive"]["x"], "right");
+    s.run("structure.working", &json!({})).unwrap();
+    let t = text_of(&s);
+    assert!(!t.contains('⚠'), "{t}");
+    // Clockwise: the load turns positive about A, V_B taken downwards comes out negative.
+    assert!(has(&t, "0 kN·m&=V_B·6 m+F_1·d_(1,A)") && has(&t, "V_B&=-30 kN"), "{t}");
+    assert!(has(&t, "V_A&=-30 kN"), "{t}");
+    assert!(has(&t, "M_1(3 m)=45 kN·m"), "{t}");
+    assert!(has(&t, "taken positive the way their arrows point"), "{t}");
+    // A frame with x to the left: its horizontal reaction changes sign.
+    let mut s = Session::new(Document::new());
+    s.run("structure.insert", &json!({"template": "frame"})).unwrap();
+    s.run("structure.set", &json!({"positive": {"x": "left"}})).unwrap();
+    s.run("structure.working", &json!({})).unwrap();
+    let t = text_of(&s);
+    assert!(!t.contains('⚠'), "{t}");
+    assert!(has(&t, "H_A&=10 kN") && has(&t, "V_D&=36.667 kN"), "{t}");
+    assert!(has(&t, "M_2(6 m)=0 kN·m"), "{t}");
+    // A cantilever's fixed end, clockwise: its couple too.
+    let mut s = Session::new(Document::new());
+    s.run("structure.insert", &json!({"template": "cantilever"})).unwrap();
+    s.run("structure.working", &json!({})).unwrap();
+    let ccw = text_of(&s);
+    s.run("structure.set", &json!({"positive": {"rotation": "cw"}})).unwrap();
+    let cw = text_of(&s);
+    assert!(!cw.contains('⚠'), "{cw}");
+    assert!(has(&ccw, "M_A&=30 kN·m") && has(&cw, "M_A&=-30 kN·m"), "{ccw}\n{cw}");
+    assert!(s.run("structure.set", &json!({"positive": {"rotation": "anticlockwise"}})).is_err());
+    // Hyperstatic, by the force method: other senses change the reactions' signs (and so the
+    // signs they are written with in the laws), not the internal forces' values.
+    let values = |t: &str| -> Vec<String> {
+        t.lines()
+            .map(|l| l.chars().filter(|c| !c.is_whitespace()).collect::<String>())
+            .filter(|l| l.starts_with("M_") && l.contains(")=") && !l.contains("(x)="))
+            .collect()
+    };
+    let mut s = Session::new(Document::new());
+    s.run("structure.insert", &json!({"template": "continuous"})).unwrap();
+    s.run("structure.working", &json!({})).unwrap();
+    let plain = text_of(&s);
+    s.run("structure.set", &json!({"positive": {"y": "down", "rotation": "cw"}})).unwrap();
+    let turned = text_of(&s);
+    assert!(!turned.contains('⚠'), "{turned}");
+    assert!(!values(&plain).is_empty(), "{plain}");
+    assert_eq!(values(&plain), values(&turned), "{plain}\n{turned}");
+}
+
+#[test]
+fn the_working_finds_the_second_vertical_reaction_by_the_vertical_forces() {
+    // A simple beam: V_B from the rotation about A, then V_A from ΣF_y, no second moment equation.
+    let t = template_working("beam");
+    assert!(!t.contains('⚠'), "{t}");
+    assert!(has(&t, "ΣM_A = 0:") && has(&t, "ΣF_y = 0:"), "{t}");
+    assert!(!t.contains("ΣM_B"), "{t}");
+    assert!(t.find("ΣM_A") < t.find("ΣF_y"), "V_B first, then V_A from it: {t}");
+    assert!(has(&t, "V_A&=30 kN"), "{t}");
+}
+
 #[test]
 fn the_working_uses_the_hinge_of_a_gerber_beam() {
     let t = working_of(json!({
@@ -217,8 +328,8 @@ fn moment_arms_are_written_from_the_dimensions() {
     assert!(has(&t, "d_(3,A)=6 m - (1.5 m)/3=5.5 m"), "{t}");
     let first = t.lines().find(|l| l.contains("0 kN·m") && l.contains("V_B")).unwrap_or_default();
     assert!(has(first, "F_1·d_(1,A)") && has(first, "F_2·d_(2,A)") && has(first, "F_3·d_(3,A)"), "{first}");
-    // About B, the whole length less half the load's: fewer terms than the chain up to it.
-    assert!(has(&t, "d_(1,B)=6 m - (3 m)/2=4.5 m"), "{t}");
+    // V_A from the vertical forces, not from the rotation about B: no arm about B.
+    assert!(has(&t, "ΣF_y = 0:") && !t.contains("d_(1,B)"), "{t}");
     // q·3·1.5 + q·1·4 + 3·1.5/2·(4.5+1) = 45 + 40 + 24.75 = 109.75 → V_B = 18.2917.
     assert!(has(&t, "V_B&=18.292 kN"), "{t}");
 }
@@ -264,7 +375,8 @@ fn the_working_names_the_loads() {
     assert!(!t.contains('⚠'), "{t}");
     // Defined with their sizes; the zero force is not numbered.
     assert!(has(&t, "Loads:"), "{t}");
-    let defs = ["q_1=(10 kN/m)", "q_(2,1)=(2 kN/m)", "q_(2,2)=(5 kN/m)", "q_(3,2)=(4 kN/m)", "F_4=(12 kN)", "C_5=(6 kN·m)"];
+    // Without parentheses round a plain value (`q_1 = 10 kN/m`, not `q_1 = (10 kN/m)`).
+    let defs = ["q_1=10 kN/m", "q_(2,1)=2 kN/m", "q_(2,2)=5 kN/m", "q_(3,2)=4 kN/m", "F_4=12 kN", "C_5=6 kN·m"];
     let flat: String = t.chars().filter(|c| !c.is_whitespace()).collect();
     let mut from = 0;
     for d in defs {
@@ -355,7 +467,7 @@ fn an_exercise_working_follows_any_of_its_drawings() {
     s.run("structure.exercise", &json!({"labels": {"loads": "Carichi"}})).unwrap();
     assert!(has(&text_of(&s), "F_1=q_1·6 m"));
     // The diagram of M in the solution, changed: the statement and every part follow.
-    select_structure(&mut s, 4);
+    select_structure(&mut s, 7);
     s.run("structure.load", &shortened(4.0)).unwrap();
     let t = text_of(&s);
     assert!(has(&t, "F_1=q_1·4 m") && !has(&t, "F_1=q_1·6 m"), "{t}");
@@ -458,4 +570,327 @@ fn the_moments_use_named_resultants_parts_and_arms() {
     assert!(has(&t, "V_B&=11.726 kN"), "{t}");
     // Each arm once, before the first equation that uses it.
     assert_eq!(t.matches("d_(1,A)=").count(), 1, "{t}");
+}
+
+/// A force askew to the member enters N, T and M with the trigonometric function of its angle
+/// with the member (`F_1·cos(30°)`), not the function's value (`F_1·0.866025`).
+#[test]
+fn the_laws_write_an_askew_force_with_cos_and_sin() {
+    let t = working_of(json!({
+        "nodes": [{"id": "A", "x": 0, "y": 0}, {"id": "B", "x": 6, "y": 0}],
+        "members": [{"id": "1", "a": "A", "b": "B"}],
+        "supports": [{"node": "A", "kind": "pin"}, {"node": "B", "kind": "roller"}],
+        "loads": [{"type": "force", "member": "1", "at": 2, "value": 10, "angle": -150}]
+    }))
+    .unwrap();
+    assert!(!t.contains('⚠'), "{t}");
+    assert!(has(&t, "F_1·cos⁡(30 °)") && has(&t, "F_1·sin⁡(30 °)"), "{t}");
+    assert!(has(&t, "F_1·sin⁡(30 °)·(x - 2 m)"), "{t}");
+    assert!(!has(&t, "0.866") && !has(&t, "F_1·0.5"), "{t}");
+}
+
+/// A law is worked out at a point written as a number (`T_1b(3.2 m)`), not as a fraction
+/// (`T_1b((16 m)/5)`), in the working and in the results it gathers.
+#[test]
+fn the_laws_are_worked_out_at_decimal_points() {
+    let t = working_of(json!({
+        "nodes": [{"id": "A", "x": 0, "y": 0}, {"id": "B", "x": 6, "y": 0}],
+        "members": [{"id": "1", "a": "A", "b": "B"}],
+        "supports": [{"node": "A", "kind": "pin"}, {"node": "B", "kind": "roller"}],
+        "loads": [{"type": "force", "member": "1", "at": 3.2, "value": 10, "angle": -90}]
+    }))
+    .unwrap();
+    assert!(!t.contains('⚠'), "{t}");
+    assert!(has(&t, "T_1b(3.2 m) =") && has(&t, "M_1b(3.2 m) ="), "{t}");
+    assert!(has(&t, "F_1·(x - 3.2 m)"), "{t}");
+    assert!(!has(&t, "16 m)/5"), "{t}");
+}
+
+/// The views of the structures drawn in the body, in reading order.
+fn views(s: &Session) -> Vec<strix_structure::View> {
+    s.doc
+        .body
+        .iter()
+        .filter_map(|b| match &**b {
+            Block::Para(p) => Some(p.objects.iter().filter_map(|o| match o {
+                InlineObject::Graphic { graphic, .. } if graphic.kind == GraphicKind::Structure => {
+                    strix_structure::Structure::from_json(graphic.structure.as_deref()?).ok().map(|st| (st.view, st.group))
+                }
+                _ => None,
+            })),
+            _ => None,
+        })
+        .flatten()
+        .map(|(v, g)| {
+            assert_eq!(g, "structure-1");
+            v
+        })
+        .collect()
+}
+
+/// The reactions' working draws the free body its equations balance first, under the working's
+/// heading and before the loads and the first equation, in the structure's group; written again,
+/// it stays one.
+#[test]
+fn the_reactions_working_draws_the_free_body() {
+    use strix_structure::View;
+    let mut s = Session::new(Document::new());
+    s.run("structure.insert", &json!({"template": "beam"})).unwrap();
+    s.run("structure.working", &json!({})).unwrap();
+    assert_eq!(views(&s), [View::All, View::Equilibrium, View::Section]);
+    let t = text_of(&s);
+    let (reactions, first) = (t.find("Reactions:").unwrap(), t.find("ΣM").unwrap());
+    let figure = s
+        .doc
+        .body
+        .iter()
+        .position(|b| matches!(&**b, Block::Para(p) if p.objects.iter().any(|o| matches!(o, InlineObject::Graphic { graphic, .. } if graphic.structure.as_deref().is_some_and(|j| j.contains("equilibrium"))))))
+        .unwrap();
+    let heading = s.doc.body.iter().position(|b| matches!(&**b, Block::Para(p) if p.text.contains("Working"))).unwrap();
+    let loads = s.doc.body.iter().position(|b| matches!(&**b, Block::Para(p) if p.text.contains("Loads:"))).unwrap();
+    assert_eq!(figure, heading + 1);
+    assert!(figure < loads);
+    assert!(reactions < first);
+    s.run("structure.working", &json!({})).unwrap();
+    assert_eq!(views(&s), [View::All, View::Equilibrium, View::Section]);
+}
+
+/// Each value at a station is a line of its own, in the working and in an exercise's parts.
+#[test]
+fn each_value_at_a_station_has_its_own_line() {
+    let one_each = |t: &str| {
+        for l in t.lines() {
+            // Values at a number of metres: `M_1(3 m)`, `T_1a(0 m)`.
+            let n = l.match_indices("_1").filter(|(i, _)| {
+                let rest = l.get(i + 2..).unwrap_or("");
+                let rest = rest.trim_start_matches(|c: char| c.is_ascii_lowercase());
+                rest.strip_prefix('(').is_some_and(|r| r.starts_with(|c: char| c.is_ascii_digit()))
+            });
+            assert!(n.count() <= 1, "{l}\n{t}");
+        }
+    };
+    let t = template_working("beam");
+    assert!(has(&t, "M_1(3 m)=45 kN·m"), "{t}");
+    one_each(&t);
+    let mut s = Session::new(Document::new());
+    s.run("structure.exercise", &json!({})).unwrap();
+    let t = text_of(&s);
+    assert!(t.contains("M_1"), "{t}");
+    one_each(&t);
+}
+
+/// The working is laid out in blocks a page break never splits: a heading stays with the
+/// equations it heads and equations with the next ones, wherever the text above puts it.
+#[test]
+fn page_breaks_never_split_a_block_of_the_working() {
+    use wordcraft_doc::Pos;
+    for filler in [0usize, 10, 20, 25, 30, 35, 40] {
+        let mut s = Session::new(Document::new());
+        for _ in 0..filler {
+            s.run("text.insert", &json!({"text": "Filler line of text."})).unwrap();
+            s.run("text.newParagraph", &json!({})).unwrap();
+        }
+        s.run("structure.insert", &json!({"template": "frame"})).unwrap();
+        s.run("structure.working", &json!({})).unwrap();
+        let n = s.doc.body.len();
+        let kept: Vec<usize> =
+            (0..n).filter(|&i| matches!(s.doc.body.get(i).map(|b| &**b), Some(Block::Para(p)) if p.props.keep_next == Some(true))).collect();
+        assert!(kept.len() > 5, "the working's blocks are kept with their next paragraph ({filler})");
+        let l = s.layout();
+        let page = |i: usize| l.caret(&Pos::body(i, 0)).map(|c| c.page);
+        assert!(l.pages.len() > 1 || filler == 0, "the working runs over a page ({filler})");
+        for i in kept {
+            assert_eq!(page(i), page(i + 1), "paragraph {i} is kept with the next ({filler} lines above)");
+        }
+    }
+}
+
+/// In an exercise, N's intervals end only where an axial load acts: the stretches the other
+/// loads make are joined while N's law stays the same.
+#[test]
+fn the_axial_force_s_intervals_end_only_at_axial_loads() {
+    let mut s = Session::new(Document::new());
+    let st = json!({
+        "nodes": [{"id": "A", "x": 0, "y": 0}, {"id": "B", "x": 6, "y": 0}],
+        "members": [{"id": "1", "a": "A", "b": "B"}],
+        "supports": [{"node": "A", "kind": "pin"}, {"node": "B", "kind": "roller"}],
+        "loads": [
+            {"type": "force", "member": "1", "at": 2, "value": 10},
+            {"type": "force", "member": "1", "at": 4.5, "value": 10}
+        ]
+    });
+    s.run("structure.exercise", &json!({"structure": st})).unwrap();
+    let t = text_of(&s);
+    // T and M have three stretches, N one law from 0 m to 6 m.
+    assert!(has(&t, "T_1c(x)") && has(&t, "N_1(x)") && !has(&t, "N_1a(x)") && !has(&t, "N_1b(x)"), "{t}");
+    // An askew force: N changes there, and only there.
+    let mut s = Session::new(Document::new());
+    let st = json!({
+        "nodes": [{"id": "A", "x": 0, "y": 0}, {"id": "B", "x": 6, "y": 0}],
+        "members": [{"id": "1", "a": "A", "b": "B"}],
+        "supports": [{"node": "A", "kind": "pin"}, {"node": "B", "kind": "roller"}],
+        "loads": [
+            {"type": "force", "member": "1", "at": 2, "value": 10},
+            {"type": "force", "member": "1", "at": 4.5, "value": 10, "angle": -45}
+        ]
+    });
+    s.run("structure.exercise", &json!({"structure": st})).unwrap();
+    let t = text_of(&s);
+    assert!(has(&t, "T_1c(x)") && has(&t, "N_1a(x)") && has(&t, "N_1b(x)") && !has(&t, "N_1c(x)"), "{t}");
+}
+
+/// The working and the reactions the stiffness solution gives (`structure.get`).
+fn working_and_reactions(structure: serde_json::Value) -> (String, Vec<Value>) {
+    let mut s = Session::new(Document::new());
+    s.run("structure.insert", &json!({"structure": structure})).unwrap();
+    let r = s.run("structure.get", &json!({})).unwrap();
+    s.run("structure.working", &json!({})).unwrap();
+    (text_of(&s), r["reactions"].as_array().cloned().unwrap_or_default())
+}
+
+/// A value as calc shows it in the working: three decimals at most.
+fn shown(v: f64) -> String {
+    // Halves away from zero, as calc rounds (16.5625 is 16.563, not the float below it).
+    let t = format!("{:.3}", v + v.signum() * 1e-9);
+    let t = t.trim_end_matches('0').trim_end_matches('.');
+    if t == "-0" { "0".to_string() } else { t.to_string() }
+}
+
+/// A hyperstatic structure's redundants by the force method: the released structure's laws
+/// under the loads and under each redundant equal to 1, the coefficients as integrals, the
+/// congruence solved by calc (two redundants by Cramer's rule), the same values as the
+/// stiffness solution.
+#[test]
+fn the_working_finds_the_redundants_by_the_force_method() {
+    // A beam fixed at A and resting on B: the roller's reaction is the redundant, 3/8·q·L.
+    let (t, _) = working_and_reactions(json!({
+        "nodes": [{"id": "A", "x": 0, "y": 0}, {"id": "B", "x": 6, "y": 0}],
+        "members": [{"id": "1", "a": "A", "b": "B"}],
+        "supports": [{"node": "A", "kind": "fixed", "angle": -90}, {"node": "B", "kind": "roller"}],
+        "loads": [{"type": "distributed", "member": "1", "q1": 10}]
+    }));
+    assert!(!t.contains('⚠'), "{t}");
+    assert!(has(&t, "Hyperstatic structure of degree 1, solved by the force method. Redundant: V_B."), "{t}");
+    assert!(has(&t, "M_(0,1)(x)=(-180 kN·m)+(60 kN)·x-(5 kN/m)·x^2") && has(&t, "m_(1,1)(x)=(6m)-x"), "{t}");
+    assert!(has(&t, "δ_11=∫_(0 m)^(6 m)▒(m_(1,1)(x)^2 dx)=72 m³"), "{t}");
+    assert!(has(&t, "δ_10=∫_(0 m)^(6 m)▒(M_(0,1)(x)·m_(1,1)(x)dx)=-1620 kN·m³"), "{t}");
+    assert!(has(&t, "0 kN·m^3&=δ_10+V_B·δ_11") && has(&t, "V_B&=22.5 kN"), "{t}");
+    // The other reactions by equilibrium, from it: M_A = q·L²/8.
+    assert!(has(&t, "M_A&=45 kN·m"), "{t}");
+    assert!(!has(&t, "stiffness method"), "{t}");
+
+    let cases = [
+        // A continuous beam over four supports: two redundants, by Cramer's rule.
+        json!({
+            "nodes": [{"id": "A", "x": 0, "y": 0}, {"id": "B", "x": 4, "y": 0}, {"id": "C", "x": 8, "y": 0}, {"id": "D", "x": 12, "y": 0}],
+            "members": [{"id": "1", "a": "A", "b": "B"}, {"id": "2", "a": "B", "b": "C"}, {"id": "3", "a": "C", "b": "D"}],
+            "supports": [{"node": "A", "kind": "pin"}, {"node": "B", "kind": "roller"}, {"node": "C", "kind": "roller"}, {"node": "D", "kind": "roller"}],
+            "loads": [{"type": "distributed", "member": "1", "q1": 10}, {"type": "force", "member": "2", "at": 1, "value": 20}, {"type": "distributed", "member": "3", "q1": 10}]
+        }),
+        // A portal frame fixed at A and pinned at D: a couple and a horizontal force.
+        json!({
+            "nodes": [{"id": "A", "x": 0, "y": 0}, {"id": "B", "x": 0, "y": 4}, {"id": "C", "x": 6, "y": 4}, {"id": "D", "x": 6, "y": 0}],
+            "members": [{"id": "1", "a": "A", "b": "B"}, {"id": "2", "a": "B", "b": "C"}, {"id": "3", "a": "C", "b": "D"}],
+            "supports": [{"node": "A", "kind": "fixed", "angle": -90}, {"node": "D", "kind": "pin"}],
+            "loads": [{"type": "distributed", "member": "2", "q1": 10}, {"type": "force", "node": "B", "value": 5, "angle": 0}]
+        }),
+        // Different sections: each member's EI enters the coefficients.
+        json!({
+            "nodes": [{"id": "A", "x": 0, "y": 0}, {"id": "B", "x": 5, "y": 0}, {"id": "C", "x": 9, "y": 0}],
+            "members": [{"id": "1", "a": "A", "b": "B", "e": 210000000, "i": 0.0002}, {"id": "2", "a": "B", "b": "C", "e": 210000000, "i": 0.0001}],
+            "supports": [{"node": "A", "kind": "pin"}, {"node": "B", "kind": "roller"}, {"node": "C", "kind": "roller"}],
+            "loads": [{"type": "distributed", "member": "1", "q1": 12}, {"type": "force", "member": "2", "at": 3, "value": 25}]
+        }),
+        // A truss pinned at both ends: the axial forces, EA constant.
+        json!({
+            "nodes": [{"id": "A", "x": 0, "y": 0}, {"id": "B", "x": 4, "y": 0}, {"id": "C", "x": 2, "y": 2}],
+            "members": [
+                {"id": "1", "a": "A", "b": "B", "hingeA": true, "hingeB": true},
+                {"id": "2", "a": "A", "b": "C", "hingeA": true, "hingeB": true},
+                {"id": "3", "a": "C", "b": "B", "hingeA": true, "hingeB": true}
+            ],
+            "supports": [{"node": "A", "kind": "pin"}, {"node": "B", "kind": "pin"}],
+            "loads": [{"type": "force", "node": "C", "value": 10, "angle": -60}]
+        }),
+    ];
+    for c in cases {
+        let (t, reactions) = working_and_reactions(c);
+        assert!(!t.contains('⚠'), "{t}");
+        assert!(has(&t, "solved by the force method") && !has(&t, "stiffness method"), "{t}");
+        // Every reaction as the stiffness solution has it.
+        for r in &reactions {
+            for (k, unit) in [("fx", "kN"), ("fy", "kN"), ("m", "kN·m")] {
+                let v = r[k].as_f64().unwrap_or(0.0);
+                if v.abs() > 1e-6 {
+                    // Half a unit of the last digit either way: the integrals round to ten digits.
+                    let found = [v, v - 5e-4, v + 5e-4].iter().any(|w| has(&t, &format!("={} {unit}", shown(*w))));
+                    assert!(found, "{k} = {v} of {r}:\n{t}");
+                }
+            }
+        }
+    }
+    let (t, _) = working_and_reactions(json!({
+        "nodes": [{"id": "A", "x": 0, "y": 0}, {"id": "B", "x": 4, "y": 0}, {"id": "C", "x": 8, "y": 0}, {"id": "D", "x": 12, "y": 0}],
+        "members": [{"id": "1", "a": "A", "b": "B"}, {"id": "2", "a": "B", "b": "C"}, {"id": "3", "a": "C", "b": "D"}],
+        "supports": [{"node": "A", "kind": "pin"}, {"node": "B", "kind": "roller"}, {"node": "C", "kind": "roller"}, {"node": "D", "kind": "roller"}],
+        "loads": [{"type": "distributed", "member": "2", "q1": 10}]
+    }));
+    assert!(has(&t, "Redundants: V_B, V_C.") && has(&t, "Solved by Cramer's rule"), "{t}");
+    assert!(has(&t, "δ_10+V_B·δ_11+V_C·δ_12=0") && has(&t, "V_B=(δ_12·δ_20-δ_10·δ_22)/(δ_11·δ_22-δ_12^2)"), "{t}");
+}
+
+/// Sections given for every member: `EI_1 = E·I` and, with an area, `EA_1 = E·A` in the
+/// coefficients, and still the stiffness solution's values.
+#[test]
+fn the_force_method_uses_the_sections_given() {
+    let (t, reactions) = working_and_reactions(json!({
+        "nodes": [{"id": "A", "x": 0, "y": 0}, {"id": "B", "x": 0, "y": 3}, {"id": "C", "x": 5, "y": 3}],
+        "members": [
+            {"id": "1", "a": "A", "b": "B", "e": 210000000, "i": 0.00008, "area": 0.002},
+            {"id": "2", "a": "B", "b": "C", "e": 210000000, "i": 0.0002}
+        ],
+        "supports": [{"node": "A", "kind": "fixed", "angle": -90}, {"node": "C", "kind": "roller"}],
+        "loads": [{"type": "distributed", "member": "2", "q1": 8}]
+    }));
+    assert!(!t.contains('⚠'), "{t}");
+    assert!(has(&t, "·(0.00008 m^4)=16800 kN·m²") && has(&t, "·(0.002 m^2)=420000 kN") && has(&t, "EI_2="), "{t}");
+    assert!(has(&t, "(m_(1,1)(x)^2)/(EI_1)") && has(&t, "(n_(1,1)(x)^2)/(EA_1)") && has(&t, "=0.00546 m/kN"), "{t}");
+    let roller = reactions.iter().find(|r| r["node"] == "C").unwrap();
+    assert!(has(&t, &format!("V_C&={} kN", shown(roller["fy"].as_f64().unwrap()))), "{roller}\n{t}");
+}
+
+/// Each stretch of the internal forces' laws has its drawing right under its heading (the
+/// stretch, cut half way, in the structure's group, narrower than the structure), then the words
+/// saying how the laws come from it, the laws, and its values under their own heading.
+#[test]
+fn each_stretch_is_drawn_cut_before_its_laws() {
+    let mut s = Session::new(Document::new());
+    s.run("structure.insert", &json!({"template": "beam"})).unwrap();
+    s.run("structure.load", &json!({"load": {"type": "force", "member": "1", "at": 2, "value": 10, "angle": -90}})).unwrap();
+    s.run("structure.working", &json!({"labels": {"stretch": "Tratto", "values": "Valori:", "valuesMax": "Valori e massimo:"}})).unwrap();
+    let paras: Vec<&wordcraft_doc::para::Paragraph> =
+        s.doc.body.iter().filter_map(|b| if let Block::Para(p) = &**b { Some(p) } else { None }).collect();
+    let cut_of = |p: &wordcraft_doc::para::Paragraph| {
+        p.objects.iter().find_map(|o| match o {
+            InlineObject::Graphic { graphic, .. } => {
+                let st = strix_structure::Structure::from_json(graphic.structure.as_deref()?).ok()?;
+                (st.view == strix_structure::View::Section).then_some((st.cut?, st.width, st.group))
+            }
+            _ => None,
+        })
+    };
+    let mut seen = Vec::new();
+    for (k, p) in paras.iter().enumerate() {
+        let Some((cut, width, group)) = cut_of(p) else { continue };
+        let header = paras[k - 1].text.clone();
+        assert!(header.starts_with(&format!("Tratto {}: Member 1 (A–B)", cut.tag)), "{header}");
+        assert!(paras[k + 1].text.contains("Cut at x from A"), "{}", paras[k + 1].text);
+        assert!(width < 160.0 && group == "structure-1", "{width} {group}");
+        seen.push((cut.tag, cut.from, cut.to));
+    }
+    assert_eq!(seen, [("1a".to_string(), 0.0, 2.0), ("1b".to_string(), 2.0, 6.0)]);
+    let t = text_of(&s);
+    // Under the uniform load and the force the moment is greatest inside the second stretch.
+    let (first, second) = (t.find("Valori:").unwrap(), t.find("Valori e massimo:").unwrap());
+    assert!(t.find("M_1a(x)").unwrap() < first && first < t.find("Tratto 1b").unwrap() && t.find("M_1b(x)").unwrap() < second, "{t}");
 }

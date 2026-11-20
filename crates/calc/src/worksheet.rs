@@ -5,7 +5,9 @@ use crate::format::{format_number, is_quantity, render, render_nodes};
 use crate::lexer::{Tok, Token, lex};
 use crate::parser::{BinOp, Expr, Func, parse, parse_env, parse_with};
 use crate::quantity::{Dim, Quantity, finite};
-use crate::solve::{AbsPlan, QuadraticPlan, SymbolicKind, free_names, free_names_where, isolate, isolate_steps, numeric, solve_symbolic};
+use crate::solve::{
+    AbsPlan, QuadraticPlan, SymbolicKind, free_names, free_names_where, inline_calls, isolate, isolate_steps, numeric, solve_symbolic,
+};
 use crate::units::{TEMPERATURE_DIM, affine, auto_unit, constant, dim_name, unit};
 use crate::{CalcError, MAX_INPUT_CHARS};
 
@@ -152,6 +154,9 @@ enum Solution {
     Abs(AbsPlan),
     /// Numerically.
     Numeric,
+    /// Solved with its user functions' calls opened (`0 kN = T(x_1)` as
+    /// `0 kN = 30 kN − 10 kN/m·x_1`): that equation, then how it was solved.
+    Opened(Box<Solution>, (Expr, Expr)),
 }
 
 impl Solution {
@@ -160,6 +165,7 @@ impl Solution {
         match self {
             Solution::Direct(f) | Solution::Isolated(f, _) => Some(f),
             Solution::Quadratic(_) | Solution::Abs(_) | Solution::Numeric => None,
+            Solution::Opened(inner, _) => inner.form(),
         }
     }
 }
@@ -1417,7 +1423,9 @@ impl Worksheet {
             Solution::Quadratic(plan) => {
                 let mut lines = Vec::new();
                 let std_eq = format!("{} = 0", self.written(&plan.standard_lhs));
-                if std_eq != format!("{} = {}", self.written(lhs), self.written(rhs)) {
+                // Not the equation again, nor its sides swapped (`0 = x² − 4`, `x² − 4 = 0`).
+                let (l, r) = (self.written(lhs), self.written(rhs));
+                if std_eq != format!("{l} = {r}") && std_eq != format!("{r} = {l}") {
                     lines.push(Line::New(std_eq));
                 }
                 let formula = self.format_quad_formula(&plan.a, &plan.b, &plan.c, &[], &|_| None);
@@ -1443,6 +1451,11 @@ impl Worksheet {
                 } else {
                     lines.push(Line::New(format!("{x} = {result}")));
                 }
+                Some(lines)
+            }
+            Solution::Opened(inner, (l, r)) => {
+                let mut lines = vec![Line::New(format!("{} = {}", self.written(l), self.written(r)))];
+                lines.extend(self.solution_lines(x, inner, (l, r), v, unit, len, hint)?);
                 Some(lines)
             }
             Solution::Numeric => {
@@ -1608,6 +1621,17 @@ impl Worksheet {
                 Ok((v, SymbolicKind::Abs(plan))) => (Ok(v), Solution::Abs(plan)),
                 Err(err) => (Err(err), Solution::Numeric),
             };
+        }
+        // The unknown inside a user function's call (`0 kN = T(x_1)`): the call opened into the
+        // function's body, solved the same way, that equation shown as the first step.
+        let (open_l, open_r) = (inline_calls(lhs, &self.scope, 0), inline_calls(rhs, &self.scope, 0));
+        if (&open_l, &open_r) != (lhs, rhs) && !has_call(&open_l) && !has_call(&open_r) {
+            match self.solve_for(&open_l, &open_r, x, extra) {
+                (Ok(v), solution) if !matches!(solution, Solution::Numeric) => {
+                    return (Ok(v), Solution::Opened(Box::new(solution), (open_l, open_r)));
+                }
+                _ => {}
+            }
         }
         (numeric(lhs, rhs, x, &self.scope, extra).map(Value::Scalar), Solution::Numeric)
     }
@@ -2228,6 +2252,17 @@ fn starts_with_number(tokens: &[Token]) -> bool {
     let tokens = tokens.get(open..).unwrap_or_default();
     let skip = usize::from(matches!(tokens.first().map(|t| &t.tok), Some(Tok::Minus | Tok::Plus)));
     matches!(tokens.get(skip).map(|t| &t.tok), Some(Tok::Num(_) | Tok::LBracket))
+}
+
+/// True when `expr` calls a user function (one [`inline_calls`] could not open).
+fn has_call(expr: &Expr) -> bool {
+    match expr {
+        Expr::Apply(..) => true,
+        Expr::Neg(a) => has_call(a),
+        Expr::Bin(_, a, b) | Expr::Index(a, b) | Expr::Range(a, b) => has_call(a) || has_call(b),
+        Expr::Call(_, args) | Expr::Vector(args) => args.iter().any(has_call),
+        _ => false,
+    }
 }
 
 /// True when `expr` reads `x`.

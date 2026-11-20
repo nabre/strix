@@ -3779,6 +3779,7 @@ structure	Click a node to hold it with a slider (glifo)	Cliquez sur un nœud pou
 structure	Click a node to make it an internal hinge, or not	Cliquez sur un nœud pour en faire une rotule interne, ou l’en retirer
 structure	Click a node to pin it (cerniera)	Cliquez sur un nœud pour y placer un appui articulé
 structure	Click a node to put it on a roller (carrello)	Cliquez sur un nœud pour le poser sur un appui à rouleau
+structure	Click a node to put it on a roller drawn as a circle (carrello)	Cliquez sur un nœud pour le poser sur un appui à rouleau dessiné comme un cercle
 structure	Click to add a node	Cliquez pour ajouter un nœud
 structure	Click two points to draw a member; it goes on from its end (Esc or a right click stops)	Cliquez sur deux points pour dessiner une barre ; on continue depuis son extrémité (Échap ou un clic droit arrête)
 structure	Continuous Beam	Poutre continue
@@ -3823,6 +3824,7 @@ structure	Remove the node with its members, support and loads	Supprimer le nœud
 structure	Remove the member with its loads	Supprimer la barre avec ses charges
 structure	Remove the support	Supprimer l’appui
 structure	Roller	Appui à rouleau
+structure	Roller (circle)	Appui à rouleau (cercle)
 structure	Select	Sélectionner
 structure	Select nodes, members and loads (Shift+click, a window); drag to move them, a load slides along its member	Sélectionner nœuds, barres et charges (Maj+clic, une fenêtre) ; faire glisser pour les déplacer, une charge glisse le long de sa barre
 structure	Select a structure in the document to draw and edit it, or insert one.	Sélectionnez une structure dans le document pour la dessiner et la modifier, ou insérez-en une.
@@ -3869,6 +3871,15 @@ structure	x from {a} to {b}	x de {a} à {b}
 	A right-aligned line for the score obtained against the total: computed from the points, or typed in	Une ligne alignée à droite pour les points obtenus sur le total : calculés à partir des points, ou saisis
 	Axial forces	Efforts normaux dans les barres
 	From the equations solved together	D’après les équations résolues ensemble
+	Hyperstatic structure of degree 1, solved by the force method. Redundant: {X}. Without the constraint that gives it, the structure left (the released structure) is isostatic.	Structure hyperstatique de degré 1, résolue par la méthode des forces. Inconnue hyperstatique : {X}. Sans la liaison correspondante, il reste la structure isostatique associée.
+	Hyperstatic structure of degree 2, solved by the force method. Redundants: {X}. Without the constraints that give them, the structure left (the released structure) is isostatic.	Structure hyperstatique de degré 2, résolue par la méthode des forces. Inconnues hyperstatiques : {X}. Sans les liaisons correspondantes, il reste la structure isostatique associée.
+	System 0, the released structure under the loads:	Système 0, la structure isostatique associée sous les charges :
+	System {i}, the released structure under only	Système {i}, la structure isostatique associée sous la seule
+	Congruence: where a constraint was taken away, the real structure doesn't move along its redundant. The displacements of the released structure by the principle of virtual work,	Compatibilité : là où une liaison a été supprimée, la structure réelle ne se déplace pas selon son inconnue hyperstatique. Les déplacements de la structure isostatique associée par le principe des travaux virtuels,
+	(EI constant: multiplied by EI; axial strains neglected):	(EI constant : multipliés par EI ; déformations axiales négligées) :
+	(EA constant: multiplied by EA):	(EA constant : multipliés par EA) :
+	(axial strains neglected):	(déformations axiales négligées) :
+	Solved by Cramer's rule (δ_21 = δ_12):	Résolues par la règle de Cramer (δ_21 = δ_12) :
 	Hyperstatic: from the solution by the stiffness method	Structure hyperstatique : d’après la résolution par la méthode des déplacements
 	Insert Analysis	Insérer l’analyse
 	Internal forces	Efforts internes
@@ -3908,6 +3919,7 @@ structure	Click a node, a member or a load to see its properties; Shift+click or
 	Fixed	Encastrement
 	Pin	Appui articulé
 	Roller	Appui à rouleau
+	Roller (circle)	Appui à rouleau (cercle)
 	Link	Bielle
 	Slider	Glissière
 	Internal hinge	Rotule interne
@@ -3919,6 +3931,7 @@ structure	Click a node, a member or a load to see its properties; Shift+click or
 	Click a node to fix it (incastro)	Cliquez sur un nœud pour l’encastrer
 	Click a node to pin it (cerniera)	Cliquez sur un nœud pour y placer un appui articulé
 	Click a node to put it on a roller (carrello)	Cliquez sur un nœud pour le poser sur un appui à rouleau
+	Click a node to put it on a roller drawn as a circle (carrello)	Cliquez sur un nœud pour le poser sur un appui à rouleau dessiné comme un cercle
 	Click a node to hold it with a link (pendolo)	Cliquez sur un nœud pour le retenir par une bielle
 	Click a node to hold it with a slider (glifo)	Cliquez sur un nœud pour le retenir par une glissière
 	Click a node to make it an internal hinge, or not	Cliquez sur un nœud pour en faire une rotule interne, ou l’en retirer
@@ -4005,3 +4018,70 @@ structure	Double-click	Double-clic
 	{T} changes sign under a concentrated load	{T} change de signe sous une charge concentrée
 	{T} never vanishes nor changes sign: the greatest moment is at an end of a stretch.	{T} ne s’annule pas et ne change pas de signe : le moment maximal est à une extrémité d’un tronçon.
 	The structure can't be solved: its working will be written again as soon as it can.	La structure ne peut pas être résolue : la résolution sera réécrite dès qu’elle le pourra.
+# Strix (2026-11-19): Structure Editor active command bar, selection, info and graphical vector rotation.
+	Click a load, support, member or node to remove it (a node with what uses it)	Cliquez sur une charge, un appui, une barre ou un nœud pour le supprimer (un nœud avec ce qui l’utilise)
+structure	Click, Shift+click or drag a window · Tab cycles overlapping items · R rotates vectors	Cliquez, Maj+clic ou tracez une fenêtre · Tab parcourt les éléments superposés · R incline les vecteurs
+structure	Drag on the protractor or click an angle to incline (Shift: 1° precision · arrows: ±15°)	Faites glisser sur le rapporteur ou cliquez sur un angle pour incliner (Maj : précision 1° · flèches : ±15°)
+structure	Click a force, distributed load or support to incline it with the protractor	Cliquez sur une force, une charge répartie ou un appui pour l’incliner avec le rapporteur
+structure	Click on the sheet (or type x, y below) to add a node	Cliquez sur la feuille (ou saisissez x, y ci-dessous) pour ajouter un nœud
+structure	Click the end point (Shift: 0°/45°/90° · right-click or Esc finishes the chain)	Cliquez sur le point final (Maj : 0°/45°/90° · clic droit ou Échap termine la chaîne)
+structure	Click the first point of the member (or type x, y / @L<α below)	Cliquez sur le premier point de la barre (ou saisissez x, y / @L<α ci-dessous)
+structure	Click a node to place the support (or drag from the node to orient its angle)	Cliquez sur un nœud pour placer l’appui (ou faites glisser depuis le nœud pour orienter son angle)
+structure	Click a node or near a member's end to toggle an internal hinge	Cliquez sur un nœud ou près de l’extrémité d’une barre pour basculer une rotule interne
+structure	Click a node or member to add a force (or drag to aim its inclination)	Cliquez sur un nœud ou une barre pour ajouter une force (ou faites glisser pour régler son inclinaison)
+structure	Click a node or member to add a couple	Cliquez sur un nœud ou une barre pour ajouter un couple
+structure	Click a member to apply a distributed load	Cliquez sur une barre pour appliquer une charge répartie
+structure	Click a load, support, member or node to erase it	Cliquez sur une charge, un appui, une barre ou un nœud pour le supprimer
+structure	Return to the Select tool (Esc)	Revenir à l’outil Sélection (Échap)
+structure	Incline forces, distributed loads and supports with a graphical protractor (R)	Incliner forces, charges réparties et appuis avec le rapporteur graphique (R)
+structure	Click a node or a point of a member to put a force there (or drag to aim its inclination)	Cliquez sur un nœud ou un point d’une barre pour y placer une force (ou faites glisser pour régler son inclinaison)
+structure	Enter sets the angle in degrees (@delta turns from the current angle)	Entrée définit l’angle en degrés (@delta tourne à partir de l’angle actuel)
+structure	Drag or click on the dial to incline the vector (Shift: 1° precision)	Faites glisser ou cliquez sur le cadran pour incliner le vecteur (Maj : précision 1°)
+structure	Down (−90°)	Vers le bas (−90°)
+structure	Up (+90°)	Vers le haut (+90°)
+structure	Right (0°)	Vers la droite (0°)
+structure	Left (180°)	Vers la gauche (180°)
+structure	At −45°	À −45°
+structure	At +45°	À +45°
+structure	Turn 15° clockwise	Tourner de 15° dans le sens horaire
+structure	Turn 15° counter-clockwise	Tourner de 15° dans le sens antihoraire
+structure	Parallel to the member	Parallèle à la barre
+structure	Open the graphical protractor on the sheet (R)	Ouvrir le rapporteur graphique sur la feuille (R)
+structure	On horizontal ground below (0°)	Sur le sol horizontal en dessous (0°)
+structure	On a wall to the left (−90°)	Sur un mur à gauche (−90°)
+structure	On a wall to the right (+90°)	Sur un mur à droite (+90°)
+structure	Above the node (180°)	Au-dessus du nœud (180°)
+structure	Tension	Traction
+structure	Focus this item alone	Sélectionner uniquement cet élément
+structure	Select the member	Sélectionner la barre
+structure	Swap ends	Inverser les extrémités
+structure	Reverse the member's local axis (a ↔ b), keeping loads in place	Inverse l’axe local de la barre (a ↔ b) en gardant les charges en place
+structure	Diagram Names	Noms des diagrammes
+structure	Full Names	Noms complets
+structure	Name the panels Axial force, Shear force and Bending moment	Nommer les panneaux Effort normal, Effort tranchant et Moment fléchissant
+structure	Axial force	Effort normal
+structure	Shear force	Effort tranchant
+structure	Bending moment	Moment fléchissant
+structure	Symbols	Symboles
+structure	Name the panels by their symbols	Nommer les panneaux par leurs symboles
+structure	Written over the diagrams' panels; the working keeps the symbols.	Écrits au-dessus des panneaux des diagrammes ; le développement garde les symboles.
+structure	Positive Senses	Sens positifs
+structure	Rotation	Rotation
+structure	Positive to the right	Positif vers la droite
+structure	Positive to the left	Positif vers la gauche
+structure	Positive upwards	Positif vers le haut
+structure	Positive downwards	Positif vers le bas
+structure	Positive counter-clockwise	Positif dans le sens antihoraire
+structure	Positive clockwise	Positif dans le sens horaire
+structure	The reactions are taken positive so and the equilibrium equations sum so; the free body shows the symbol.	Les réactions sont prises positives dans ces sens et les équations d’équilibre sont sommées ainsi ; le corps libre montre le symbole.
+structure	Reactions are taken positive the way their arrows point in the free body: a negative one acts the other way.	Les réactions sont prises positives dans le sens de leurs flèches sur le corps libre : une réaction négative agit en sens inverse.
+structure	Right	Droite
+structure	Left	Gauche
+structure	Up	Vers le haut
+structure	Down	Vers le bas
+structure	Counter-clockwise	Antihoraire
+structure	Clockwise	Horaire
+structure	Stretch	Tronçon
+structure	Cut at x from {a}: the part before the cut (drawn in full) balances its loads, its reactions and N, {T}, M on the cut (drawn positive):	Coupure à x de {a} : la partie avant la coupure (en plein) équilibre ses charges, ses réactions et N, {T}, M sur la coupure (dessinés positifs) :
+structure	Values at the ends of the stretch:	Valeurs aux extrémités du tronçon :
+structure	Values at the ends of the stretch and at M's extremes:	Valeurs aux extrémités du tronçon et aux extremums de M :

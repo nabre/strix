@@ -1,0 +1,427 @@
+//! One stretch of a written working ([`View::Section`](crate::View)): the stretch marked by a pale
+//! band up to the cut, the member cut half way along it, and the part before the cut (the
+//! member's first end's side) drawn in full — its members, its loads with their names, its
+//! reactions as unknowns (`V_A`) — with the internal forces the rest of the structure puts on
+//! the cut, `N`, `T`, `M` with the stretch's tag (`N_1a`), pointing the way they count positive
+//! (`N` pulling, `T` turning the part clockwise, `M` stretching the reference fibres); nothing of
+//! the rest of the structure; and the section's distance `x` from the member's first node as a
+//! progressive (a circle at its origin, an arrow at the cut). Its laws are the equilibrium of what is drawn in full.
+
+use super::{BLACK, COLOR_M, COLOR_N, COLOR_V, Ctx, Frame, GREY, LOAD, MEMBER_W, P, add, lighter, mul, pd};
+use crate::cut::part_before;
+use crate::model::{Load, Num, Structure};
+
+/// The band marking the stretch: a pale amber, under the members.
+const BAND: [u8; 3] = [0xF7, 0xDB, 0x91];
+const BAND_W: f64 = 3.2;
+/// The internal forces' arrows and the moment's arc (paper mm).
+const N_LEN: f64 = 7.5;
+const T_LEN: f64 = 6.0;
+const M_R: f64 = 4.5;
+/// The dimension of `x`: its distance from the member (paper mm).
+const DIM_OFF: f64 = 11.5;
+/// The progressive `x`: its origin's circle and its arrow's head (paper mm).
+const X_ORIGIN_R: f64 = 0.8;
+const X_HEAD: f64 = 2.8;
+
+impl Ctx<'_> {
+    /// The drawing of the stretch [`Structure::cut`] names (the structure alone without one).
+    pub(super) fn section(&mut self, f: &Frame) {
+        let st = self.st;
+        let Some(geo) = Geo::of(st) else {
+            self.members(f, BLACK, MEMBER_W, true);
+            self.supports(f, BLACK);
+            self.loads(f);
+            self.node_names(f);
+            return;
+        };
+        let at = |s: f64| f.p(geo.a.0 + geo.e.0 * s, geo.a.1 + geo.e.1 * s);
+        let (pe, pn) = (pd(geo.e), pd(geo.n));
+        let ps = at(geo.cut);
+        let left = part_before(st, &geo.member, &geo.start, &geo.end);
+        let in_left = |id: &str| left.as_ref().is_some_and(|l| l.iter().any(|x| x == id));
+
+        let Some(left_nodes) = &left else {
+            // A member in a closed ring: no part lies before the cut alone. The stretch is marked
+            // on the structure drawn whole.
+            self.band(at(geo.from), at(geo.to), pn);
+            self.members(f, BLACK, MEMBER_W, true);
+            self.supports(f, GREY);
+            self.loads(f);
+            self.node_names(f);
+            return;
+        };
+
+        // Only the part before the cut: the stretch marked up to the cut, under the members.
+        self.band(at(geo.from), at(geo.to.min(geo.cut)), pn);
+        // The member cut, up to the cut, with its first end's hinge.
+        self.pen.line(at(0.0), ps, BLACK, MEMBER_W);
+        if let Some(m) = st.member(&geo.member) {
+            let node_hinged = |id: &str| st.node(id).is_some_and(|n| n.hinge);
+            if m.hinge_a && !node_hinged(&m.a) {
+                self.pen.dot(add(at(0.0), mul(pe, 1.6)), 0.8, [255, 255, 255], Some((BLACK, 0.3)));
+            }
+        }
+        // The other members wholly before the cut, with their hinges (and the nodes').
+        let part = Structure {
+            nodes: st.nodes.iter().filter(|n| left_nodes.contains(&n.id)).cloned().collect(),
+            members: st.members.iter().filter(|m| m.id != geo.member && left_nodes.contains(&m.a) && left_nodes.contains(&m.b)).cloned().collect(),
+            ..st.clone()
+        };
+        let pen = std::mem::take(&mut self.pen);
+        let mut cx = Ctx { st: &part, an: self.an, opts: self.opts, pen, amp_cap: self.amp_cap, placed: Vec::new() };
+        cx.members(f, BLACK, MEMBER_W, true);
+        self.pen = cx.pen;
+        // Its supports faded: their reactions stand for them.
+        self.supports_where(f, lighter(GREY, 0.45), &in_left);
+
+        // Its loads, a distributed load the cut crosses up to it (named unless it varies: its far
+        // end's name would be wrong).
+        let part = geo.loads_before(st, &in_left);
+        let mine = Structure { loads: part.iter().map(|(l, _)| l.clone()).collect(), ..st.clone() };
+        let picked: Vec<(bool, bool)> = part.iter().map(|(_, k)| (k.0, k.1)).collect();
+        let pen = std::mem::take(&mut self.pen);
+        let mut cx = Ctx { st: &mine, an: self.an, opts: self.opts, pen, amp_cap: self.amp_cap, placed: Vec::new() };
+        // `mine.loads` and `picked` are in the same order: the load's index picks it.
+        let pick = |k: usize, named: bool| picked.get(k).is_some_and(|&(on, plain)| on && (plain == named));
+        cx.loads_as(f, LOAD, true, &|k, _| pick(k, true));
+        cx.loads_as(f, LOAD, false, &|k, _| pick(k, false));
+        self.pen = cx.pen;
+
+        self.unknowns_where(f, &in_left);
+        self.internal_forces(ps, pe, pn, &geo.tag);
+        self.cut_dimension(at(0.0), ps, pn);
+        self.node_names_where(f, &in_left);
+    }
+
+    /// The pale band marking a stretch from `a` to `b` (paper), with a tick across each end.
+    fn band(&mut self, a: P, b: P, pn: P) {
+        self.pen.line(a, b, BAND, BAND_W);
+        let tick = lighter([0xC8, 0x8A, 0x10], 0.2);
+        for p in [a, b] {
+            self.pen.line(add(p, mul(pn, BAND_W * 0.8)), add(p, mul(pn, -BAND_W * 0.8)), tick, 0.3);
+        }
+    }
+
+    /// `N`, `T`, `M` on the cut at `ps` of a member running along paper direction `pe` (`pn` its
+    /// normal, the member's local y), each with the stretch's tag.
+    fn internal_forces(&mut self, ps: P, pe: P, pn: P, tag: &str) {
+        let shear: String = self.st.titles.v.chars().filter(|c| c.is_alphabetic()).take(2).collect();
+        let shear = if shear.is_empty() { "T".to_string() } else { shear };
+        // N pulling the part (tension positive).
+        let tip = add(ps, mul(pe, N_LEN));
+        self.pen.arrow(add(ps, mul(pe, 0.4)), tip, COLOR_N, 0.45);
+        self.pen.subscripted(add(tip, mul(pe, 0.6)), pe, "N", tag, COLOR_N);
+        // T against the member's y on the part before the cut: the pair turns clockwise.
+        let tail = add(ps, mul(pn, -0.8));
+        let tip = add(ps, mul(pn, -(0.8 + T_LEN)));
+        self.pen.arrow(tail, tip, COLOR_V, 0.45);
+        // Named on the part's side, clear of the dimension's extension line under the cut.
+        self.pen.subscripted(add(add(tip, mul(pn, 1.6)), mul(pe, -0.6)), mul(pe, -1.0), &shear, tag, COLOR_V);
+        // M counter-clockwise on the part's end (from the member's −y round past the cut to its
+        // +y), stretching the reference fibres; its head at the +y side.
+        let (t0, t1) = ((-70.0_f64).to_radians(), 70.0_f64.to_radians());
+        let n = 16;
+        let pts: Vec<P> = (0..=n)
+            .map(|k| {
+                let t = t0 + (t1 - t0) * f64::from(k) / f64::from(n);
+                add(ps, add(mul(pe, M_R * t.cos()), mul(pn, M_R * t.sin())))
+            })
+            .collect();
+        let (Some(&end), Some(&before)) = (pts.last(), pts.get(pts.len().saturating_sub(4))) else { return };
+        self.pen.poly(pts.get(..pts.len().saturating_sub(3)).map(<[P]>::to_vec).unwrap_or_default(), COLOR_M, 0.45);
+        self.pen.arrow(before, end, COLOR_M, 0.45);
+        let label = add(ps, add(mul(pe, M_R * 0.55), mul(pn, M_R + 1.6)));
+        self.pen.subscripted(label, pe, "M", tag, COLOR_M);
+    }
+
+    /// The section's distance `x` from the member's first node `pa` to the cut `ps`, on the
+    /// member's −y side, as a progressive: a small circle at its origin, an arrow at the cut.
+    fn cut_dimension(&mut self, pa: P, ps: P, pn: P) {
+        if (ps.0 - pa.0).hypot(ps.1 - pa.1) < 2.0 {
+            return;
+        }
+        let out = mul(pn, -1.0);
+        let (a, b) = (add(pa, mul(out, DIM_OFF)), add(ps, mul(out, DIM_OFF)));
+        for (from, to) in [(pa, a), (ps, b)] {
+            self.pen.line(add(from, mul(out, DIM_OFF - 2.5)), add(to, mul(out, 1.2)), BLACK, 0.18);
+        }
+        let d = super::unit((b.0 - a.0, b.1 - a.1));
+        // The line from the circle's rim to the arrow's head, the head larger than a force's.
+        let base = add(b, mul(d, -X_HEAD));
+        self.pen.line(add(a, mul(d, X_ORIGIN_R)), base, BLACK, 0.22);
+        let n = (-d.1, d.0);
+        self.pen.fill(vec![b, add(base, mul(n, X_HEAD * 0.34)), add(base, mul(n, -X_HEAD * 0.34))], BLACK, None);
+        self.pen.dot(a, X_ORIGIN_R, [255, 255, 255], Some((BLACK, 0.25)));
+        let mid = mul(add(a, b), 0.5);
+        self.pen.beside(add(mid, mul(out, 0.4)), out, "x".to_string(), BLACK);
+    }
+}
+
+/// Where the stretch lies: its member's first node `a` (world), its direction `e` and normal `n`,
+/// its length; the stretch and the cut along it (clamped to the member).
+struct Geo {
+    member: String,
+    start: String,
+    end: String,
+    tag: String,
+    a: P,
+    e: P,
+    n: P,
+    len: f64,
+    from: f64,
+    to: f64,
+    cut: f64,
+}
+
+impl Geo {
+    fn of(st: &Structure) -> Option<Geo> {
+        let cut = st.cut.as_ref()?;
+        let m = st.member(&cut.member)?;
+        let (na, nb) = (st.node(&m.a)?, st.node(&m.b)?);
+        let len = st.length(m).filter(|l| *l > 0.0 && l.is_finite())?;
+        let e = ((nb.x.value - na.x.value) / len, (nb.y.value - na.y.value) / len);
+        let (from, to) = (cut.from.clamp(0.0, len), cut.to.clamp(0.0, len));
+        Some(Geo {
+            member: m.id.clone(),
+            start: m.a.clone(),
+            end: m.b.clone(),
+            tag: cut.tag.clone(),
+            a: (na.x.value, na.y.value),
+            e,
+            n: (-e.1, e.0),
+            len,
+            from,
+            to,
+            cut: (from + to) / 2.0,
+        })
+    }
+
+    /// Every load, each with whether it acts on the part before the cut and whether it is drawn
+    /// with its name (`(on, named)`): a distributed load the cut crosses ends at the cut.
+    fn loads_before(&self, st: &Structure, in_left: &dyn Fn(&str) -> bool) -> Vec<(Load, (bool, bool))> {
+        let eps = 1e-9 * (1.0 + self.len);
+        let on_left_member = |id: &str| id != self.member && st.member(id).is_some_and(|m| in_left(&m.a) && in_left(&m.b));
+        st.loads
+            .iter()
+            .map(|l| {
+                let mut l = l.clone();
+                let on = match &mut l {
+                    Load::Force { node: Some(n), member: None, .. } | Load::Moment { node: Some(n), member: None, .. } => in_left(n),
+                    Load::Force { member: Some(m), at, .. } | Load::Moment { member: Some(m), at, .. } => {
+                        on_left_member(m) || (*m == self.member && at.value.clamp(0.0, self.len) <= self.cut + eps)
+                    }
+                    Load::Distributed { member, from, to, q1, q2, .. } => {
+                        if on_left_member(member) {
+                            true
+                        } else if *member == self.member {
+                            let s0 = from.value.clamp(0.0, self.len);
+                            let s1 = to.as_ref().map_or(self.len, |t| t.value).clamp(0.0, self.len);
+                            let (lo, hi) = if s0 <= s1 { (s0, s1) } else { (s1, s0) };
+                            if lo >= self.cut - eps {
+                                false
+                            } else if hi <= self.cut + eps {
+                                true
+                            } else {
+                                // Up to the cut, its intensity there as the load varies.
+                                let (qa, qb) = (q1.value, q2.as_ref().map_or(q1.value, |q| q.value));
+                                let q_at = |s: f64| if (s1 - s0).abs() > eps { qa + (qb - qa) * (s - s0) / (s1 - s0) } else { qa };
+                                let (ql, qc) = (q_at(lo), q_at(self.cut));
+                                *from = Num::from(lo);
+                                *to = Some(Num::from(self.cut));
+                                *q1 = Num::from(ql);
+                                *q2 = Some(Num::from(qc));
+                                let named = (qa - qb).abs() <= 1e-12 * qa.abs().max(qb.abs());
+                                return (l, (true, named));
+                            }
+                        } else {
+                            false
+                        }
+                    }
+                    _ => false,
+                };
+                (l, (on, true))
+            })
+            .collect()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::cut::Cut;
+    use crate::model::{Load, LoadAxes, LoadPer, Member, Node, Num, Structure, Support, SupportKind, View};
+
+    fn beam(cut: Option<Cut>) -> Structure {
+        let node = |id: &str, x: f64| Node { id: id.into(), x: x.into(), y: 0.0.into(), hinge: false };
+        let support = |n: &str, kind| Support { node: n.into(), kind, angle: Num::default() };
+        Structure {
+            nodes: vec![node("A", 0.0), node("B", 6.0)],
+            members: vec![Member { id: "1".into(), a: "A".into(), b: "B".into(), ..Member::default() }],
+            supports: vec![support("A", SupportKind::Pin), support("B", SupportKind::Roller)],
+            loads: vec![Load::Distributed {
+                member: "1".into(),
+                q1: 10.0.into(),
+                q2: None,
+                from: Num::default(),
+                to: None,
+                angle: Num::new(-90.0),
+                axes: LoadAxes::Global,
+                per: LoadPer::Length,
+            }],
+            view: View::Section,
+            cut,
+            ..Structure::default()
+        }
+    }
+
+    /// The texts drawn, a letter and its subscript joined (`V_A`).
+    fn names(st: &Structure) -> Vec<String> {
+        let t: Vec<String> = st
+            .render(None)
+            .plot
+            .prims
+            .iter()
+            .filter_map(|p| match p {
+                strix_plot::PlotPrim::Text { text, .. } | strix_plot::PlotPrim::TextAt { text, .. } => Some(text.clone()),
+                _ => None,
+            })
+            .collect();
+        let mut out: Vec<String> = t.windows(2).map(|w| format!("{}_{}", w[0], w[1])).collect();
+        out.extend(t);
+        out
+    }
+
+    /// A stretch's drawing puts N, T, M with its tag on the cut, names the reactions of the part
+    /// before it only, its loads, and the section's distance x; saved with its cut.
+    #[test]
+    fn a_stretch_shows_the_part_before_the_cut_and_the_internal_forces() {
+        let st = beam(Some(Cut { member: "1".into(), from: 0.0, to: 6.0, tag: "1a".into() }));
+        let t = names(&st);
+        for name in ["N_1a", "T_1a", "M_1a", "H_A", "V_A", "x", "q₁ = 10 kN/m"] {
+            assert!(t.iter().any(|p| p == name), "{name}: {t:?}");
+        }
+        assert!(!t.iter().any(|p| p == "V_B"), "{t:?}");
+        let back = Structure::from_json(&st.to_json()).unwrap();
+        assert_eq!((back.view, back.cut.as_ref().map(|c| c.tag.as_str())), (View::Section, Some("1a")));
+    }
+
+    /// Only the part before the cut is drawn: no name, support or load past it (one force on the
+    /// far side), the member stopping at the cut; `x` starts at a small circle.
+    #[test]
+    fn a_stretch_draws_nothing_past_the_cut() {
+        let mut st = beam(Some(Cut { member: "1".into(), from: 0.0, to: 2.0, tag: "1".into() }));
+        st.loads.push(Load::Force { node: None, member: Some("1".into()), at: 5.0.into(), value: 10.0.into(), angle: Num::new(-90.0) });
+        let t = names(&st);
+        assert!(!t.iter().any(|p| p == "B" || p.starts_with("F")), "{t:?}");
+        let prims = st.render(None).plot.prims;
+        let xs: Vec<f64> = prims
+            .iter()
+            .filter_map(|p| match p {
+                strix_plot::PlotPrim::Path { pts, .. } => Some(pts.iter().map(|q| q.0).fold(f64::MIN, f64::max)),
+                _ => None,
+            })
+            .collect();
+        let far = xs.iter().copied().fold(f64::MIN, f64::max);
+        // The band runs from A to the cut, 1 m: B stands 6 of them from A, nothing past 2.
+        let band = prims.iter().find_map(|p| match p {
+            strix_plot::PlotPrim::Path { pts, stroke: Some((c, _)), .. } if *c == super::BAND => Some((pts[0].0, pts[1].0)),
+            _ => None,
+        });
+        let (a, cut) = band.unwrap();
+        assert!(far < a + 2.0 * (cut - a), "{far} {a} {cut}");
+        assert!(prims.iter().any(|p| matches!(p, strix_plot::PlotPrim::Dot { .. })), "x's origin");
+    }
+
+    /// The shear's letter follows the diagram's title.
+    #[test]
+    fn a_stretch_names_the_shear_by_its_title() {
+        let mut st = beam(Some(Cut { member: "1".into(), from: 0.0, to: 3.0, tag: "1".into() }));
+        st.titles.v = "V".into();
+        assert!(names(&st).iter().any(|p| p == "V_1"));
+    }
+
+    /// The tag keeps the member's id as the working writes it (`1-2a`), not only its letters.
+    #[test]
+    fn a_stretch_tag_keeps_the_members_id() {
+        let mut st = beam(None);
+        st.members[0].id = "1-2".into();
+        if let Some(Load::Distributed { member, .. }) = st.loads.first_mut() {
+            *member = "1-2".into();
+        }
+        st.cut = Some(Cut { member: "1-2".into(), from: 0.0, to: 6.0, tag: "1-2a".into() });
+        let st = st.sanitized();
+        assert_eq!(st.cut.as_ref().map(|c| c.tag.as_str()), Some("1-2a"));
+        let t = names(&st);
+        assert!(t.iter().any(|p| p == "N_1-2a"), "{t:?}");
+    }
+
+    /// A member running right to left: the part before the cut is its first node's side.
+    #[test]
+    fn a_reversed_member_is_cut_from_its_first_node() {
+        let mut st = beam(Some(Cut { member: "1".into(), from: 0.0, to: 2.0, tag: "1".into() }));
+        st.members[0] = Member { id: "1".into(), a: "B".into(), b: "A".into(), ..Member::default() };
+        let t = names(&st);
+        assert!(t.iter().any(|p| p == "V_B") && t.iter().any(|p| p == "M_1"), "{t:?}");
+        assert!(!t.iter().any(|p| p == "V_A" || p == "H_A"), "{t:?}");
+    }
+
+    /// A column fixed at its foot: its reactions, the couple among them, and the forces on the cut.
+    #[test]
+    fn a_vertical_member_is_cut() {
+        let node = |id: &str, y: f64| Node { id: id.into(), x: 0.0.into(), y: y.into(), hinge: false };
+        let st = Structure {
+            nodes: vec![node("A", 0.0), node("B", 4.0)],
+            members: vec![Member { id: "1".into(), a: "A".into(), b: "B".into(), ..Member::default() }],
+            supports: vec![Support { node: "A".into(), kind: SupportKind::Fixed, angle: Num::default() }],
+            loads: vec![Load::Force { node: Some("B".into()), member: None, at: Num::default(), value: 10.0.into(), angle: Num::new(0.0) }],
+            view: View::Section,
+            cut: Some(Cut { member: "1".into(), from: 0.0, to: 4.0, tag: "1".into() }),
+            ..Structure::default()
+        };
+        let t = names(&st);
+        for name in ["H_A", "V_A", "M_A", "N_1", "T_1", "M_1", "x"] {
+            assert!(t.iter().any(|p| p == name), "{name}: {t:?}");
+        }
+    }
+
+    /// A varying distributed load the cut crosses is drawn up to the cut without its name (its far
+    /// end's would be wrong there).
+    #[test]
+    fn a_varying_load_across_the_cut_goes_unnamed() {
+        let mut st = beam(Some(Cut { member: "1".into(), from: 0.0, to: 6.0, tag: "1".into() }));
+        if let Some(Load::Distributed { q2, .. }) = st.loads.first_mut() {
+            *q2 = Some(20.0.into());
+        }
+        let t = names(&st);
+        assert!(t.iter().any(|p| p == "N_1"), "{t:?}");
+        assert!(!t.iter().any(|p| p.starts_with("q₁ =") || p.starts_with("q₂ =")), "{t:?}");
+    }
+
+    /// A member closing a ring has no part before its cut alone: the stretch is marked on the
+    /// structure drawn whole, without the internal forces.
+    #[test]
+    fn a_member_in_a_ring_draws_no_internal_forces() {
+        let node = |id: &str, x: f64, y: f64| Node { id: id.into(), x: x.into(), y: y.into(), hinge: false };
+        let member = |id: &str, a: &str, b: &str| Member { id: id.into(), a: a.into(), b: b.into(), ..Member::default() };
+        let mut st = beam(Some(Cut { member: "1".into(), from: 0.0, to: 6.0, tag: "1".into() }));
+        st.nodes.push(node("C", 3.0, 3.0));
+        st.members.extend([member("2", "B", "C"), member("3", "C", "A")]);
+        let t = names(&st);
+        assert!(!t.iter().any(|p| p == "N_1" || p == "M_1"), "{t:?}");
+    }
+
+    /// A cut naming nothing, or with junk numbers, draws the structure and never panics.
+    #[test]
+    fn hostile_cuts_never_panic() {
+        for cut in [
+            Cut { member: "9".into(), from: 0.0, to: 1.0, tag: "x".into() },
+            Cut { member: "1".into(), from: f64::NAN, to: f64::INFINITY, tag: String::new() },
+            Cut { member: "1".into(), from: 9.0, to: -4.0, tag: "1".repeat(100) },
+            Cut { member: "1".into(), from: 6.0, to: 6.0, tag: "1".into() },
+        ] {
+            let st = beam(Some(cut)).sanitized();
+            assert!(!st.render(None).plot.prims.is_empty());
+        }
+        assert!(!beam(None).render(None).plot.prims.is_empty());
+    }
+}

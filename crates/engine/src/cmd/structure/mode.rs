@@ -323,7 +323,8 @@ mod tests {
         s.run("structure.node", &json!({"id": "B", "x": 8})).unwrap();
         s.run("structure.working", &json!({"labels": {"heading": "Svolgimento"}})).unwrap();
         assert!(text(&s).contains("Svolgimento"), "{}", text(&s));
-        assert_eq!(structures(&s).len(), 1);
+        // The structure, and the free body and the stretch's drawing in its working.
+        assert_eq!(structures(&s).len(), 3);
 
         // To an exercise: the working goes, the exercise has the same structure.
         let r = s.run("structure.mode", &json!({"labels": {"title": "Trave"}})).unwrap();
@@ -342,8 +343,8 @@ mod tests {
         assert_eq!(r["mode"], "report", "{r}");
         assert_eq!(exercises(&s), 0);
         let found = structures(&s);
-        assert_eq!(found.len(), 1);
-        assert_eq!(found[0].2.view, View::All);
+        assert_eq!(found.len(), 3);
+        assert_eq!((found[0].2.view, found[1].2.view, found[2].2.view), (View::All, View::Equilibrium, View::Section));
         assert_eq!(found[0].2.node("B").map(|n| n.x.value), Some(8.0));
         // The working's words kept in the structure come back.
         assert!(text(&s).contains("Svolgimento"), "{}", text(&s));
@@ -453,7 +454,8 @@ mod tests {
         let eqs = equations(&s);
         assert!(eqs.first().is_some_and(|e| e.starts_with("q=20")), "{eqs:?}");
         assert!(eqs.iter().any(|e| e.contains("60\u{2009}kN")), "{eqs:?}");
-        assert_eq!(structures(&s).len(), 1);
+        // The structure, and the free body and the stretch's drawing in its working.
+        assert_eq!(structures(&s).len(), 3);
         assert!(structures(&s)[0].0 > 0, "the structure after its data");
     }
 }

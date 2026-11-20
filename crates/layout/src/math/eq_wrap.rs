@@ -6,7 +6,26 @@
 use super::bx::{Bx, St, finalize, gaps_between};
 use super::{Arg, Ctx, MNode, MathProps};
 
+/// Line spacing of a calculation's steps (an equation marked `stepped`: a solution's algebra,
+/// substitution and result, a structure's working), as a multiple of single spacing: wider than
+/// an ordinary equation array's, so that one step stands clear of the next.
+const STEPS_LINE_SPACING: f32 = 1.5;
+
+/// The line spacing of `math`'s equation-array rows: [`STEPS_LINE_SPACING`] for a calculation's
+/// steps, single otherwise.
+pub(super) fn row_spacing(math: &wordcraft_doc::math::Math) -> f32 {
+    if math.stepped { STEPS_LINE_SPACING } else { 1.0 }
+}
+
 impl Ctx {
+    /// Least space between an equation array's rows and least baseline-to-baseline distance, in
+    /// points at `em`: single spacing is the array's own; wider spacing multiplies its line
+    /// (`EQ_ROW_SKIP`) and adds the extra to the clearance between tall rows as well.
+    pub(super) fn eq_row_spacing(&self, em: f32) -> (f32, f32) {
+        let extra = (self.row_spacing.clamp(1.0, 3.0) - 1.0) * super::rows::EQ_ROW_SKIP;
+        (em * (super::rows::EQ_ROW_GAP + extra), em * (super::rows::EQ_ROW_SKIP + extra))
+    }
+
     /// The equation array `rows` (the whole of display equation `nodes`) in `avail` points.
     pub(super) fn eq_arr_wrapped(&mut self, nodes: &[MNode], rows: &[Arg], st: St, avail: f32, mp: &MathProps) -> Bx {
         let budget = self.nodes;
@@ -41,7 +60,8 @@ impl Ctx {
             placed.push((b, x));
         }
         self.node_stack.pop();
-        let (mut out, _) = self.stack_rows(placed, st, em * super::rows::EQ_ROW_GAP, em * super::rows::EQ_ROW_SKIP);
+        let (gap, skip) = self.eq_row_spacing(em);
+        let (mut out, _) = self.stack_rows(placed, st, gap, skip);
         // The caret before and after the array, as when it is laid out whole.
         let w = out.w;
         out.slot(&[], 0, 0.0);
@@ -75,6 +95,29 @@ mod tests {
             }
         }
         ys
+    }
+
+    /// A calculation's steps are spaced one and a half lines apart, wider than an ordinary
+    /// equation array, with fractions as well as plain rows.
+    #[test]
+    fn a_calculations_steps_are_spaced_wider_than_an_equation_array() {
+        crate::test_fonts();
+        let rc = wordcraft_doc::styles::StyleSheet::default().resolve_char(None, &Default::default());
+        for lin in ["█(F&=m·a@a&=F/m@a&=2.5)", "█(d^2&=(4·A)/π@d&=√((4·A)/π)@d&=(1 kN)/(400 kg))"] {
+            let gaps = |stepped: bool| -> Vec<f32> {
+                let math = Math { nodes: parse_linear(lin), stepped, ..Default::default() };
+                let m = layout_equation(&math, lin, &rc, true, 1e4, &MathProps::default(), &mut 0);
+                let rows: Vec<f32> = (0..3).filter_map(|r| m.slots.iter().filter(|s| s.path == [(0, r)]).map(|s| s.y).next()).collect();
+                rows.windows(2).map(|w| (w[1] - w[0]).abs()).collect()
+            };
+            let (plain, steps) = (gaps(false), gaps(true));
+            assert_eq!((plain.len(), steps.len()), (2, 2), "{lin}");
+            let em = rc.draw_size();
+            for (p, s) in plain.iter().zip(&steps) {
+                assert!(*s >= p + em * 0.5, "{lin}: steps {steps:?} vs array {plain:?}");
+                assert!(*s >= em * 1.4 * 1.5 - 0.5, "{lin}: at least one and a half lines: {steps:?}");
+            }
+        }
     }
 
     #[test]

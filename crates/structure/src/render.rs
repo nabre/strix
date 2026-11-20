@@ -11,6 +11,9 @@ use crate::model::{Diagram, Layout, Load, LoadAxes, Side, Structure, SupportKind
 use crate::solve::{Analysis, MemberResult, Status, analyse};
 
 mod annotate;
+mod conventions;
+mod equilibrium;
+mod section;
 pub use annotate::{Chains, chains};
 
 type P = (f64, f64);
@@ -35,10 +38,13 @@ const ARROW: f64 = 11.0;
 const SPREAD: f64 = 8.0;
 /// The room between a text and the line it names (paper mm).
 const GAP: f64 = 1.0;
+/// The room between a station's distance and the diagram's axis (paper mm).
+const STATION_GAP: f64 = GAP + 2.6;
 /// The room kept round the drawing, between panels and under a panel's title (paper mm).
 const MARGIN: f64 = 1.0;
 const PANEL_GAP: f64 = 5.0;
-const TITLE_ROW: f64 = 6.0;
+/// The row a diagram's title and sign convention take above it (paper mm).
+const TITLE_ROW: f64 = 11.0;
 
 /// A rendered structure: its drawing and its analysis.
 #[derive(Debug, Clone, PartialEq)]
@@ -230,9 +236,14 @@ impl Ctx<'_> {
     }
 
     fn node_names(&mut self, f: &Frame) {
+        self.node_names_where(f, &|_| true);
+    }
+
+    /// [`Ctx::node_names`] of the nodes `at` picks.
+    fn node_names_where(&mut self, f: &Frame, at: &dyn Fn(&str) -> bool) {
         let st = self.st;
         for n in &st.nodes {
-            if n.id.is_empty() || !st.members.iter().any(|m| m.a == n.id || m.b == n.id) {
+            if n.id.is_empty() || !at(&n.id) || !st.members.iter().any(|m| m.a == n.id || m.b == n.id) {
                 continue;
             }
             let p = f.p(n.x.value, n.y.value);
@@ -326,8 +337,13 @@ impl Ctx<'_> {
     }
 
     fn supports(&mut self, f: &Frame, c: Rgb) {
+        self.supports_where(f, c, &|_| true);
+    }
+
+    /// [`Ctx::supports`] at the nodes `at` picks.
+    fn supports_where(&mut self, f: &Frame, c: Rgb, at: &dyn Fn(&str) -> bool) {
         let st = self.st;
-        for s in &st.supports {
+        for s in st.supports.iter().filter(|s| at(&s.node)) {
             let Some(p) = self.node_p(f, &s.node) else { continue };
             let phi = s.angle.value.to_radians();
             let down = (phi.sin(), phi.cos());
@@ -351,6 +367,10 @@ impl Ctx<'_> {
                     self.pen.dot(q(-1.3, 4.0), 0.65, [255, 255, 255], Some((c, 0.3)));
                     self.pen.dot(q(1.3, 4.0), 0.65, [255, 255, 255], Some((c, 0.3)));
                     ground(&mut self.pen, 4.7, 3.8);
+                }
+                SupportKind::RollerCircle => {
+                    self.pen.dot(q(0.0, 2.0), 2.0, [255, 255, 255], Some((c, 0.35)));
+                    ground(&mut self.pen, 4.0, 3.8);
                 }
                 SupportKind::Link => {
                     self.pen.line(q(0.0, 0.0), q(0.0, 6.0), c, 0.45);
@@ -380,6 +400,11 @@ impl Ctx<'_> {
     }
 
     fn loads(&mut self, f: &Frame) {
+        self.loads_as(f, LOAD, true, &|_, _| true);
+    }
+
+    /// The loads `which` picks, in colour `col`, with their names and values when `labelled`.
+    fn loads_as(&mut self, f: &Frame, col: Rgb, labelled: bool, which: &dyn Fn(usize, &Load) -> bool) {
         let st = self.st;
         let qmax = st
             .loads
@@ -396,6 +421,9 @@ impl Ctx<'_> {
             None => value,
         };
         for (k, l) in st.loads.iter().enumerate() {
+            if !which(k, l) {
+                continue;
+            }
             match l {
                 Load::Force { node, member, at, value, angle } => {
                     let Some(p) = self.point_of(f, node.as_deref(), member.as_deref(), at.value) else { continue };
@@ -406,18 +434,22 @@ impl Ctx<'_> {
                     let d = mul(pd((a.cos(), a.sin())), value.value.signum());
                     let tip = add(p, mul(d, -0.5));
                     let tail = add(p, mul(d, -ARROW));
-                    self.pen.arrow(tail, tip, LOAD, 0.35);
-                    let label = named(k, 1, self.force(value.value.abs()));
-                    self.pen.beside(add(tail, mul(d, -0.8)), mul(d, -1.0), label, LOAD);
+                    self.pen.arrow(tail, tip, col, 0.35);
+                    if labelled {
+                        let label = named(k, 1, self.force(value.value.abs()));
+                        self.pen.beside(add(tail, mul(d, -0.8)), mul(d, -1.0), label, col);
+                    }
                 }
                 Load::Moment { node, member, at, value } => {
                     let Some(p) = self.point_of(f, node.as_deref(), member.as_deref(), at.value) else { continue };
                     if value.value == 0.0 {
                         continue;
                     }
-                    self.pen.couple(p, 4.0, value.value > 0.0, LOAD, 0.35);
-                    let label = named(k, 1, self.moment(value.value.abs()));
-                    self.pen.label(add(p, (5.5, -5.5)), label, LOAD);
+                    self.pen.couple(p, 4.0, value.value > 0.0, col, 0.35);
+                    if labelled {
+                        let label = named(k, 1, self.moment(value.value.abs()));
+                        self.pen.label(add(p, (5.5, -5.5)), label, col);
+                    }
                 }
                 Load::Distributed { member, q1, q2, from, to, angle, axes, .. } => {
                     let Some(m) = st.member(member) else { continue };
@@ -451,22 +483,25 @@ impl Ctx<'_> {
                         // Tails on the side the load comes from: q's sign may flip in a stretch.
                         let tail = add(world(x), mul(gp, -SPREAD * q / qmax));
                         if len >= 1.2 {
-                            self.pen.arrow(tail, tip, LOAD, 0.25);
+                            self.pen.arrow(tail, tip, col, 0.25);
                         }
                         tails.push(tail);
                     }
-                    self.pen.poly(tails.clone(), LOAD, 0.3);
+                    self.pen.poly(tails.clone(), col, 0.3);
                     let (Some(&first), Some(&last)) = (tails.first(), tails.last()) else { continue };
+                    if !labelled {
+                        continue;
+                    }
                     let out = mul(gp, -1.0);
                     if (q1 - q2).abs() <= 1e-12 * q1.abs().max(q2.abs()) {
                         let mid = tails.get(tails.len() / 2).copied().unwrap_or(first);
                         let label = named(k, 1, self.spread(q1.abs()));
-                        self.pen.beside(add(mid, mul(out, 0.8)), out, label, LOAD);
+                        self.pen.beside(add(mid, mul(out, 0.8)), out, label, col);
                     } else {
                         for (end, q, at) in [(1, q1, first), (2, q2, last)] {
                             if q != 0.0 {
                                 let label = named(k, end, self.spread(q.abs()));
-                                self.pen.beside(add(at, mul(out, 0.8)), out, label, LOAD);
+                                self.pen.beside(add(at, mul(out, 0.8)), out, label, col);
                             }
                         }
                     }
@@ -488,6 +523,8 @@ impl Ctx<'_> {
 
     fn reactions(&mut self, f: &Frame) {
         let an = self.an;
+        let pos = self.st.positive;
+        let (sx, sy, sr) = (pos.sx(), pos.sy(), pos.sr());
         for r in &an.reactions {
             let Some(p) = self.node_p(f, &r.node) else { continue };
             let phi = r.angle.to_radians();
@@ -495,11 +532,16 @@ impl Ctx<'_> {
             let mut comps: Vec<(P, f64)> = Vec::new();
             match r.kind {
                 SupportKind::Fixed | SupportKind::Pin => {
-                    comps.push(((1.0, 0.0), r.fx));
-                    comps.push(((0.0, 1.0), r.fy));
+                    // Each along the way it counts positive: crossed out when it came out negative.
+                    comps.push(((sx, 0.0), r.fx * sx));
+                    comps.push(((0.0, sy), r.fy * sy));
                 }
-                SupportKind::Roller | SupportKind::Link | SupportKind::Slider => {
-                    let n = (-phi.sin(), phi.cos());
+                SupportKind::Roller | SupportKind::RollerCircle | SupportKind::Link | SupportKind::Slider => {
+                    // Across the roller; along an axis, the way that axis counts positive.
+                    let mut n = (-phi.sin(), phi.cos());
+                    if (n.0.abs() < 1e-9 && n.1 * sy < 0.0) || (n.1.abs() < 1e-9 && n.0 * sx < 0.0) {
+                        n = (-n.0, -n.1);
+                    }
                     comps.push((n, r.fx * n.0 + r.fy * n.1));
                 }
             }
@@ -523,14 +565,29 @@ impl Ctx<'_> {
                 } else {
                     self.pen.arrow(near, far, REACTION, 0.4);
                 }
+                if v < 0.0 {
+                    // Taken positive along the axis, it came out negative: that way crossed out
+                    // beside it, on the side away from the structure.
+                    let across = self.outwards(&r.node, (-side.1, side.0));
+                    let (a, b) = (add(near, mul(across, 4.0)), add(far, mul(across, 4.0)));
+                    let a = add(a, mul(side, 1.0));
+                    if toward_node { self.pen.crossed_arrow(a, b, REACTION) } else { self.pen.crossed_arrow(b, a, REACTION) }
+                }
                 let label = self.force(v.abs());
                 self.pen.beside(add(far, mul(side, 0.8)), side, label, REACTION);
             }
             if r.m != 0.0 {
                 self.pen.couple(p, 5.0, r.m > 0.0, REACTION, 0.4);
+                let mut reach = 6.5;
+                if r.m * sr < 0.0 {
+                    // Taken positive the way a rotation counts positive, it came out negative:
+                    // crossed out round it.
+                    self.pen.crossed_couple(p, 7.5, sr > 0.0, REACTION);
+                    reach = 9.5;
+                }
                 let label = self.moment(r.m.abs());
                 let free = self.free_side_avoiding(&r.node, &taken);
-                self.pen.beside(add(p, mul(free, 6.5)), free, label, REACTION);
+                self.pen.beside(add(p, mul(free, reach)), free, label, REACTION);
             }
         }
     }
@@ -587,9 +644,14 @@ impl Ctx<'_> {
                         }
                     }
                 }
-                let mut pts = vec![axis(x0)];
-                pts.extend(seg.iter().map(|&(x, v)| curve(x, v)));
-                pts.push(axis(x1));
+                // The curve bold; its ends closed down to the axis as thin as the hatching, so
+                // the stretches' bounds (and a jump) don't read as heavy vertical bars.
+                let pts: Vec<P> = seg.iter().map(|&(x, v)| curve(x, v)).collect();
+                for (x, v) in [seg.first(), seg.last()].into_iter().flatten() {
+                    if ord(*v).abs() > 1e-9 {
+                        self.pen.line(axis(*x), curve(*x, *v), lighter(color, 0.3), 0.15);
+                    }
+                }
                 self.pen.poly(pts, color, 0.4);
                 if signs {
                     self.signs(seg, &curve, &axis, &ord, normal, color, f.k);
@@ -680,45 +742,46 @@ impl Ctx<'_> {
         let mut xs: Vec<f64> = notables(m, action).iter().map(|n| n.x).filter(|x| *x > lt && *x < m.length - lt).collect();
         xs.sort_by(f64::total_cmp);
         xs.dedup_by(|a, b| (*a - *b).abs() <= lt);
+        // A diagram that is nought all along has nothing to locate.
+        if segs.iter().flatten().all(|&(_, v)| ord(v).abs() <= 1e-9) {
+            return;
+        }
         let lu = self.st.length_unit.symbol();
         let height = TEXT * 0.9;
-        let mut last: Option<P> = None;
         for x in xs {
-            let v = interp_member(segs, x).unwrap_or(0.0);
-            let o = ord(v);
-            let (base, top) = (axis(x), curve(x, v));
-            if o.abs() > 0.8 {
+            let (vl, vr) = sides(segs, x);
+            let (ol, or) = (ord(vl), ord(vr));
+            let (base, top) = (axis(x), curve(x, vl));
+            if ol.abs() > 0.8 {
                 self.pen.dashed(base, top, lighter(color, 0.2), 0.15);
             }
             self.pen.line(add(base, mul(normal, -0.8)), add(base, mul(normal, 0.8)), color, 0.25);
-            // Too close to the last one on paper: the tick only.
-            if last.is_some_and(|p| (p.0 - base.0).hypot(p.1 - base.1) < height * 1.2) {
-                continue;
-            }
             let text = format!("{} {lu}", self.num(x));
             let half = text.chars().count() as f64 * height * 0.55 / 2.0;
-            let away = mul(
-                normal,
-                if o > 0.0 {
-                    -1.0
-                } else if o < 0.0 {
-                    1.0
-                } else {
-                    -1.0
-                },
-            );
+            // Away from the diagram (both sides of the tick counted), below the axis at a zero.
+            let away = mul(normal, if ol + or > 0.0 { -1.0 } else { 1.0 });
             let angle = annotate::reading_angle(away);
-            // Across the axis on the tick, else beside it either way: clear of the curve.
             let along = (away.1, -away.0);
             let side_step = height * 0.75 + 0.3;
-            let centre = add(base, mul(away, GAP + 0.6 + half));
-            let places = [centre, add(centre, mul(along, side_step)), add(centre, mul(along, -side_step))];
+            let centre = add(base, mul(away, STATION_GAP + half));
+            let opposite = add(base, mul(away, -(STATION_GAP + half)));
+            // Across the axis on the tick; else on the tick across the other side where the
+            // diagram is thin there (a zero, a station close to another); else beside the tick.
+            let thin = ol.abs().max(or.abs()) < 1.5;
+            let mut places = vec![centre];
+            if thin {
+                places.push(opposite);
+            }
+            places.extend([add(centre, mul(along, side_step)), add(centre, mul(along, -side_step))]);
             let boxes: Vec<[f64; 4]> = places.iter().map(|p| annotate::turned_box(*p, &text, height, angle)).collect();
-            let k = self.clearest(&boxes);
+            let (k, hits) = self.clearest_hits(&boxes);
+            // Nowhere clear: the tick only, rather than one text over another.
+            if hits > 0 {
+                continue;
+            }
             let (Some(&at), Some(&b)) = (places.get(k), boxes.get(k)) else { continue };
             self.placed.push(b);
             self.pen.turned(at, text, height, angle, GREY);
-            last = Some(base);
         }
     }
 
@@ -765,17 +828,22 @@ impl Ctx<'_> {
 
     /// The first of `boxes` clear of what is written, else the one over the fewest things.
     fn clearest(&self, boxes: &[[f64; 4]]) -> usize {
-        let mut best = (usize::MAX, 0);
+        self.clearest_hits(boxes).0
+    }
+
+    /// [`Self::clearest`] with how many written things its box is over.
+    fn clearest_hits(&self, boxes: &[[f64; 4]]) -> (usize, usize) {
+        let mut best = (0, usize::MAX);
         for (k, b) in boxes.iter().enumerate() {
             let hits = self.placed.iter().filter(|o| overlaps(b, o)).count();
             if hits == 0 {
-                return k;
+                return (k, 0);
             }
-            if hits < best.0 {
-                best = (hits, k);
+            if hits < best.1 {
+                best = (k, hits);
             }
         }
-        best.1
+        best
     }
 
     /// Truss: every member in its colour with its axial force.
@@ -879,6 +947,15 @@ fn text_box(at: P, dir: P, text: &str) -> [f64; 4] {
 
 fn overlaps(a: &[f64; 4], b: &[f64; 4]) -> bool {
     a[0] < b[2] && b[0] < a[2] && a[1] < b[3] && b[1] < a[3]
+}
+
+/// The sampled values just before and just after `x` along a member (they differ at a jump).
+fn sides(segs: &[Vec<(f64, f64)>], x: f64) -> (f64, f64) {
+    let near = |a: f64| (a - x).abs() <= 1e-9 * (1.0 + x.abs());
+    let left = segs.iter().find(|s| s.last().is_some_and(|p| near(p.0))).and_then(|s| s.last()).map(|p| p.1);
+    let right = segs.iter().find(|s| s.first().is_some_and(|p| near(p.0))).and_then(|s| s.first()).map(|p| p.1);
+    let inside = interp_member(segs, x).unwrap_or(0.0);
+    (left.unwrap_or(inside), right.unwrap_or(inside))
 }
 
 /// The sampled value at `x` along a member, from the stretch holding it.
@@ -997,13 +1074,26 @@ impl Structure {
                 y += PANEL_GAP;
             }
             first = false;
-            let titled = row.iter().any(|(p, _, _)| cx.panel_title(*p).is_some());
+            // The free body's row shows the senses its equations count positive.
+            let titled = row.iter().any(|(p, _, _)| cx.panel_title(*p).is_some() || matches!(p, Panel::Equilibrium));
             let top = y + if titled { TITLE_ROW } else { 0.0 };
             let height = row.iter().filter_map(|(_, _, b)| b.map(|b| b[3] - b[1])).fold(0.0_f64, f64::max);
             for (c, (panel, prims, bbox)) in row.iter().enumerate() {
                 let i = r * cols + c;
                 if let Some((text, color)) = cx.panel_title(*panel) {
+                    let after = cell * c as f64 + 2.0 + text.chars().count() as f64 * 3.0 * 0.7 + conventions::AFTER_TITLE;
                     pen.text((cell * c as f64 + 2.0, y + 4.0), text, 3.0, true, PlotAnchor::Left, color);
+                    let action = match panel {
+                        Panel::Diagram(a) => Some(*a),
+                        Panel::Truss => Some(Action::Axial),
+                        _ => None,
+                    };
+                    if let Some(a) = action {
+                        pen.convention((after, y + 3.0), a, color);
+                    }
+                }
+                if matches!(panel, Panel::Equilibrium) {
+                    pen.positive((cell * c as f64 + 2.0, y), st.positive);
                 }
                 let Some(b) = bbox else { continue };
                 let prims = student.as_ref().and_then(|s| s.get(i)).map_or(prims, |s| &s.1);
@@ -1107,11 +1197,11 @@ impl Ctx<'_> {
         let fu = st.force_unit.symbol();
         let lu = st.length_unit.symbol();
         match panel {
-            Panel::Schema | Panel::Reactions => None,
-            Panel::Truss => Some((format!("{} [{fu}]", st.titles.n), COLOR_N)),
-            Panel::Diagram(Action::Axial) => Some((format!("{} [{fu}]", st.titles.n), COLOR_N)),
-            Panel::Diagram(Action::Shear) => Some((format!("{} [{fu}]", st.titles.v), COLOR_V)),
-            Panel::Diagram(Action::Moment) => Some((format!("{} [{fu}·{lu}]", st.titles.m), COLOR_M)),
+            Panel::Schema | Panel::Reactions | Panel::Equilibrium | Panel::Section => None,
+            // The name given to the diagram (`Sforzo normale`), else its symbol (`N`).
+            Panel::Truss | Panel::Diagram(Action::Axial) => Some((format!("{} [{fu}]", named(&st.names.n, &st.titles.n)), COLOR_N)),
+            Panel::Diagram(Action::Shear) => Some((format!("{} [{fu}]", named(&st.names.v, &st.titles.v)), COLOR_V)),
+            Panel::Diagram(Action::Moment) => Some((format!("{} [{fu}·{lu}]", named(&st.names.m, &st.titles.m)), COLOR_M)),
         }
     }
 
@@ -1135,6 +1225,9 @@ impl Ctx<'_> {
                     self.reactions(f);
                 }
             }
+            // Names only, no answers: the same in the student's copy.
+            Panel::Equilibrium => self.equilibrium(f),
+            Panel::Section => self.section(f),
             Panel::Truss => {
                 if show {
                     self.truss(f);
@@ -1167,6 +1260,12 @@ fn plan(st: &Structure, an: &Analysis) -> Vec<Panel> {
     }
     if !an.status.is_solved() || st.view == View::Structure {
         return panels;
+    }
+    if st.view == View::Equilibrium {
+        panels.push(Panel::Equilibrium);
+    }
+    if st.view == View::Section {
+        panels.push(Panel::Section);
     }
     if (d.reactions && st.view == View::All) || st.view == View::Reactions {
         panels.push(Panel::Reactions);
@@ -1218,8 +1317,17 @@ impl Place {
 enum Panel {
     Schema,
     Reactions,
+    /// The free body of the reactions' working ([`View::Equilibrium`]).
+    Equilibrium,
+    /// One stretch of a written working, cut ([`View::Section`]).
+    Section,
     Truss,
     Diagram(Action),
+}
+
+/// A diagram's panel name: the name given to it, else its symbol.
+fn named<'a>(name: &'a str, symbol: &'a str) -> &'a str {
+    if name.trim().is_empty() { symbol } else { name }
 }
 
 #[cfg(test)]

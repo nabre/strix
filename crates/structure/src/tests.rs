@@ -2,7 +2,10 @@
 
 use strix_calc::{Options, Quantity, Value, Worksheet};
 
-use crate::{Action, Load, LoadAxes, LoadPer, Member, Node, NotableKind, Num, Status, Structure, Support, SupportKind, analyse, notables};
+use crate::{
+    Action, ForceUnit, LengthUnit, Load, LoadAxes, LoadPer, Member, Node, NotableKind, Num, Status, Structure, Support, SupportKind, analyse,
+    notables,
+};
 
 fn node(id: &str, x: f64, y: f64) -> Node {
     Node { id: id.into(), x: x.into(), y: y.into(), hinge: false }
@@ -115,6 +118,30 @@ fn propped_cantilever_is_hyperstatic_of_degree_one() {
     // R_B = 3qL/8, M_A = −qL²/8.
     assert_close!(an.reactions[1].fy, 3.0 * 12.0 * 4.0 / 8.0);
     assert_close!(an.members[0].forces(0.0, true).m, -12.0 * 16.0 / 8.0);
+}
+
+/// The force method's released structures: without the roller, a cantilever; without the fixed
+/// end's couple, a simply supported beam.
+#[test]
+fn released_constraints_leave_an_isostatic_structure() {
+    let st = Structure {
+        nodes: vec![node("A", 0.0, 0.0), node("B", 4.0, 0.0)],
+        members: vec![member("1", "A", "B")],
+        supports: vec![support("A", SupportKind::Fixed, -90.0), support("B", SupportKind::Roller, 0.0)],
+        loads: vec![uniform("1", 12.0)],
+        ..Structure::default()
+    };
+    let an = crate::analyse_released(&st, &[(1, 0)]);
+    assert_eq!(an.status, Status::Isostatic);
+    assert_eq!(an.reactions.len(), 1);
+    assert_close!(an.reactions[0].fy, 48.0);
+    assert_close!(an.members[0].forces(0.0, true).m, -96.0);
+    let an = crate::analyse_released(&st, &[(0, 2)]);
+    assert_eq!(an.status, Status::Isostatic);
+    assert_close!(an.reactions[0].m, 0.0);
+    assert_close!(an.members[0].forces(2.0, true).m, 24.0);
+    // Both: it can move.
+    assert!(matches!(crate::analyse_released(&st, &[(0, 2), (1, 0)]).status, Status::Labile { .. }));
 }
 
 #[test]
@@ -250,6 +277,40 @@ fn portal_frame_with_a_horizontal_load() {
     // H_A = 10 to the left at A bends it with its right side stretched? Check the magnitude.
     assert_close!(an.members[0].forces(4.0, false).m.abs(), 40.0);
     assert_close!(an.members[1].forces(0.0, true).m.abs(), 40.0);
+}
+
+#[test]
+fn a_change_of_units_keeps_the_structure() {
+    let mut st = simple_beam();
+    st.loads.push(force_on("1", 2.0, 5.0));
+    st.members[0].e = Some(Num::new(2.1e8)); // kN/m²
+    st.members[0].i = Some(Num::new(1e-4)); // m⁴
+    st.members[0].area = Some(Num::new(0.07)); // m²
+    st.supports[1].angle = Num::new(30.0);
+    st.convert_units(LengthUnit::Cm, ForceUnit::N);
+    assert_eq!((st.length_unit, st.force_unit), (LengthUnit::Cm, ForceUnit::N));
+    assert_eq!(st.nodes[1].x.value, 600.0);
+    assert_eq!(st.supports[1].angle.value, 30.0, "angles don't change");
+    let Load::Distributed { q1, .. } = &st.loads[0] else { panic!() };
+    assert_eq!(q1.value, 100.0, "10 kN/m = 100 N/cm");
+    let Load::Force { at, value, .. } = &st.loads[1] else { panic!() };
+    assert_eq!((at.value, value.value), (200.0, 5000.0));
+    let m = &st.members[0];
+    assert_eq!(m.e.as_ref().unwrap().value, 2.1e7, "N/cm²");
+    assert_eq!(m.i.as_ref().unwrap().value, 1e4, "cm⁴");
+    assert_eq!(m.area.as_ref().unwrap().value, 700.0, "cm², without binary noise");
+    // And back: the same numbers as before.
+    let mut back = st.clone();
+    back.convert_units(LengthUnit::M, ForceUnit::KN);
+    let mut orig = simple_beam();
+    orig.loads.push(force_on("1", 2.0, 5.0));
+    assert_eq!(back.nodes, orig.nodes);
+    assert_eq!(back.loads, orig.loads);
+    // An expression is kept as written.
+    let mut e = simple_beam();
+    e.nodes[1].x = Num { value: 6.0, expr: Some("L".into()) };
+    e.convert_units(LengthUnit::Mm, ForceUnit::KN);
+    assert_eq!(e.nodes[1].x.expr.as_deref(), Some("L"));
 }
 
 #[test]
@@ -432,6 +493,34 @@ fn a_labile_structure_says_so_and_draws_no_diagrams() {
     assert!(texts.iter().any(|t| t.starts_with("labile")), "{texts:?}");
 }
 
+/// A diagram's name is written over its panel in place of its symbol; an empty one gives the symbol
+/// back; a long one is cut.
+#[test]
+fn the_diagrams_names_title_their_panels() {
+    let texts = |st: &Structure| -> Vec<String> {
+        st.render(None)
+            .plot
+            .prims
+            .iter()
+            .filter_map(|p| if let strix_plot::PlotPrim::Text { text, .. } = p { Some(text.clone()) } else { None })
+            .collect()
+    };
+    let mut st = simple_beam();
+    let plain = texts(&st);
+    assert!(plain.iter().any(|t| t == "T [kN]"), "{plain:?}");
+    st.names.v = "Sforzo di taglio".to_string();
+    st.names.m = "Momento flettente".to_string();
+    let named = texts(&st);
+    assert!(named.iter().any(|t| t == "Sforzo di taglio [kN]"), "{named:?}");
+    assert!(named.iter().any(|t| t == "Momento flettente [kN·m]"), "{named:?}");
+    assert!(named.iter().any(|t| t == "N [kN]"), "{named:?}");
+    assert!(!named.iter().any(|t| t == "T [kN]"), "{named:?}");
+    st.names.n = "x".repeat(500);
+    assert_eq!(st.clone().sanitized().names.n.chars().count(), crate::Names::MAX);
+    // Saved only when given.
+    assert!(!simple_beam().to_json().contains("names"));
+}
+
 #[test]
 fn hostile_input_never_panics() {
     for json in [
@@ -524,6 +613,35 @@ fn the_drawing_has_dimensions_stations_and_values_across_the_members() {
     st.diagrams.stations = false;
     let t = texts(&st.render(None));
     assert!(!t.iter().any(|(x, _)| x.ends_with(" m") || x.ends_with('°')), "{t:?}");
+}
+
+#[test]
+fn a_zero_close_to_a_load_has_its_station_and_a_nought_diagram_has_none() {
+    // T goes from 0.708 to −14.292 over 4.2–5.2 m: nought at 4.247 m, 47 mm past the load's start.
+    let mut st = simple_beam();
+    let part = |q: f64, from: f64, to: f64| Load::Distributed {
+        member: "1".into(),
+        q1: q.into(),
+        q2: None,
+        from: from.into(),
+        to: Some(to.into()),
+        angle: Num::new(-90.0),
+        axes: LoadAxes::Global,
+        per: LoadPer::Length,
+    };
+    st.loads = vec![
+        part(10.0, 0.0, 2.5),
+        Load::Force { node: None, member: Some("1".into()), at: 3.2.into(), value: 5.0.into(), angle: Num::new(90.0) },
+        part(15.0, 4.2, 5.2),
+    ];
+    let t = texts(&st.render(None));
+    let count = |s: &str| t.iter().filter(|(x, a)| x == s && (a.abs() - 90.0).abs() < 1e-9).count();
+    // On T (the zero) and on M (its extreme), beside 4.2 m's.
+    assert_eq!(count("4.247 m"), 2, "{t:?}");
+    assert_eq!(count("4.2 m"), 2, "{t:?}");
+    // N is nought all along: no stations on it, T's and M's only.
+    assert_eq!(count("2.5 m"), 2, "{t:?}");
+    assert_eq!(count("2.071 m"), 2, "{t:?}");
 }
 
 #[test]
@@ -641,4 +759,141 @@ fn loads_are_numbered_together_by_place() {
     ];
     let n = crate::load_names(&st);
     assert_eq!(n.iter().map(|n| n.map(|n| n.linear_end(2))).collect::<Vec<_>>(), [Some("q_(1,2)".to_string()), Some("F_2".to_string())]);
+}
+
+/// The free body of the reactions' working names what its equations use: the reactions as
+/// unknowns, a distributed load's resultant, an askew force's horizontal and vertical parts (a
+/// letter and its subscript), and puts a station of the dimensions at the resultant's centroid.
+#[test]
+fn the_free_body_names_the_unknowns_resultants_and_parts() {
+    let mut st = simple_beam();
+    st.loads.clear();
+    st.loads.push(Load::Distributed {
+        member: "1".into(),
+        q1: 10.0.into(),
+        q2: None,
+        from: Num::default(),
+        to: Some(2.5.into()),
+        angle: Num::new(-90.0),
+        axes: LoadAxes::Global,
+        per: LoadPer::Length,
+    });
+    st.loads.push(Load::Force { node: None, member: Some("1".into()), at: Num::new(3.2), value: Num::new(10.0), angle: Num::new(30.0) });
+    st.diagrams.dimensions = false;
+    st.view = crate::View::Equilibrium;
+    let r = st.render(None);
+    let t: Vec<String> = texts(&r).into_iter().map(|(t, _)| t).collect();
+    let pairs: Vec<String> = t.windows(2).map(|w| format!("{}_{}", w[0], w[1])).collect();
+    for name in ["H_A", "V_A", "V_B", "F_1", "F_2,h", "F_2,v"] {
+        assert!(pairs.iter().any(|p| p == name), "{name}: {t:?}");
+    }
+    // Names only: no values, no load intensities.
+    assert!(!t.iter().any(|x| x.contains("kN")), "{t:?}");
+    // The arms' stations, whatever the dimensions' setting: 1.25 m to the resultant.
+    assert!(t.iter().filter(|x| x.as_str() == "1.25 m").count() >= 2, "{t:?}");
+    let json = st.to_json();
+    assert!(json.contains("\"view\":\"equilibrium\""), "{json}");
+}
+
+/// The senses counted positive: the free body draws them as a symbol (x, y, a `+` rotation) and
+/// its reactions' arrows point so; the reactions' panel crosses out a reaction that came out
+/// negative in them; saved only when not the default.
+#[test]
+fn the_positive_senses_are_drawn_and_followed() {
+    use crate::{Positive, SenseTurn, SenseY};
+    let mut st = simple_beam();
+    st.view = crate::View::Equilibrium;
+    let plain = st.render(None);
+    let t: Vec<String> = texts(&plain).into_iter().map(|(t, _)| t).collect();
+    for sym in ["x", "y", "+"] {
+        assert!(t.iter().any(|x| x == sym), "{sym}: {t:?}");
+    }
+    st.positive = Positive { y: SenseY::Down, rotation: SenseTurn::Cw, ..Positive::default() };
+    let down = st.render(None);
+    assert_ne!(plain.plot.prims, down.plot.prims, "the arrows and the symbol turn");
+    let json = st.to_json();
+    assert!(json.contains("\"positive\":{\"x\":\"right\",\"y\":\"down\",\"rotation\":\"cw\"}"), "{json}");
+    assert_eq!(Structure::from_json(&json).unwrap().positive, st.positive);
+    assert!(!simple_beam().to_json().contains("\"positive\":{"));
+    // Upwards reactions are negative downwards: crossed out in red.
+    let crossed = |st: &Structure| {
+        st.render(None).plot.prims.iter().any(|p| matches!(p, strix_plot::PlotPrim::Path { stroke: Some((c, _)), .. } if *c == [0xC0, 0x1C, 0x1C]))
+    };
+    st.view = crate::View::Reactions;
+    assert!(crossed(&st));
+    st.positive = Positive::default();
+    assert!(!crossed(&st));
+    assert!(Structure::from_json(r#"{"positive": {"y": "sideways"}}"#).is_err());
+}
+
+/// The beam of the owner's report: 10 kN/m over its first 2 m, 10 kN upwards at 4.5 m.
+fn upward_force_beam(roller: SupportKind) -> Structure {
+    let mut st = simple_beam();
+    st.supports = vec![support("A", SupportKind::Pin, 0.0), support("B", roller, 0.0)];
+    st.loads = vec![
+        Load::Distributed {
+            member: "1".into(),
+            q1: 10.0.into(),
+            q2: None,
+            from: Num::default(),
+            to: Some(2.0.into()),
+            angle: Num::new(-90.0),
+            axes: LoadAxes::Global,
+            per: LoadPer::Length,
+        },
+        Load::Force { node: None, member: Some("1".into()), at: 4.5.into(), value: 10.0.into(), angle: Num::new(90.0) },
+    ];
+    st
+}
+
+#[test]
+fn the_dimensions_keep_clear_of_the_supports_and_the_loads_below_the_beam() {
+    use strix_plot::PlotPrim;
+    const DIM: [u8; 3] = [0x55, 0x55, 0x55];
+    const GREY: [u8; 3] = [0x9A, 0x9A, 0x9A];
+    for roller in [SupportKind::Roller, SupportKind::RollerCircle] {
+        let st = upward_force_beam(roller);
+        let prims = st.schema_prims(10.0, (0.0, 0.0), Options::default());
+        // The bottom of everything but the dimensions (their lines are DIM, extension lines GREY).
+        let mut bottom = f64::MIN;
+        let mut dims_top = f64::MAX;
+        for p in &prims {
+            match p {
+                PlotPrim::Path { pts, stroke, .. } => {
+                    let low = pts.iter().map(|q| q.1).fold(f64::MIN, f64::max);
+                    match stroke.map(|s| s.0) {
+                        Some(DIM) => dims_top = dims_top.min(pts.iter().map(|q| q.1).fold(f64::MAX, f64::min)),
+                        Some(GREY) => {}
+                        _ => bottom = bottom.max(low),
+                    }
+                }
+                PlotPrim::Dot { at, r, .. } => bottom = bottom.max(at.1 + r),
+                PlotPrim::Text { at, text, .. } => {
+                    if text.contains("kN") {
+                        bottom = bottom.max(at.1);
+                    }
+                }
+                PlotPrim::TextAt { at, text, height, color, .. } if *color == DIM && text.ends_with(" m") => {
+                    dims_top = dims_top.min(at.1 - height);
+                }
+                PlotPrim::TextAt { at, text, height, .. } if text.contains("kN") => bottom = bottom.max(at.1 + height / 2.0),
+                _ => {}
+            }
+        }
+        // The upward force's arrow and its name hang below the beam: the chain goes under them.
+        assert!(bottom > 0.0 && dims_top > bottom, "{roller:?}: dimensions from {dims_top}, drawing down to {bottom}");
+    }
+}
+
+#[test]
+fn a_roller_drawn_as_a_circle_restrains_like_a_roller() {
+    let a = analyse(&upward_force_beam(SupportKind::Roller));
+    let b = analyse(&upward_force_beam(SupportKind::RollerCircle));
+    assert!(a.status.is_solved() && b.status.is_solved());
+    let forces = |an: &crate::Analysis| an.reactions.iter().map(|r| (r.fx, r.fy, r.m)).collect::<Vec<_>>();
+    assert_eq!(forces(&a), forces(&b));
+    assert_eq!(SupportKind::parse("rollerCircle"), Some(SupportKind::RollerCircle));
+    assert_eq!(SupportKind::RollerCircle.name(), "rollerCircle");
+    let json = upward_force_beam(SupportKind::RollerCircle).to_json();
+    assert!(json.contains("\"rollerCircle\""), "{json}");
 }
