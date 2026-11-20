@@ -621,6 +621,10 @@ the result and the steps go:
   a = 2.5 m/s²
   ```
 
+  The lines of the steps are one and a half lines apart (single spacing in an equation array
+  you write yourself), so each algebraic step stands clear of the next, also when its fractions
+  or roots are tall.
+
   Without steps a solved unknown and a check's values still go under the statement; a formula's
   result (`M = q·L²/8 = 30.375 kN·m`) stays on its line. An equation in a line of text stands
   on its own line (a display equation) while its steps are under it, and is in its line of
