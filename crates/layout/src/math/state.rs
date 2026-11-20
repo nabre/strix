@@ -14,6 +14,9 @@ pub(super) struct Ctx {
     pub(super) path: Vec<(usize, usize)>,
     /// Index of the node being laid out in its argument, innermost last.
     pub(super) node_stack: Vec<usize>,
+    /// Line spacing of an equation array's rows, as a multiple of single spacing (Strix: a
+    /// calculation's steps are spaced wider, `eq_wrap.rs`).
+    pub(super) row_spacing: f32,
 }
 
 pub(super) const MAX_NODES: usize = 200_000;

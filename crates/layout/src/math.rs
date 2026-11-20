@@ -235,6 +235,7 @@ pub fn layout_equation(
         nodes: 0,
         path: Vec::new(),
         node_stack: Vec::new(),
+        row_spacing: eq_wrap::row_spacing(math),
     };
     let st = St { level: 0, display, cramped: false, upright: false };
     let avail = if avail.is_finite() { avail.clamp(0.0, 1e5) } else { 0.0 };
