@@ -773,7 +773,7 @@ pub(crate) fn numeric(lhs: &Expr, rhs: &Expr, x: &str, scope: &Scope, extra: &[D
 
 /// `e` with each call of a user function (`T(x_1)`) replaced by the function's body, its
 /// parameters by the arguments; a function that is not defined, or calls nested too deep, stay.
-fn inline_calls(e: &Expr, scope: &Scope, depth: usize) -> Expr {
+pub(crate) fn inline_calls(e: &Expr, scope: &Scope, depth: usize) -> Expr {
     if depth > 8 {
         return e.clone();
     }
