@@ -107,7 +107,7 @@ pub(in crate::cmd::structure) fn parts(
         shear: paragraphs_with(&cap(shear_lines), props, Some(&figures))?,
         zeros: marked(&zero_lines, &zero_marked, Q_ZEROS)?,
         maxima: marked(&max_lines, &max_marked, Q_MAXIMA)?,
-        moments: paragraphs(&cap(moment_lines), props)?,
+        moments: paragraphs_with(&cap(moment_lines), props, Some(&figures))?,
     })
 }
 
@@ -264,9 +264,9 @@ impl Writer<'_> {
             }
             let (tag, _) = self.names(m, k, parts.len());
             out.push(stretch_header(src, s, &tag, self.u, self.labels));
-            if action == Action::Shear {
-                // Where the stretch lies and the part whose equilibrium gives its laws (N's
-                // stretches may join several of these: drawn with T's).
+            if matches!(action, Action::Shear | Action::Moment) {
+                // Where the stretch lies and the part whose equilibrium gives its laws, with T's
+                // and with M's (N's stretches may join several of these: drawn with T's).
                 out.push(Line::figure(Figure::Stretch(strix_structure::Cut { member: m.id.clone(), from: s.x0, to: s.x1, tag: tag.clone() })));
                 out.push(Line::heading(self.labels.cut.replace("{a}", &src.a).replace("{T}", &self.shear)));
             }

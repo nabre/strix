@@ -236,9 +236,14 @@ impl Ctx<'_> {
     }
 
     fn node_names(&mut self, f: &Frame) {
+        self.node_names_where(f, &|_| true);
+    }
+
+    /// [`Ctx::node_names`] of the nodes `at` picks.
+    fn node_names_where(&mut self, f: &Frame, at: &dyn Fn(&str) -> bool) {
         let st = self.st;
         for n in &st.nodes {
-            if n.id.is_empty() || !st.members.iter().any(|m| m.a == n.id || m.b == n.id) {
+            if n.id.is_empty() || !at(&n.id) || !st.members.iter().any(|m| m.a == n.id || m.b == n.id) {
                 continue;
             }
             let p = f.p(n.x.value, n.y.value);
@@ -332,8 +337,13 @@ impl Ctx<'_> {
     }
 
     fn supports(&mut self, f: &Frame, c: Rgb) {
+        self.supports_where(f, c, &|_| true);
+    }
+
+    /// [`Ctx::supports`] at the nodes `at` picks.
+    fn supports_where(&mut self, f: &Frame, c: Rgb, at: &dyn Fn(&str) -> bool) {
         let st = self.st;
-        for s in &st.supports {
+        for s in st.supports.iter().filter(|s| at(&s.node)) {
             let Some(p) = self.node_p(f, &s.node) else { continue };
             let phi = s.angle.value.to_radians();
             let down = (phi.sin(), phi.cos());

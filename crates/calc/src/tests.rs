@@ -2346,3 +2346,17 @@ fn a_rounding_residual_against_zero_keeps_the_isolated_form() {
     assert_eq!(s.first().map(String::as_str), Some("V·6 m = G·b + F·a"), "{s:?}");
     assert_eq!(s.last().map(String::as_str), Some("V = 12.44 kN"), "{s:?}");
 }
+
+/// An unknown inside a user function's call is solved with its algebra, not numerically: the
+/// call opened into the law first (`0 kN = T(x_1)` as `0 kN = V_A - q·x_1`), then isolated.
+#[test]
+fn an_unknown_in_a_call_shows_its_algebra() {
+    let s = steps(&["V_A = 12.5 kN", "q = 5 kN/m", "T(x) = V_A - q·x", "0 kN = T(x_1); 0 m ≤ x_1 ≤ 3 m"]).unwrap();
+    assert_eq!(s, ["0 kN = V_A - q·x_1", "q·x_1 = V_A", "x_1 = V_A/q", "x_1 = (12.5 kN)/(5 kN/m)", "x_1 = 2.5 m"], "{s:?}");
+    let r = evaluate(&["V_A = 12.5 kN", "q = 5 kN/m", "T(x) = V_A - q·x", "0 kN = T(x_1)"], &Options { steps: true, ..Options::default() });
+    assert!(r.last().is_some_and(|r| !r.numeric), "{r:?}");
+    // A law of degree two with no linear term: isolated, the root inside the interval.
+    let s = steps(&["T(x) = (30 kN) - (5 kN/m^2)·x^2", "0 kN = T(x_1); 0 m ≤ x_1 ≤ 6 m"]).unwrap();
+    assert_eq!(s.first().map(String::as_str), Some("0 kN = 30 kN - 5 kN/(m)²·x_1²"), "{s:?}");
+    assert_eq!(s.last().map(String::as_str), Some("x_1 = 2.449 m"), "{s:?}");
+}

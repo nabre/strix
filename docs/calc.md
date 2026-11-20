@@ -478,7 +478,10 @@ notation, in `crates/engine/tests/gallery_calculations.rs`):
   is an ordinary statement: `a(b + 1) =` and `a(3) =` are products, `sin(α) = 0.5` (a built-in
   function) is an equation, `f(3) = 7` a check. To solve an equation in a function, put the
   call on the right: `7 = f(y) ⇒ y = 3`; with units, the unknown takes the dimension the body
-  gives it (`0 kN = T(x_1) ⇒ x_1 = 3 m`). A call shown in a unit (`M(x_0) = kN·m`, `x_0` known)
+  gives it (`0 kN = T(x_1) ⇒ x_1 = 3 m`). With steps the call is opened into the function's
+  body first (`0 kN = V_A − q·x_1`), then solved with its algebra as any equation
+  (`q·x_1 = V_A`, `x_1 = V_A/q`, the values, the result); only what the algebra cannot solve is
+  found numerically. A call shown in a unit (`M(x_0) = kN·m`, `x_0` known)
   is a call, never a constant function.
 - **Names in the body**: the parameters shadow the worksheet's parameters (and units: in
   `A(b, h) = b·h`, `h` is the parameter, not the hour; after a number a unit stays a unit).
