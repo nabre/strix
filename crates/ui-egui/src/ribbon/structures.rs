@@ -49,6 +49,8 @@ pub(super) fn structures(app: &mut WordApp, ui: &mut Ui) {
         let label = if wordcraft_engine::cmd::structure::in_exercise(&app.session) { "To\nReport" } else { "To\nExercise" };
         super::big(ui, app, "structureMode", label, "structure.mode", mode_labels(), false);
     });
+    let on = info.is_some();
+    properties_group(app, ui, &st, on);
     let d = &st["diagrams"];
     let shown = |k: &str| d[k]["show"].as_bool().unwrap_or(true);
     // Absent flags are on, but dimensions and stations, which a structure saved before them
@@ -118,6 +120,8 @@ pub(super) fn structures(app: &mut WordApp, ui: &mut Ui) {
             );
         });
     });
+    names_group(app, ui, &st, on);
+    senses_group(app, ui, &st, on);
     group(ui, "Show", None, app, |ui, app| {
         stack(ui, |ui| {
             let on = flag("values");
@@ -183,28 +187,6 @@ pub(super) fn structures(app: &mut WordApp, ui: &mut Ui) {
                 |ui, app| {
                     for (value, label) in [("auto", "Automatic (Frames in Two Columns)"), ("column", "One Column"), ("grid", "Two Columns")] {
                         mi_check(ui, app, label, layout == value, "structure.set", json!({"layout": value}));
-                    }
-                },
-            );
-            let lu = st["lengthUnit"].as_str().unwrap_or("m").to_string();
-            let fu = st["forceUnit"].as_str().unwrap_or("kN").to_string();
-            menu_button(
-                ui,
-                app,
-                crate::widgets::MenuButtonOptions::new(
-                    "ruler",
-                    Some("Units"),
-                    "The units of lengths and forces (moments are their product)",
-                    false,
-                    "structure.set",
-                ),
-                |ui, app| {
-                    for u in ["m", "cm", "mm"] {
-                        mi_check(ui, app, u, lu == u, "structure.set", json!({"lengthUnit": u}));
-                    }
-                    ui.separator();
-                    for u in ["kN", "daN", "N"] {
-                        mi_check(ui, app, u, fu == u, "structure.set", json!({"forceUnit": u}));
                     }
                 },
             );
@@ -326,6 +308,126 @@ pub(super) fn structure_editor(app: &mut WordApp, ui: &mut Ui) {
     group(ui, "Close", None, app, |ui, app| {
         super::big(ui, app, "cadClose", "Close\nEditor", "ui.structureClose", json!({}), false);
     });
+}
+
+/// Properties: the structure's title and its units of lengths and forces.
+fn properties_group(app: &mut WordApp, ui: &mut Ui, st: &Value, on: bool) {
+    group(ui, "Properties", None, app, |ui, app| {
+        stack(ui, |ui| {
+            ui.add_enabled_ui(on, |ui| {
+                crate::widgets::row(ui, |ui| {
+                    ui.spacing_mut().item_spacing.x = 4.0;
+                    let name = ui.label(egui::RichText::new(ts("Title")).small());
+                    let title = st["title"].as_str().unwrap_or("");
+                    if let Some(t) = crate::structure_pane::named_box(ui, "ribbon_structure_title", title, 110.0, name.id) {
+                        let _ = app.run("structure.set", json!({"title": t.trim()}));
+                    }
+                });
+            });
+            let lu = st["lengthUnit"].as_str().unwrap_or("m").to_string();
+            let fu = st["forceUnit"].as_str().unwrap_or("kN").to_string();
+            menu_button(
+                ui,
+                app,
+                crate::widgets::MenuButtonOptions::new(
+                    "ruler",
+                    Some("Units"),
+                    "The units of lengths and forces (moments are their product)",
+                    false,
+                    "structure.set",
+                ),
+                |ui, app| {
+                    for u in ["m", "cm", "mm"] {
+                        mi_check(ui, app, u, lu == u, "structure.set", json!({"lengthUnit": u}));
+                    }
+                    ui.separator();
+                    for u in ["kN", "daN", "N"] {
+                        mi_check(ui, app, u, fu == u, "structure.set", json!({"forceUnit": u}));
+                    }
+                },
+            );
+        });
+    });
+}
+
+/// Diagram Names: each panel's name (`Sforzo normale` over the `N` panel) beside its symbol, an
+/// empty one drawing the symbol; the full names or the symbols at a click.
+fn names_group(app: &mut WordApp, ui: &mut Ui, st: &Value, on: bool) {
+    group(ui, "Diagram Names", None, app, |ui, app| {
+        ui.add_enabled_ui(on, |ui| {
+            stack(ui, |ui| {
+                for (key, default) in [("n", "N"), ("v", "T"), ("m", "M")] {
+                    crate::widgets::row(ui, |ui| {
+                        ui.spacing_mut().item_spacing.x = 4.0;
+                        let symbol = st["titles"][key].as_str().unwrap_or(default);
+                        let name = ui.add_sized([14.0, 18.0], egui::Label::new(egui::RichText::new(symbol).small()));
+                        let current = st["names"][key].as_str().unwrap_or("");
+                        if let Some(t) = crate::structure_pane::named_box(ui, ("ribbon_diagram_name", key), current, 100.0, name.id) {
+                            let _ = app.run("structure.set", json!({"names": {key: t.trim()}}));
+                        }
+                    });
+                }
+            });
+            stack(ui, |ui| {
+                let full = ui.small_button(ts("Full Names")).on_hover_text(ts("Name the panels Axial force, Shear force and Bending moment"));
+                if full.clicked() {
+                    let names = json!({"n": ts("Axial force"), "v": ts("Shear force"), "m": ts("Bending moment")});
+                    let _ = app.run("structure.set", json!({"names": names}));
+                }
+                let named = ["n", "v", "m"].iter().any(|k| !st["names"][*k].as_str().unwrap_or("").is_empty());
+                let symbols = ui.add_enabled(named, egui::Button::new(ts("Symbols")).small()).on_hover_text(ts("Name the panels by their symbols"));
+                if symbols.clicked() {
+                    let _ = app.run("structure.set", json!({"names": {"n": "", "v": "", "m": ""}}));
+                }
+            });
+        });
+    });
+}
+
+/// Positive Senses: the senses the reactions' working counts positive (x, y, rotation), each a
+/// pair of choices; the working is written again at each change.
+fn senses_group(app: &mut WordApp, ui: &mut Ui, st: &Value, on: bool) {
+    let pos = &st["positive"];
+    let now = |k: &str, default: &str| pos[k].as_str().unwrap_or(default).to_string();
+    let rows = [
+        ("x", "x", now("x", "right"), [("right", "Right"), ("left", "Left")]),
+        ("y", "y", now("y", "up"), [("up", "Up"), ("down", "Down")]),
+        ("Rotation", "rotation", now("rotation", "ccw"), [("ccw", "Counter-clockwise"), ("cw", "Clockwise")]),
+    ];
+    let note = ts("The reactions are taken positive so and the equilibrium equations sum so; the free body shows the symbol.");
+    group(ui, "Positive Senses", None, app, |ui, app| {
+        ui.add_enabled_ui(on, |ui| {
+            stack(ui, |ui| {
+                for (label, key, current, options) in &rows {
+                    crate::widgets::row(ui, |ui| {
+                        ui.spacing_mut().item_spacing.x = 2.0;
+                        let text = egui::RichText::new(ts(label)).small();
+                        ui.add_sized([58.0, 18.0], egui::Label::new(text)).on_hover_text(note);
+                        // Words, not arrows: the interface's fonts may lack the arrows' glyphs.
+                        for (value, text) in options {
+                            let sel = current == value;
+                            let r = ui.selectable_label(sel, egui::RichText::new(ts(text)).small()).on_hover_text(ts(value_hint(value)));
+                            if r.clicked() && !sel {
+                                let _ = app.run("structure.set", json!({"positive": {*key: *value}}));
+                            }
+                        }
+                    });
+                }
+            });
+        });
+    });
+}
+
+/// A positive sense's tooltip.
+fn value_hint(value: &str) -> &'static str {
+    match value {
+        "right" => "Positive to the right",
+        "left" => "Positive to the left",
+        "up" => "Positive upwards",
+        "down" => "Positive downwards",
+        "ccw" => "Positive counter-clockwise",
+        _ => "Positive clockwise",
+    }
 }
 
 /// Positive Side: up or down for each diagram.

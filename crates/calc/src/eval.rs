@@ -1518,14 +1518,28 @@ fn domain(function: &str) -> CalcError {
     CalcError::Domain { function: function.to_string() }
 }
 
+/// A sum or difference smaller than this share of its larger operand is the rounding of binary
+/// numbers, not a value: `0.1 + 0.2 − 0.3`, a moment that balances (`167.32 − 150 − 17.32`) are 0,
+/// never `5.551·10^-17`. A few hundred units in the last place, far below any digit shown.
+const CANCELLED: f64 = 1e-13;
+
+/// `v`, the result of adding or subtracting `x` and `y`, as 0 when it is only their rounding
+/// ([`CANCELLED`]).
+fn cancelled(v: f64, x: f64, y: f64) -> f64 {
+    if v != 0.0 && v.abs() <= CANCELLED * x.abs().max(y.abs()) { 0.0 } else { v }
+}
+
 fn binary_quantity(op: BinOp, x: Quantity, y: Quantity, mode: crate::UncertaintyMode) -> Result<Quantity, CalcError> {
-    let result = match op {
+    let mut result = match op {
         BinOp::Add => x.try_add(y),
         BinOp::Sub => x.try_sub(y),
         BinOp::Mul => x.try_mul(y),
         BinOp::Div => x.try_div(y),
         BinOp::Pow => x.try_pow(y),
     }?;
+    if matches!(op, BinOp::Add | BinOp::Sub) {
+        result.value = cancelled(result.value, x.value, y.value);
+    }
     if mode == crate::UncertaintyMode::Rss && result.unc.is_some() {
         let a = Quantity { unc: None, ..x };
         let b = Quantity { unc: None, ..y };

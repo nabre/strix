@@ -148,18 +148,31 @@ impl Pen {
 
     /// An arrow from `tail` to `tip` with a filled head.
     fn arrow(&mut self, tail: P, tip: P, c: Rgb, w: f64) {
+        self.arrow_sized(tail, tip, c, w, 2.0, 0.36);
+    }
+
+    /// [`Pen::arrow`] with a head `head` mm long (at most 60 % of the arrow) and `half` of its
+    /// length wide on each side.
+    fn arrow_sized(&mut self, tail: P, tip: P, c: Rgb, w: f64, head: f64, half: f64) {
         let d = unit((tip.0 - tail.0, tip.1 - tail.1));
         let len = (tip.0 - tail.0).hypot(tip.1 - tail.1);
-        let head = 2.0_f64.min(len * 0.6);
+        let head = head.min(len * 0.6);
         let base = add(tip, mul(d, -head));
         self.line(tail, base, c, w);
         let n = (-d.1, d.0);
-        self.fill(vec![tip, add(base, mul(n, head * 0.36)), add(base, mul(n, -head * 0.36))], c, None);
+        self.fill(vec![tip, add(base, mul(n, head * half)), add(base, mul(n, -head * half))], c, None);
     }
 
     /// A curved arrow round `c` (paper), counter-clockwise on the page when `ccw`.
     fn couple(&mut self, c: P, r: f64, ccw: bool, col: Rgb, w: f64) {
-        let (a0, a1) = (-120.0_f64.to_radians(), 150.0_f64.to_radians());
+        self.couple_sized(c, r, ccw, col, w, (-120.0, 150.0), 3, (2.0, 0.36));
+    }
+
+    /// [`Pen::couple`] over the angles `span` (degrees, counter-clockwise from the right), its
+    /// head taking the last `back` of the arc's 24 steps, `head` its length and half width.
+    #[allow(clippy::too_many_arguments)]
+    fn couple_sized(&mut self, c: P, r: f64, ccw: bool, col: Rgb, w: f64, span: (f64, f64), back: usize, head: (f64, f64)) {
+        let (a0, a1) = (span.0.to_radians(), span.1.to_radians());
         let n = 24;
         let mut pts: Vec<P> = (0..=n)
             .map(|k| {
@@ -170,10 +183,10 @@ impl Pen {
         if !ccw {
             pts.reverse();
         }
-        let (Some(&tip), Some(&before)) = (pts.last(), pts.get(pts.len().saturating_sub(4))) else { return };
-        pts.truncate(pts.len().saturating_sub(3));
+        let (Some(&tip), Some(&before)) = (pts.last(), pts.get(pts.len().saturating_sub(back + 1))) else { return };
+        pts.truncate(pts.len().saturating_sub(back));
         self.poly(pts, col, w);
-        self.arrow(before, tip, col, w);
+        self.arrow_sized(before, tip, col, w, head.0, head.1);
     }
 }
 

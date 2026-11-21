@@ -22,6 +22,7 @@ mod chars;
 mod grid;
 mod justify;
 mod lines;
+mod math_leading;
 mod model;
 mod paragraph;
 mod proof;
