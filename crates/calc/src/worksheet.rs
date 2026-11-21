@@ -1904,7 +1904,7 @@ impl Worksheet {
         }
     }
 
-    /// Like [`Self::auto`], but a plain number with a dimensionless unit `hint` (`°`, `%`) is
+    /// Like [`Self::auto_in`] in the document's format, but a plain number with a dimensionless unit `hint` (`°`, `%`) is
     /// shown in it.
     pub(crate) fn auto_hinted(&self, v: &Value, hint: Option<&str>) -> (String, String) {
         self.auto_hinted_in(v, hint, &self.opts)
@@ -1950,13 +1950,8 @@ impl Worksheet {
         self.auto_in(v, opts)
     }
 
-    /// `v`'s numbers and unit when none is asked for: the working unit of its dimension, else
-    /// the automatic one.
-    pub(crate) fn auto(&self, v: &Value) -> (String, String) {
-        self.auto_in(v, &self.opts)
-    }
-
-    /// [`Self::auto`] with the number format `opts`.
+    /// `v`'s numbers and unit when none is asked for, in the number format `opts`: the working
+    /// unit of its dimension, else the automatic one.
     fn auto_in(&self, v: &Value, opts: &Options) -> (String, String) {
         // A °C/°F working unit shows absolute temperatures only (see `auto_hinted`).
         if let Some((_, q, text)) = self.scope.working.iter().find(|(d, _, _)| *d == v.dim())
