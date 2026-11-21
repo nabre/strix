@@ -2407,3 +2407,13 @@ fn rounding_left_by_a_sum_is_zero() {
     assert_eq!(last(&["b := 1 m - 0.99988 m", "b = m"]), "b = 1.2·10^-4 m");
     assert_eq!(last(&["c := 101325 Pa + 0.001 Pa - 101325 Pa", "c = Pa"]), "c = 0.001 Pa");
 }
+
+/// With the decimals counted, a result is rounded to them but a substituted value never is:
+/// `0.0005 kN/mm` stays whole in the step.
+#[test]
+fn a_substitution_keeps_digits_past_the_decimals() {
+    let opts = Options { steps: true, count: Count::Decimals, ..Options::default() };
+    let r = evaluate(&["q := 0.0005 kN/mm", "a := 2.5 m", "F = q·a ="], &opts);
+    let shown = r.last().and_then(|r| r.display.clone()).unwrap_or_default();
+    assert!(!shown.contains("0.001 kN/mm") && shown.contains("(5·10^-4 kN/mm)") && shown.ends_with("= 1.25 kN"), "{shown}");
+}

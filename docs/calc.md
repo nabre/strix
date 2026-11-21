@@ -572,7 +572,13 @@ or `calc.layout`.
 - Trailing zeros are dropped unless **Show Trailing Zeros** (`2.500`).
 - A sum or a difference smaller than 10⁻¹³ of its larger term is the rounding of binary numbers
   and is 0: `0.1 m + 0.2 m − 0.3 m = 0 m`, a moment that balances is `0 kN·m`, never
-  `1.819·10^-14 kN·m` (`crates/calc/src/eval.rs`, `CANCELLED`).
+  `1.819·10^-14 kN·m` (`crates/calc/src/eval.rs`, `CANCELLED`). Each addition is measured
+  against its own two terms, so the rounding a large term leaves in a sum that goes on with small
+  ones can stay (`(10^6 + 0.1) − 10^6 − 0.1`): measured against the whole sum, a true small value
+  written after large terms that cancel exactly (`10^6 − 10^6 + 10^-8`) would be taken for one.
+- With **Decimal Places** a substituted value keeps the digits past them (`(5·10^-4 kN/mm)` with
+  3 decimals, never `(0.001 kN/mm)`), so a step never reads a value it doesn't compute with;
+  the results are rounded to the decimals.
 - Scientific notation `1.235·10^9` at or beyond 10⁷, and below 10⁻³ except with Decimal Places.
   Read back as a stale result it is skipped with its exponent in brackets too (`1.2·10^(-5)`,
   as an equation built up writes it).
@@ -593,10 +599,13 @@ A quantity divided by a number keeps its parentheses in every step, also as a pr
 factor: `q·6 m·(6 m)/2` stays so when the terms move (written `q·6 m·6 m/2` it would read, and be
 set, as `6·m/2`); a unit quotient is not a number (`12 kN/m` stays as written).
 
-A line holding a calculation is always widely spaced: it keeps a quarter of its font size free
-above and below the math, never less than the font's own line, so subscripts, fractions and the
-parentheses around substituted values never come near the line above or below (calculations one
-under the other with Shift+Enter, or a long one wrapping). Exact line spacing still fixes the line.
+A line holding a calculation is always widely spaced: when its math is more than plain symbols
+(a subscript or superscript, a fraction, a root, a bracket or a bar) it keeps a quarter of its
+font size free above and below the math, never less than the font's own line, so subscripts,
+fractions and the parentheses around substituted values never come near the line above or below
+(calculations one under the other with Shift+Enter, or a long one wrapping). Plain symbols on the
+baseline (`x`, `a + b` in a sentence) leave the line as the text around it, so prose with inline
+symbols stays evenly spaced. Exact line spacing still fixes the line.
 
 The variable a sum, a product, an integral or a limit runs over is never substituted, whatever
 is defined under its name: after `i = 1..5` and `k = 2`, `∑_i▒k·i² =` shows
@@ -763,7 +772,7 @@ none of them.
 
 ## Revision history
 
-- 2026-11-21: lines of math keep a quarter of the font size free above and below it (`crates/layout/src/para/math_leading.rs`): calculations under one another no longer look glued together.
+- 2026-11-21: lines of math keep a quarter of the font size free above and below it (`crates/layout/src/para/math_leading.rs`): calculations under one another no longer look glued together. Put right in the review of pull request 107: only math beyond plain symbols takes that room (an `x` in a sentence left prose unevenly spaced); with Decimal Places a substituted value keeps its digits (`(0.001 kN/mm)` was written for 0.0005); the limit of the rounding rule noted.
 
 - 2026-11-17: docs brought up to date with the code: the Math tab's groups (Variables, Plot and Plot Properties; exercises on the Teaching tab), Rounding under Math › Number Display (was Math › Results), Total Row on the Calculated Table tab (no longer Table Layout › Data or Math › Tables), the stages (derivatives, integrals, structures and plots done).
 

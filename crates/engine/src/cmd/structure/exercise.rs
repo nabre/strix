@@ -73,7 +73,7 @@ pub(super) fn run(s: &mut Session, v: &Value) -> CmdResult {
     let label = |k: &str, d: &str| -> String {
         v.get("labels").and_then(|l| l.get(k)).and_then(Value::as_str).map(|t| t.chars().take(400).collect()).unwrap_or_else(|| d.to_string())
     };
-    let shear = st.titles.v.clone();
+    let shear = super::working::shear_name(&st);
     let title = label("title", "Structure");
     let text = label("text", "For the structure in the figure, loaded as shown:");
     // The questions: their words from `questions` (the working's own words are in `labels`).

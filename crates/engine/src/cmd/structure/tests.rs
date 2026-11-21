@@ -174,14 +174,13 @@ fn has(t: &str, part: &str) -> bool {
     squeeze(t).contains(&squeeze(part))
 }
 
-/// Does `t` hold the value `call = result` of a stretch, its working one step a line between
-/// them (`█(M_1(3 m)@&=V_A·3 m − …@&=45 kN·m)`), spaces aside?
+/// Does `t` hold the value `call = result` of a stretch with its working, one step a line
+/// between them (`█(M_1(3 m)@&=V_A·3 m − …@&=45 kN·m)`), spaces aside? A value written without
+/// its working doesn't count.
 fn has_value(t: &str, call: &str, result: &str) -> bool {
     let squeeze = |x: &str| x.chars().filter(|c| !c.is_whitespace()).collect::<String>();
     let (call, result) = (squeeze(call), squeeze(result));
-    t.lines()
-        .map(squeeze)
-        .any(|l| (l.starts_with(&format!("█({call}@")) && l.ends_with(&format!("@&={result})"))) || l.contains(&format!("{call}={result}")))
+    t.lines().map(squeeze).any(|l| l.starts_with(&format!("█({call}@")) && l.ends_with(&format!("@&={result})")))
 }
 
 fn working_of(structure: serde_json::Value) -> Result<String, String> {
@@ -986,4 +985,43 @@ fn a_stretch_s_values_are_worked_out_and_rounded() {
     // The law with x substituted, then each term's weight.
     let line = t.lines().find(|l| l.contains("M_1c(6")).unwrap_or_default().to_string();
     assert!(has(&line, "@&=V_A·6 m") && has(&line, "kN·m-150 kN·m-"), "{line}");
+}
+
+/// A new shear symbol is written in the exercise's questions, and back; one undo step takes the
+/// structure, the questions and the working back together.
+#[test]
+fn the_questions_follow_the_shear_symbol() {
+    let mut s = Session::new(Document::new());
+    s.run("structure.exercise", &json!({"template": "beam"})).unwrap();
+    let before = text_of(&s);
+    assert!(has(&before, "shear force T."), "{before}");
+    select_structure(&mut s, 0);
+    s.run("structure.set", &json!({"titles": {"v": "V"}})).unwrap();
+    let t = text_of(&s);
+    assert!(has(&t, "shear force V.") && has(&t, "shear force V is zero") && !has(&t, "shear force T"), "{t}");
+    assert!(has(&t, "V_1(x)") && !has(&t, "T_1(x)"), "{t}");
+    s.undo();
+    assert_eq!(text_of(&s), before);
+    select_structure(&mut s, 0);
+    s.run("structure.set", &json!({"titles": {"v": "V"}})).unwrap();
+    select_structure(&mut s, 0);
+    s.run("structure.set", &json!({"titles": {"v": "T"}})).unwrap();
+    assert_eq!(text_of(&s), before);
+}
+
+/// The values rounded to the document's decimals never round a substituted parameter: a load
+/// of 0.0005 kN/mm is substituted as it is, not as `(0.001 kN/mm)`, so the step still gives
+/// what it should (`0.0005 kN/mm · 2000 mm = 1 kN`).
+#[test]
+fn a_small_load_is_substituted_whole() {
+    let t = working_of(json!({
+        "lengthUnit": "mm",
+        "nodes": [{"id": "A", "x": 0, "y": 0}, {"id": "B", "x": 6000, "y": 0}],
+        "members": [{"id": "1", "a": "A", "b": "B"}],
+        "supports": [{"node": "A", "kind": "pin"}, {"node": "B", "kind": "roller"}],
+        "loads": [{"type": "distributed", "member": "1", "q1": 0.0005}, {"type": "force", "member": "1", "at": 2000, "value": 0.3, "angle": -90}]
+    }))
+    .unwrap();
+    assert!(!t.contains('⚠') && !has(&t, "(0.001 kN/mm)"), "{t}");
+    assert!(has_value(&t, "T_1a(2000 mm)", "0.7 kN") && has(&t, "(5·10^(-4) kN/mm)·2000 mm@&=1.7 kN-1 kN"), "{t}");
 }

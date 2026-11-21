@@ -1184,9 +1184,31 @@ impl Worksheet {
         if Some(name) == skip {
             return None;
         }
-        let shown = self.shown(name)?;
+        let shown = self.shown_whole(name)?;
         let bare = shown.chars().all(|c| c.is_ascii_digit() || c == '.' || c == ',');
         Some(if bare { shown } else { format!("({shown})") })
+    }
+
+    /// Parameter `name`'s value as [`Self::shown`] writes it, but never with digits rounded away:
+    /// with [`Count::Decimals`] a value whose digits fall past the decimals (`0.0005` with 3) is
+    /// written as [`Count::Auto`] would, so a substitution never reads `(0.001 kN/mm)` for it.
+    fn shown_whole(&self, name: &str) -> Option<String> {
+        let v = self.scope.get(name)?;
+        let hint = self.scope.hints.iter().find(|(n, _)| n == name).map(|(_, h)| h.as_str());
+        let (number, unit) = self.auto_hinted(v, hint);
+        if self.opts.count == Count::Decimals {
+            // Trailing zeros aside, does the value need more decimals than are shown?
+            let trim = |t: &str| {
+                if t.contains(['.', ',']) { t.trim_end_matches('0').trim_end_matches(['.', ',']).to_string() } else { t.to_string() }
+            };
+            let fine = Options { digits: 12, zeros: false, ..self.opts };
+            let (exact, _) = self.auto_hinted_in(v, hint, &fine);
+            if trim(&number) != trim(&exact) {
+                let (number, unit) = self.auto_hinted_in(v, hint, &Options { count: Count::Auto, ..self.opts });
+                return Some(with_unit(&number, &unit));
+            }
+        }
+        Some(with_unit(&number, &unit))
     }
 
     /// True when `expr` reads a parameter other than `x` (`h·r`, not `3 m·5 m`).
@@ -1885,10 +1907,15 @@ impl Worksheet {
     /// Like [`Self::auto`], but a plain number with a dimensionless unit `hint` (`°`, `%`) is
     /// shown in it.
     pub(crate) fn auto_hinted(&self, v: &Value, hint: Option<&str>) -> (String, String) {
+        self.auto_hinted_in(v, hint, &self.opts)
+    }
+
+    /// [`Self::auto_hinted`] with the number format `opts`.
+    fn auto_hinted_in(&self, v: &Value, hint: Option<&str>, opts: &Options) -> (String, String) {
         if v.dim().is_dimensionless()
             && let Some(h) = hint
             && let Some(u) = unit(h)
-            && let Ok(number) = in_unit_text(v, u, h, &self.opts)
+            && let Ok(number) = in_unit_text(v, u, h, opts)
         {
             return (number, h.to_string());
         }
@@ -1900,41 +1927,45 @@ impl Worksheet {
                 && affine(h).is_some()
             {
                 let shown = match working {
-                    Some((_, q, text)) => in_unit_text(v, *q, text, &self.opts).map(|n| (n, text.clone())),
-                    None => unit(h)
-                        .ok_or(CalcError::UnknownUnit(h.to_string()))
-                        .and_then(|q| in_unit_text(v, q, h, &self.opts))
-                        .map(|n| (n, h.to_string())),
+                    Some((_, q, text)) => in_unit_text(v, *q, text, opts).map(|n| (n, text.clone())),
+                    None => {
+                        unit(h).ok_or(CalcError::UnknownUnit(h.to_string())).and_then(|q| in_unit_text(v, q, h, opts)).map(|n| (n, h.to_string()))
+                    }
                 };
                 if let Ok(shown) = shown {
                     return shown;
                 }
             }
-            return self.auto(v);
+            return self.auto_in(v, opts);
         }
         // A composed unit (`kN·m`) or an explicit rounding unit, unless a working unit was written.
         if !v.dim().is_dimensionless()
             && self.working_unit(v.dim()).is_none()
             && let Some(h) = hint
             && let Some(u) = self.unit_quantity(h)
-            && let Ok(number) = in_unit_text(v, u, h, &self.opts)
+            && let Ok(number) = in_unit_text(v, u, h, opts)
         {
             return (number, h.to_string());
         }
-        self.auto(v)
+        self.auto_in(v, opts)
     }
 
     /// `v`'s numbers and unit when none is asked for: the working unit of its dimension, else
     /// the automatic one.
     pub(crate) fn auto(&self, v: &Value) -> (String, String) {
+        self.auto_in(v, &self.opts)
+    }
+
+    /// [`Self::auto`] with the number format `opts`.
+    fn auto_in(&self, v: &Value, opts: &Options) -> (String, String) {
         // A °C/°F working unit shows absolute temperatures only (see `auto_hinted`).
         if let Some((_, q, text)) = self.scope.working.iter().find(|(d, _, _)| *d == v.dim())
             && affine(text).is_none()
-            && let Ok(number) = in_unit_text(v, *q, text, &self.opts)
+            && let Ok(number) = in_unit_text(v, *q, text, opts)
         {
             return (number, text.clone());
         }
-        auto_text(v, &self.opts)
+        auto_text(v, opts)
     }
 
     /// `v` as formatted numbers and unit text, in the requested unit or the automatic one.
