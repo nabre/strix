@@ -174,6 +174,10 @@ struct Line {
     display: bool,
     /// Its equations' steps one under the other (a long equilibrium equation fits the page).
     stepped: bool,
+    /// Its results with the document's decimals, never in scientific notation: a stretch's
+    /// values, where what is left of a balance is no digit worth reading (`0`, not
+    /// `1.819·10^-14`).
+    rounded: bool,
     /// In place of words and equations, a drawing of the structure ([`Figure`]).
     figure: Option<Figure>,
     /// Kept on the page with the line after it: a heading (words ending with `:`, a noted
@@ -184,7 +188,7 @@ struct Line {
 impl Line {
     fn words(label: String) -> Line {
         let keep = label.trim_end().ends_with(':');
-        Line { label, note: None, after: String::new(), equations: Vec::new(), display: false, stepped: false, figure: None, keep }
+        Line { label, note: None, after: String::new(), equations: Vec::new(), display: false, stepped: false, rounded: false, figure: None, keep }
     }
 
     /// Words that head what follows them, whatever they end with.
@@ -193,7 +197,7 @@ impl Line {
     }
 
     fn eqs(equations: Vec<String>, display: bool) -> Line {
-        Line { label: String::new(), note: None, after: String::new(), equations, display, stepped: false, figure: None, keep: false }
+        Line { label: String::new(), note: None, after: String::new(), equations, display, stepped: false, rounded: false, figure: None, keep: false }
     }
 
     /// A drawing, kept on the page with what explains it after it.
@@ -202,7 +206,7 @@ impl Line {
     }
 
     fn noted(label: String, note: String, after: String) -> Line {
-        Line { label, note: Some(note), after, equations: Vec::new(), display: false, stepped: false, figure: None, keep: true }
+        Line { label, note: Some(note), after, equations: Vec::new(), display: false, stepped: false, rounded: false, figure: None, keep: true }
     }
 
     /// Only equations: the rest of the block its heading opened.
@@ -344,7 +348,9 @@ fn paragraphs_with(lines: &[Line], props: &wordcraft_doc::CharProps, figures: Op
     // Only lines that become paragraphs (a figure without its drawing is left out).
     let shown: Vec<&Line> = lines.iter().filter(|l| l.figure.is_none() || figures.is_some()).collect();
     for (k, line) in shown.iter().enumerate() {
-        let keep = shown.get(k + 1).is_some_and(|next| line.keep || (next.continues() && line.figure.is_none()));
+        // A stretch's values, each with its working, are blocks of their own: kept together, they
+        // would make a block taller than a page.
+        let keep = shown.get(k + 1).is_some_and(|next| line.keep || (next.continues() && line.figure.is_none() && !line.rounded));
         if let Some(figure) = &line.figure {
             if let Some(figures) = figures {
                 let mut para = Paragraph::with_text("", props.clone());
@@ -372,7 +378,12 @@ fn paragraphs_with(lines: &[Line], props: &wordcraft_doc::CharProps, figures: Op
                 // Wide spaces between equations: a `;` would read as one of their conditions.
                 para.insert_text(at, if k > 0 { "\u{2003}\u{2003}" } else { " " }, &props).map_err(|e| CmdError::Failed(e.to_string()))?;
             }
-            let calc_opts = line.stepped.then(|| r#"{"layout":"lines"}"#.to_string());
+            let calc_opts = match (line.stepped, line.rounded) {
+                (true, true) => Some(r#"{"layout":"lines","count":"decimals"}"#.to_string()),
+                (true, false) => Some(r#"{"layout":"lines"}"#.to_string()),
+                (false, true) => Some(r#"{"count":"decimals"}"#.to_string()),
+                (false, false) => None,
+            };
             let math = Math { nodes: parse_linear(eq), calc: true, calc_opts, ..Math::default() };
             let obj = InlineObject::Equation { linear: to_linear(&math.nodes), math, display: line.display };
             let at = para.text.len();
@@ -1002,9 +1013,36 @@ fn units(st: &Structure, comma: bool) -> Units {
 }
 
 /// The shear's name in the laws: the diagram's title's letters (`T`, `V`).
-fn shear_name(st: &Structure) -> String {
+pub(super) fn shear_name(st: &Structure) -> String {
     let t: String = st.titles.v.chars().filter(|c| c.is_alphabetic()).take(2).collect();
     if t.is_empty() { "T".to_string() } else { t }
+}
+
+/// `text` with the symbol `old` standing alone (not inside a word or a name: `T`, `T(x)`, not
+/// `Tension` nor `T_1`) written `new`: the shear's symbol in words written with another.
+pub(super) fn renamed_symbol(text: &str, old: &str, new: &str) -> String {
+    if old.is_empty() || old == new {
+        return text.to_string();
+    }
+    let word = |c: Option<char>| c.is_some_and(|c| c.is_alphanumeric() || c == '_');
+    let mut out = String::with_capacity(text.len());
+    let mut rest = text;
+    let mut before: Option<char> = None;
+    while let Some(i) = rest.find(old) {
+        let (head, tail) = rest.split_at(i);
+        let after = tail.get(old.len()..).unwrap_or("");
+        let prev = head.chars().next_back().or(before);
+        out.push_str(head);
+        if word(prev) || word(after.chars().next()) {
+            out.push_str(old);
+        } else {
+            out.push_str(new);
+        }
+        before = old.chars().next_back();
+        rest = after;
+    }
+    out.push_str(rest);
+    out
 }
 
 /// A stretch's tag in the laws' names: the member's (`1`), with a letter when the member has
@@ -1153,8 +1191,8 @@ fn lines(st: &Structure, an: &strix_structure::Analysis, labels: &Labels, comma:
         }
         return out;
     }
-    out.push(Line::heading(format!("{}: {}", labels.forces, labels.conventions)));
     let shear = shear_name(st);
+    out.push(Line::heading(format!("{}: {}", labels.forces, renamed_symbol(&labels.conventions, "T", &shear))));
     for m in &an.members {
         if out.len() >= MAX_LINES {
             break;
@@ -1227,8 +1265,9 @@ fn member_lines(st: &Structure, us: &[Unknown], m: &MemberResult, u: &Units, lab
             values.push(format!("M_{tag}({}) = {fm}", at(x)));
         }
         values.push(format!("M_{tag}({}) = {fm}", at(s.x1)));
-        // One value a line, each under the other.
-        out.extend(values.into_iter().map(|v| Line::eqs(vec![v], false)));
+        // One value a line, each under the other; its working (the law with x substituted, the
+        // values, each term's weight) one step a line under it.
+        out.extend(values.into_iter().map(|v| Line { stepped: true, rounded: true, ..Line::eqs(vec![v], false) }));
     }
 }
 

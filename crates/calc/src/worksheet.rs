@@ -1114,12 +1114,67 @@ impl Worksheet {
     /// The working of formula `f`, worth `value`, before its result: the closed form of its sums
     /// (`(x + a)^n` for a binomial sum), shown when it gives the very value the terms add up
     /// to, then the values substituted. Empty when there is nothing to show.
+    ///
+    /// A call of a user function is opened first (`M(6 m)` as
+    /// `V_A·6 m − F_1·(6 m − 1 m)`), so the reader sees which law gives the value, then its
+    /// values substituted.
     fn working(&self, f: &Expr, skip: Option<&str>, value: &Value) -> Vec<String> {
+        let opened = inline_calls(f, &self.scope, 0);
+        if &opened != f
+            && !has_call(&opened)
+            && !is_quantity(&opened)
+            && eval(&opened, &self.scope, Names::Worksheet).is_ok_and(|v| agree(value, &v, &self.opts).is_ok())
+        {
+            let mut lines = vec![self.written(&opened)];
+            lines.extend(self.working(&opened, skip, value));
+            lines.extend(self.terms_worked(&opened));
+            return lines;
+        }
         let closed =
             crate::series::closed_form(f).filter(|c| eval(c, &self.scope, Names::Worksheet).is_ok_and(|v| agree(value, &v, &self.opts).is_ok()));
         let mut lines: Vec<String> = closed.iter().map(|c| self.written(c)).collect();
         lines.extend(self.substituted(closed.as_ref().unwrap_or(f), skip));
         lines
+    }
+
+    /// A sum `f` with each term worked out (`167.321 kN·m − 150 kN·m − 17.321 kN·m`), so the
+    /// reader sees what each term weighs and how they add up to the result; `None` when `f` is
+    /// no sum of two terms or more, when a term has no single value, or when every term is
+    /// already a value alone.
+    fn terms_worked(&self, f: &Expr) -> Option<String> {
+        fn flatten<'e>(e: &'e Expr, negative: bool, out: &mut Vec<(bool, &'e Expr)>, depth: usize) {
+            match e {
+                Expr::Bin(op @ (BinOp::Add | BinOp::Sub), a, b) if depth < crate::MAX_DEPTH => {
+                    flatten(a, negative, out, depth + 1);
+                    flatten(b, negative != (*op == BinOp::Sub), out, depth + 1);
+                }
+                _ => out.push((negative, e)),
+            }
+        }
+        let mut terms = Vec::new();
+        flatten(f, false, &mut terms, 0);
+        // Each term a parameter or a quantity alone: the substitution already shows its value.
+        if terms.len() < 2 || terms.iter().all(|(_, t)| is_quantity(t) || matches!(t, Expr::Name(_) | Expr::Num(_))) {
+            return None;
+        }
+        let whole = self.hint(f);
+        let mut out = String::new();
+        for (k, (negative, term)) in terms.iter().enumerate() {
+            let q = eval(term, &self.scope, Names::Worksheet).ok()?.expect_scalar().ok()?;
+            let shown = Quantity { value: if *negative { -q.value } else { q.value }, ..q };
+            let hint = self.hint(term).or_else(|| whole.clone());
+            let (number, unit) = self.auto_hinted(&Value::Scalar(Quantity { value: shown.value.abs(), ..shown }), hint.as_deref());
+            let text = with_unit(&number, &unit);
+            // A term worth nothing keeps the sign it is written with (`− 0 kN·m`).
+            let minus = if shown.value == 0.0 { *negative } else { shown.value < 0.0 };
+            match (k, minus) {
+                (0, false) => out.push_str(&text),
+                (0, true) => out.push_str(&format!("-{text}")),
+                (_, false) => out.push_str(&format!(" + {text}")),
+                (_, true) => out.push_str(&format!(" - {text}")),
+            }
+        }
+        Some(out)
     }
 
     /// Parameter `name`'s value as a substitution writes it: in parentheses when it has a unit,

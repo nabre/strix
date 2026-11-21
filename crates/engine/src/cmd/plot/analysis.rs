@@ -323,8 +323,18 @@ mod tests {
         assert!(r["lines"].as_u64().unwrap() >= 5, "{r}");
         let text = shown(&s).join("\n").replace(' ', "");
         // The zeros with their algebra: the call opened into the function's body, then solved.
-        for want in ["f(x) = x^2 - 4", "⇒ 0 = x_1² - 4", "= -2", "⇒ x_2 = √4 = 2", "⇒ x_3 = 0", "f(0) = -4", "m = f′(1) = 2", "A = ∫", "= -10.667"]
-        {
+        for want in [
+            "f(x) = x^2 - 4",
+            "⇒ 0 = x_1² - 4",
+            "= -2",
+            "⇒ x_2 = √4 = 2",
+            "⇒ x_3 = 0",
+            "f(x_3) = x_3² - 4 = 0² - 4",
+            "= -4",
+            "m = f′(1) = 2",
+            "A = ∫",
+            "= -10.667",
+        ] {
             let want = want.replace(' ', "");
             assert!(text.contains(&want), "missing {want} in\n{text}");
         }

@@ -403,12 +403,24 @@ fn edit(s: &mut Session, edit: impl FnOnce(&mut Structure) -> Result<(), CmdErro
 fn set(s: &mut Session, v: &Value) -> CmdResult {
     let replacement = structure_param(v)?;
     let convert = replacement.is_none();
-    edit(s, |st| {
+    let mut shear = None;
+    let r = edit(s, |st| {
+        let old = working::shear_name(st);
         if let Some(new) = replacement {
             *st = new;
         }
-        apply_settings(st, v, convert)
-    })
+        apply_settings(st, v, convert)?;
+        shear = Some((old, working::shear_name(st)));
+        Ok(())
+    })?;
+    // An exercise's questions name the shear by its symbol: they take the new one.
+    if let Some((old, new)) = shear.filter(|(old, new)| old != new)
+        && let Some((pos, _)) = selected_source(s)
+    {
+        exercise::rename_shear(s, &pos, &old, &new);
+        super::calc::recalculate_now(s);
+    }
+    Ok(r)
 }
 
 fn node(s: &mut Session, v: &Value) -> CmdResult {

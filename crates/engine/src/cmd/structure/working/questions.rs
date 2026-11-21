@@ -53,7 +53,7 @@ pub(in crate::cmd::structure) fn parts(
     let comma = crate::cmd::calc::options_now(s).decimal_comma;
     let labels = Labels::from(v);
     let all = lines(st, an, &labels, comma);
-    let forces = format!("{}: {}", labels.forces, labels.conventions);
+    let forces = format!("{}: {}", labels.forces, super::renamed_symbol(&labels.conventions, "T", &shear_name(st)));
     let axial = format!("{}:", labels.axial);
     let split = all.iter().position(|l| l.note.is_none() && l.equations.is_empty() && (l.label == forces || l.label == axial)).unwrap_or(all.len());
     let (first, rest) = all.split_at(split);
