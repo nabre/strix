@@ -2435,3 +2435,32 @@ fn a_call_opened_keeps_a_negative_argument_in_parentheses() {
     assert!(shown[1].contains("3 m - (-2 m) + (-2 m)²") && shown[1].ends_with("= 9 m"), "{shown:?}");
     assert!(shown[2].contains("V·(a + 1 m)") && shown[2].ends_with("= 30 kN·m"), "{shown:?}");
 }
+
+/// A call of known arguments shown opened with its working (`M(x_1) = law = numbers = result`,
+/// as the document holds it once worked out) reads back as the call with its result, never as
+/// a function definition with more than one `=`: the results summary quotes it as it is.
+#[test]
+fn a_call_opened_with_its_working_reads_back() {
+    let opts = Options { steps: true, ..Options::default() };
+    let r = evaluate(
+        &[
+            "V := 30 kN",
+            "q := 10 kN/m",
+            "x_1 := 3 m",
+            "M(x) := V·x - q·x^2/2",
+            "M(x_1) = V·x_1 - q·(x_1²)/2 = (30 kN)·(3 m) - (10 kN∕m)·((3 m)²)/2 = 90 kN·m - 45 kN·m = 45 kN·m",
+        ],
+        &opts,
+    );
+    let last = r.last().unwrap();
+    assert!(last.error.is_none(), "{:?}", last.error);
+    // Opened again with its working.
+    let shown = last.display.clone().unwrap_or_default();
+    assert!(shown.starts_with("M(x_1) = V·x_1") && shown.contains("(30 kN)·(3 m)") && shown.ends_with("= 45 kN·m"), "{shown}");
+    // Read back without its working, or with a result gone stale: the same.
+    for text in ["M(x_1) = V·x_1 - q·(x_1²)/2 = 45 kN·m", "M(x_1) = V·x_1 - q·(x_1²)/2 = (30 kN)·(3 m) - 9 kN·m = 99 kN·m"] {
+        let r = evaluate(&["V := 30 kN", "q := 10 kN/m", "x_1 := 3 m", "M(x) := V·x - q·x^2/2", text], &opts);
+        let again = r.last().and_then(|r| r.display.clone()).unwrap_or_default();
+        assert!(r.last().is_some_and(|r| r.error.is_none()) && again.ends_with("= 45 kN·m"), "{text}: {again}");
+    }
+}

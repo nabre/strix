@@ -1598,6 +1598,11 @@ pub(crate) fn answers(s: &Session, opts: &Options) -> Vec<(usize, u32, String)> 
                         });
                         format!("{name} = {val}")
                     }
+                    // A value shown with its working (`M_1a(x_1a) = V_A·x_1a − … = 45 kN·m`):
+                    // what is asked and its value, as a name's result is quoted.
+                    (None, Some(_), None) if r.kind == RegionKind::Evaluation => {
+                        r.display.as_deref().map(asked_and_value).or_else(|| text.clone()).unwrap_or_default()
+                    }
                     _ => r.display.clone().or_else(|| text.clone()).unwrap_or_default(),
                 },
                 // An ordinary equation: its text as written.
@@ -1606,6 +1611,15 @@ pub(crate) fn answers(s: &Session, opts: &Options) -> Vec<(usize, u32, String)> 
             Some((*top, *answer, shown))
         })
         .collect()
+}
+
+/// `asked = … = value` shown with its working, as a result is quoted: what is asked and its
+/// value (`M_1a(x_1a) = 45 kN·m`); a value shown alone stays as it is.
+fn asked_and_value(shown: &str) -> String {
+    match (shown.split_once(" = "), shown.rsplit_once(" = ")) {
+        (Some((asked, _)), Some((_, value))) if !shown.contains('⇒') => format!("{asked} = {value}"),
+        _ => shown.to_string(),
+    }
 }
 
 /// In-memory evaluation of one exercise under candidate initial-data `statements` (`D4`, `F3`, `F9`).
