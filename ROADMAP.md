@@ -1,8 +1,9 @@
 <!-- Modified by the Strix contributors (fork of WordCraft); see NOTICE. -->
 # Strix roadmap
 
-> **Last updated:** 2026-11-19 · **Change:** minor (Structure Editor: graphical vector rotation
-> tool and protractor, active-command banner, selection cycling, richer properties and commands)
+> **Last updated:** 2026-11-22 · **Change:** patch (Project site and brand manual: landing page
+> restyled in EN/IT/DE/FR around the three living-document pillars, 4-step assessment workflow, and
+> five integrated technical modules including the Plots showcase)
 
 Strix is a tool for teachers of mathematics, science and engineering: calculation exercises with
 units, open and multiple-choice questions, tests assembled from an archive of exercises, scores,
@@ -46,6 +47,7 @@ dimensions with geometric constraints in CAD (docs/cad.md).
 Strix's history since the fork (2026-10-27). Earlier entries are WordCraft's: see its
 [roadmap](https://github.com/storytold/wordcraft/blob/main/ROADMAP.md).
 
+- 2026-11-22: **Project site restyled around the living-document pillars and integrated engineering modules** (`site/landing.html`, `site/partials/header.html`, `site/assets/site.css`, `site/strings/{en,it,fr,de}.json`, `docs/brand/MARKETING.md`). Reorganised the landing page in English, Italian, German and French: Hero focused on writing, calculating and grading on a single living sheet with technical badges; a new three-pillar section (*Three tools in one living document*: structured editor layout with accessibility/DSA presets, symbolic and numerical math with dimensional unit checking, on-demand step-by-step worked solutions); the four-step assessment workflow; dedicated showcases for all five integrated modules (WYSIWYG math, parametric 2D CAD, plane structures N/T/M, scientific plots and calculated tables with `shot-plot`, CLI and MCP automation); and localized school and engineering terminology with zero commercial brand references and file-format specs confined to the trust and legal sections.
 - 2026-11-21: **The structure's properties are on the Structures tab** (docs/structures.md, The Structures tab; `crates/ui-egui/src/ribbon/structures.rs`). The title, units, diagram names and positive senses were only in the Structure Editor's side pane with nothing selected; now they are the tab's Properties, Diagram Names and Positive Senses groups (Units moved from Show), and the pane keeps the counts and reactions. Every change writes the working again, in a report and in an exercise; a new shear symbol is also written in the exercise's questions and in the working's sign conventions, which kept `T`. Test (every setting, three templates, report and exercise, against a working written fresh).
 - 2026-11-21: **Lines of math always keep wide spacing** (docs/calc.md, Solution steps and layout; `crates/layout/src/para/math_leading.rs`). Calculations written one under the other in a paragraph (Shift+Enter, or a long one wrapping) took only the height of their math, so subscripts and the parentheses around substituted values (`(10 kN/m)`) nearly touched the next line. Now a line holding inline math keeps a quarter of its font size free above and below the math, never less than the font's own line; exact line spacing still fixes the line; plain symbols on the baseline (`x` in a sentence) take no extra room, so prose stays evenly spaced. Tests.
 - 2026-11-21: **A stretch's values are worked out with their law, rounded** (docs/structures.md, Working; docs/calc.md, Solution steps and Number format; `crates/calc/src/worksheet.rs`, `crates/calc/src/eval.rs`, `crates/engine/src/cmd/structure/working.rs`). A teacher's students found `M_1c(6 m) = 1.819·10^-14 kN·m` hard to read: the value came with no working and a moment that balances showed the rounding left over in scientific notation. Now a call of a user function shows its working (with Show Steps): the call opened into its law with `x` substituted, the values substituted, each term worked out (`167.321 kN·m − 150 kN·m − 17.321 kN·m`), then the result, one step a line in the working; a sum or difference smaller than 10⁻¹³ of its larger term is 0; the working's values use the document's decimals, never scientific notation.
@@ -224,6 +226,7 @@ Strix's history since the fork (2026-10-27). Earlier entries are WordCraft's: se
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-11-22 | patch | Site & marketing: landing page restyled in EN/IT/DE/FR with the three living-document pillars, 4-step workflow, Plots showcase and brand-free technical positioning |
 | 2026-11-21 | patch | Structures: title, units, diagram names and positive senses on the Structures tab; exercise questions follow the shear symbol |
 | 2026-11-21 | patch | Layout: lines holding inline math keep a quarter of the font size free above and below it |
 | 2026-11-21 | patch | Structures/Calc: a stretch's values worked out with their law and each term, rounding residue shown as 0, no scientific notation |

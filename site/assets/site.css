@@ -152,8 +152,10 @@ section { padding: 88px 0; }
   background: linear-gradient(100deg, var(--accent) 0%, var(--amber) 65%, var(--warm) 100%);
   -webkit-background-clip: text; background-clip: text; color: transparent;
 }
-.lead { font-size: clamp(1.08rem, 2vw, 1.3rem); color: var(--title); max-width: 46ch; }
-.cta { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin: 28px 0 14px; }
+.lead { font-size: clamp(1.08rem, 2vw, 1.28rem); color: var(--title); max-width: 58ch; }
+.cta { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin: 28px 0 16px; }
+.badges { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.badges li { font: 500 0.78rem var(--mono); color: var(--desc); background: var(--panel); border: 1px solid var(--border); border-radius: 999px; padding: 4px 12px; }
 .btn {
   display: inline-flex; align-items: center; min-height: 48px; padding: 0 24px;
   border-radius: 8px; font-weight: 600; font-size: 0.98rem;
@@ -222,7 +224,17 @@ section { padding: 88px 0; }
   .stat:nth-child(n + 3) { border-top: 1px solid var(--border); }
 }
 
-/* How it works, trust */
+/* Pillars, how it works, trust */
+.pillars { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: 36px; }
+.pillar { background: var(--widget); border: 1px solid var(--border); border-top: 3px solid var(--accent); border-radius: 14px; padding: 28px; min-width: 0; }
+.pillar:nth-child(2) { border-top-color: var(--unit); }
+.pillar:nth-child(3) { border-top-color: var(--amber); }
+.pillar p { margin: 0; font-size: 0.96rem; }
+.pillar-n { display: inline-block; font: 700 0.8rem var(--mono); color: var(--accent); margin-bottom: 10px; }
+.pillar:nth-child(2) .pillar-n { color: var(--unit); }
+.pillar:nth-child(3) .pillar-n { color: var(--amber); }
+@media (max-width: 900px) { .pillars { grid-template-columns: 1fr; } }
+
 .aspects { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top: 36px; }
 .aspect { background: var(--widget); border: 1px solid var(--border); border-radius: 14px; padding: 24px; min-width: 0; }
 .aspect p { margin: 0; font-size: 0.95rem; }
