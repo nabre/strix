@@ -1,8 +1,9 @@
 //! One stretch of a written working ([`View::Section`](crate::View)): the stretch marked by a pale
 //! band of uniform intensity across both sides of the cut, the member cut half way along it with a
 //! zigzag cut face, the part before the cut (the member's first end's side) drawn in full — its
-//! members, its loads with their names, its reactions as unknowns (`V_A`) — and on the cut the
-//! internal force(s) the rest of the structure puts on it (`N`, `T`, `M` together, or the single
+//! members, its loads with their names, its reactions by name (`V_A`), one that came out negative
+//! the way it really acts with its size (`5 kN`) — and on
+//! the cut the internal force(s) the rest of the structure puts on it (`N`, `T`, `M` together, or the single
 //! force [`Cut::action`](crate::Cut::action) asks for), pointing the way they count positive; any
 //! loads strictly inside the remainder of the stretch past the cut drawn faded without labels; the
 //! rest of the member (and any remaining skeleton) faintly dashed with its end node and support so
@@ -133,7 +134,7 @@ impl Ctx<'_> {
         cx.loads_with_max(f, LOAD, false, qmax, &|k, _| pick(k, false));
         self.pen = cx.pen;
 
-        self.unknowns_where(f, &in_left);
+        self.known_reactions_where(f, &in_left);
         self.internal_forces(ps, pe, pn, &geo.tag, geo.action);
         self.node_names_where(f, &in_left);
 
@@ -254,14 +255,17 @@ impl Ctx<'_> {
         let want_m = matches!(action, None | Some(Action::Moment));
 
         if want_n {
-            // N pulling the part (tension positive); named above its arrow inside the cut gap so
-            // neither the dashed member nor faded loads past the cut cross it.
+            // N pulling the part (tension positive); named above its arrow when alone, or below its
+            // tip when M's arc takes the space above, staying inside the cut gap.
             let tail = add(ps, mul(pe, 0.7));
             let tip = add(ps, mul(pe, 0.7 + N_LEN));
             self.pen.arrow(tail, tip, COLOR_N, 0.45);
-            let label_at =
-                if want_m { add(ps, add(mul(pe, 0.7 + N_LEN * 0.8), mul(pn, 0.85))) } else { add(ps, add(mul(pe, 0.7 + N_LEN * 0.52), mul(pn, 0.95))) };
-            self.pen.subscripted(label_at, pn, "N", tag, COLOR_N);
+            let (label_at, dir) = if want_m {
+                (add(ps, add(mul(pe, 0.7 + N_LEN * 0.72), mul(pn, -0.75))), mul(pn, -1.0))
+            } else {
+                (add(ps, add(mul(pe, 0.7 + N_LEN * 0.52), mul(pn, 0.95))), pn)
+            };
+            self.pen.subscripted(label_at, dir, "N", tag, COLOR_N);
         }
 
         if want_v {
@@ -764,7 +768,8 @@ mod tests {
         assert!(!t.iter().any(|p| p == "V_A" || p == "H_A"), "{t:?}");
     }
 
-    /// A column fixed at its foot: its reactions, the couple among them, and the forces on the cut.
+    /// A column fixed at its foot: its reactions, the couple among them, and the forces on the cut;
+    /// a negative reaction drawn the way it acts.
     #[test]
     fn a_vertical_member_is_cut() {
         let node = |id: &str, y: f64| Node { id: id.into(), x: 0.0.into(), y: y.into(), hinge: false };
@@ -778,9 +783,12 @@ mod tests {
             ..Structure::default()
         };
         let t = names(&st);
-        for name in ["H_A", "V_A", "M_A", "N_1", "T_1", "M_1", "x"] {
+        for name in ["V_A", "M_A", "N_1", "T_1", "M_1", "x"] {
             assert!(t.iter().any(|p| p == name), "{name}: {t:?}");
         }
+        // H_A, taken positive along +x, came out −10 kN: it points the way it really acts, by its
+        // size, as in the reactions' result.
+        assert!(t.iter().any(|p| p == "10 kN") && !t.iter().any(|p| p == "H_A"), "{t:?}");
     }
 
     /// A varying distributed load the cut crosses is drawn up to the cut without its name (its far

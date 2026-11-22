@@ -162,6 +162,17 @@ impl Ctx<'_> {
 
     /// [`Ctx::unknowns`] of the supports at the nodes `at` picks.
     pub(super) fn unknowns_where(&mut self, f: &Frame, at: &dyn Fn(&str) -> bool) {
+        self.reactions_named(f, at, false);
+    }
+
+    /// [`Ctx::unknowns_where`] once the reactions are known: one that came out negative points the
+    /// way it really acts and is written by its size (`5 kN`), as the reactions' result draws it
+    /// and the stretch's laws use it; the others keep their names.
+    pub(super) fn known_reactions_where(&mut self, f: &Frame, at: &dyn Fn(&str) -> bool) {
+        self.reactions_named(f, at, true);
+    }
+
+    fn reactions_named(&mut self, f: &Frame, at: &dyn Fn(&str) -> bool, known: bool) {
         let an = self.an;
         let pos = self.st.positive;
         let (sx, sy) = (pos.sx(), pos.sy());
@@ -173,28 +184,31 @@ impl Ctx<'_> {
             let s = node_sub(&r.node, k + 1);
             let phi = r.angle.to_radians();
             let below = (phi.sin(), phi.cos());
-            let mut comps: Vec<((f64, f64), &str)> = Vec::new();
+            // Each component along the way it counts positive, with its value that way.
+            let mut comps: Vec<((f64, f64), &str, f64)> = Vec::new();
             match r.kind {
                 SupportKind::Fixed | SupportKind::Pin => {
-                    comps.push(((sx, 0.0), "H"));
-                    comps.push(((0.0, sy), "V"));
+                    comps.push(((sx, 0.0), "H", r.fx * sx));
+                    comps.push(((0.0, sy), "V", r.fy * sy));
                 }
                 SupportKind::Roller | SupportKind::RollerCircle | SupportKind::Link | SupportKind::Slider => {
                     let n = (-phi.sin(), phi.cos());
                     if n.0.abs() < TOL {
-                        comps.push(((0.0, sy), "V"));
+                        comps.push(((0.0, sy), "V", r.fy * sy));
                     } else if n.1.abs() < TOL {
-                        comps.push(((sx, 0.0), "H"));
+                        comps.push(((sx, 0.0), "H", r.fx * sx));
                     } else {
-                        comps.push((n, "R"));
+                        comps.push((n, "R", r.fx * n.0 + r.fy * n.1));
                     }
                 }
             }
             // The node's name takes its free side.
             let mut taken: Vec<P> = vec![self.free_side(&r.node)];
-            for (axis, letter) in comps {
-                let ap = pd(axis);
-                let side = self.arrow_side(&r.node, ap, below);
+            for (axis, letter, v) in comps {
+                // The arrow stands on the side the positive way picks, as the reactions' result.
+                let side = self.arrow_side(&r.node, pd(axis), below);
+                let flip = known && crate::negative_reaction(v);
+                let ap = mul(pd(axis), if flip { -1.0 } else { 1.0 });
                 taken.push(side);
                 let far = add(p, mul(side, ARROW + 2.0));
                 let near = add(p, mul(side, 1.0));
@@ -203,12 +217,24 @@ impl Ctx<'_> {
                 } else {
                     self.pen.arrow(near, far, REACTION, 0.4);
                 }
-                self.pen.subscripted(add(far, mul(side, 0.8)), side, letter, &s, REACTION);
+                if flip {
+                    let label = self.force(v.abs());
+                    self.pen.beside(add(far, mul(side, 0.8)), side, label, REACTION);
+                } else {
+                    self.pen.subscripted(add(far, mul(side, 0.8)), side, letter, &s, REACTION);
+                }
             }
             if matches!(r.kind, SupportKind::Fixed | SupportKind::Slider) {
-                self.pen.couple(p, 5.0, pos.sr() > 0.0, REACTION, 0.4);
+                let v = r.m * pos.sr();
+                let flip = known && crate::negative_reaction(v);
+                self.pen.couple(p, 5.0, (pos.sr() > 0.0) != flip, REACTION, 0.4);
                 let free = self.free_side_avoiding(&r.node, &taken);
-                self.pen.subscripted(add(p, mul(free, 6.5)), free, "M", &s, REACTION);
+                if flip {
+                    let label = self.moment(v.abs());
+                    self.pen.beside(add(p, mul(free, 6.5)), free, label, REACTION);
+                } else {
+                    self.pen.subscripted(add(p, mul(free, 6.5)), free, "M", &s, REACTION);
+                }
             }
         }
     }

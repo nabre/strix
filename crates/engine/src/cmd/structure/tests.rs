@@ -168,6 +168,20 @@ fn text_of(s: &Session) -> String {
     String::from_utf8(crate::io::save_bytes("t.txt", &s.doc).unwrap()).unwrap().replace(['\u{202F}', '\u{2009}', '\u{00A0}'], " ").replace('∕', "/")
 }
 
+/// The linear text of paragraph `p`'s equations, spaces aside.
+fn linear_of(p: &wordcraft_doc::para::Paragraph) -> String {
+    p.objects
+        .iter()
+        .filter_map(|o| match o {
+            InlineObject::Equation { linear, .. } => Some(linear.to_string()),
+            _ => None,
+        })
+        .collect::<String>()
+        .chars()
+        .filter(|c| !c.is_whitespace())
+        .collect()
+}
+
 /// Does `t` hold `part`, spaces aside?
 fn has(t: &str, part: &str) -> bool {
     let squeeze = |x: &str| x.chars().filter(|c| !c.is_whitespace()).collect::<String>();
@@ -757,7 +771,7 @@ fn the_axial_force_s_intervals_end_only_at_axial_loads() {
 }
 
 /// N's intervals join across loads acting crosswise, a triangular load from inside the
-/// interval among them, and the joined interval's law keeps the reactions' names.
+/// interval among them, and the joined interval's law follows the reactions' drawing.
 #[test]
 fn the_axial_force_joins_across_a_crosswise_varying_load() {
     let st = json!({
@@ -772,7 +786,10 @@ fn the_axial_force_joins_across_a_crosswise_varying_load() {
     let mut s = Session::new(Document::new());
     s.run("structure.exercise", &json!({"structure": st})).unwrap();
     let t = text_of(&s);
-    assert!(has(&t, "N_1a(x) = -H_A") && has(&t, "N_1b(x)") && !has(&t, "N_1c(x)"), "{t}");
+    assert!(has(&t, "N_1b(x)") && !has(&t, "N_1c(x)"), "{t}");
+    // H_A came out negative (−3.882 kN): the stretch draws it the way it acts, by its size, and
+    // its law follows the drawing.
+    assert!(has(&t, "N_1a(x) = (3.8822857 kN)") && !has(&t, "N_1a(x) = -H_A"), "{t}");
 }
 
 /// The working and the reactions the stiffness solution gives (`structure.get`).
@@ -896,8 +913,8 @@ fn the_force_method_uses_the_sections_given() {
 }
 
 /// Each stretch of the internal forces' laws has its drawing right under its heading (the
-/// stretch, cut half way, in the structure's group, narrower than the structure), then the words
-/// saying how the laws come from it, the laws, and its values under their own heading.
+/// stretch, cut half way, in the structure's group, narrower than the structure), then straight
+/// away its laws (no words: the drawing says how they come), and its values under their own heading.
 #[test]
 fn each_stretch_is_drawn_cut_before_its_laws() {
     let mut s = Session::new(Document::new());
@@ -920,7 +937,8 @@ fn each_stretch_is_drawn_cut_before_its_laws() {
         let Some((cut, width, group)) = cut_of(p) else { continue };
         let header = paras[k - 1].text.clone();
         assert!(header.starts_with(&format!("Tratto {}: Member 1 (A–B)", cut.tag)), "{header}");
-        assert!(paras[k + 1].text.contains("Cut at x from A"), "{}", paras[k + 1].text);
+        // No words between the drawing and the laws: the drawing says how they come.
+        assert!(linear_of(paras[k + 1]).starts_with(&format!("N_{}(x)", cut.tag)), "{}", linear_of(paras[k + 1]));
         assert!(width < 160.0 && group == "structure-1", "{width} {group}");
         seen.push((cut.tag, cut.from, cut.to));
     }
@@ -929,6 +947,31 @@ fn each_stretch_is_drawn_cut_before_its_laws() {
     // Under the uniform load and the force the moment is greatest inside the second stretch.
     let (first, second) = (t.find("Valori:").unwrap(), t.find("Valori e massimo:").unwrap());
     assert!(t.find("M_1a(x)").unwrap() < first && first < t.find("Tratto 1b").unwrap() && t.find("M_1b(x)").unwrap() < second, "{t}");
+}
+
+/// A stretch's general laws are boxed (a line, no shading), all three in one box (the same borders and indents, so
+/// Word joins them), set in from the margins; the values worked out of them are not.
+#[test]
+fn a_stretchs_laws_share_one_box() {
+    let mut s = Session::new(Document::new());
+    s.run("structure.insert", &json!({"template": "beam"})).unwrap();
+    s.run("structure.working", &json!({})).unwrap();
+    let paras: Vec<&wordcraft_doc::para::Paragraph> =
+        s.doc.body.iter().filter_map(|b| if let Block::Para(p) = &**b { Some(p) } else { None }).collect();
+    let laws: Vec<_> = paras.iter().filter(|p| linear_of(p).contains("(x)=")).collect();
+    assert!(laws.len() >= 3, "{}", text_of(&s));
+    let boxed = laws[0].props.borders.expect("a law is boxed");
+    assert!(boxed.top.is_some() && boxed.bottom.is_some() && boxed.left.is_some() && boxed.right.is_some() && boxed.between.is_none());
+    for p in &laws {
+        assert_eq!(p.props.borders, Some(boxed), "{}", p.text);
+        // Only the line: no shading behind the laws.
+        assert!(p.props.shading.is_none(), "{}", p.text);
+        assert!(p.props.indent_left.is_some_and(|i| i > 0.0) && p.props.indent_left == p.props.indent_right, "{}", p.text);
+    }
+    // The laws' box is kept together on its page.
+    assert!(laws[..2].iter().all(|p| p.props.keep_next == Some(true)));
+    let values: Vec<_> = paras.iter().filter(|p| !linear_of(p).contains("(x)=") && linear_of(p).contains("_1(")).collect();
+    assert!(!values.is_empty() && values.iter().all(|p| p.props.borders.is_none()), "{}", text_of(&s));
 }
 
 /// Every setting a working depends on, changed after the working is written, writes it again
@@ -1043,4 +1086,31 @@ fn a_small_load_is_substituted_whole() {
     .unwrap();
     assert!(!t.contains('⚠') && !has(&t, "(0.001 kN/mm)"), "{t}");
     assert!(has_value(&t, "T_1a(2000 mm)", "0.7 kN") && has(&t, "(5·10^(-4) kN/mm)·2000 mm@&=1.7 kN-1 kN"), "{t}");
+}
+
+/// The results summary quotes each question's result alike, its name and its value: the greatest
+/// moment (`M_1a(x_1a)`, worked out opened in the solution) as the zero of T before it, never an
+/// error from reading the working back.
+#[test]
+fn the_summary_quotes_the_greatest_moment_by_its_value() {
+    let mut s = Session::new(Document::new());
+    s.run(
+        "structure.exercise",
+        &json!({"structure": {
+            "nodes": [{"id": "A", "x": 0, "y": 0}, {"id": "B", "x": 6, "y": 0}],
+            "members": [{"id": "1", "a": "A", "b": "B"}],
+            "supports": [{"node": "A", "kind": "pin"}, {"node": "B", "kind": "roller"}],
+            "loads": [{"type": "distributed", "member": "1", "q1": 10, "to": 4}, {"type": "force", "member": "1", "at": 5, "value": 20}]
+        }}),
+    )
+    .unwrap();
+    let t = text_of(&s);
+    assert!(!t.contains('⚠'), "{t}");
+    // Opened in the solution, with its law and its working.
+    assert!(t.contains("M_1a(x_1a)=V_A·x_1a-q_1·(x_1a²)/2=(30 kN)·(3 m)"), "{t}");
+    let lines: Vec<&str> = t.lines().collect();
+    assert!(lines.contains(&"d) x_1a = 3 m") && lines.contains(&"e) M_1a(x_1a) = 45 kN·m"), "{t}");
+    // Worked out again (a recalculation reads the working back): the same.
+    s.run("calc.recalculate", &json!({})).unwrap();
+    assert_eq!(text_of(&s), t);
 }

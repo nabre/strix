@@ -65,10 +65,6 @@ struct Labels {
     range: String,
     /// A stretch's name before its tag (`Stretch 1a`).
     stretch: String,
-    /// How a stretch's laws come from its drawing (`{a}`: the member's first node, `{T}`: the
-    /// shear's name; `cut_one`: one diagram's force `{F}` alone).
-    cut: String,
-    cut_one: String,
     /// Before a stretch's values: at its ends; at its ends and M's extremes.
     values: String,
     values_max: String,
@@ -123,25 +119,6 @@ impl Labels {
             hinge: get("hinge", "part about the hinge"),
             range: get("range", "x from {a} to {b}"),
             stretch: get("stretch", "Stretch"),
-            cut: get(
-                "cut",
-                "Cut at x from {a}: the part before the cut (drawn in full) balances its loads, its reactions and N, {T}, M on the cut (drawn positive):",
-            ),
-            cut_one: v
-                .get("labels")
-                .and_then(|l| l.get("cutOne"))
-                .and_then(Value::as_str)
-                .map(|s| s.chars().take(200).collect())
-                .unwrap_or_else(|| {
-                    let all = get("cut", "");
-                    if all.contains("N, {T}, M") {
-                        all.replace("N, {T}, M", "{F}")
-                            .replace("disegnati positivi", "disegnato positivo")
-                            .replace("dessinés positifs", "dessiné positif")
-                    } else {
-                        "Cut at x from {a}: the part before the cut (drawn in full) balances its loads, its reactions and {F} on the cut (drawn positive):".to_string()
-                    }
-                }),
             values: get("values", "Values at the ends of the stretch:"),
             values_max: get("valuesMax", "Values at the ends of the stretch and at M's extremes:"),
             jump: get("jump", "{T} changes sign under a concentrated load"),
@@ -200,12 +177,26 @@ struct Line {
     /// Kept on the page with the line after it: a heading (words ending with `:`, a noted
     /// equation's label) never stays alone at the bottom of a page ([`paragraphs_with`]).
     keep: bool,
+    /// A general law (a stretch's `N(x)`, `T(x)`, `M(x)`): in a box ([`frame`]), so it is found
+    /// at a glance among the values worked out of it; neighbouring laws share one box.
+    framed: bool,
 }
 
 impl Line {
     fn words(label: String) -> Line {
         let keep = label.trim_end().ends_with(':');
-        Line { label, note: None, after: String::new(), equations: Vec::new(), display: false, stepped: false, rounded: false, figure: None, keep }
+        Line {
+            label,
+            note: None,
+            after: String::new(),
+            equations: Vec::new(),
+            display: false,
+            stepped: false,
+            rounded: false,
+            figure: None,
+            keep,
+            framed: false,
+        }
     }
 
     /// Words that head what follows them, whatever they end with.
@@ -214,7 +205,23 @@ impl Line {
     }
 
     fn eqs(equations: Vec<String>, display: bool) -> Line {
-        Line { label: String::new(), note: None, after: String::new(), equations, display, stepped: false, rounded: false, figure: None, keep: false }
+        Line {
+            label: String::new(),
+            note: None,
+            after: String::new(),
+            equations,
+            display,
+            stepped: false,
+            rounded: false,
+            figure: None,
+            keep: false,
+            framed: false,
+        }
+    }
+
+    /// A general law alone on its line, in the box the laws next to it share.
+    fn law(equation: String) -> Line {
+        Line { framed: true, ..Line::eqs(vec![equation], true) }
     }
 
     /// A drawing, kept on the page with what explains it after it.
@@ -223,7 +230,18 @@ impl Line {
     }
 
     fn noted(label: String, note: String, after: String) -> Line {
-        Line { label, note: Some(note), after, equations: Vec::new(), display: false, stepped: false, rounded: false, figure: None, keep: true }
+        Line {
+            label,
+            note: Some(note),
+            after,
+            equations: Vec::new(),
+            display: false,
+            stepped: false,
+            rounded: false,
+            figure: None,
+            keep: true,
+            framed: false,
+        }
     }
 
     /// Only equations: the rest of the block its heading opened.
@@ -380,6 +398,9 @@ fn paragraphs_with(lines: &[Line], props: &wordcraft_doc::CharProps, figures: Op
         let mut para = Paragraph::with_text(&line.label, props.clone());
         para.props.keep_next = keep.then_some(true);
         para.props.keep_lines = line.stepped.then_some(true);
+        if line.framed {
+            frame(&mut para.props);
+        }
         if let Some(note) = &line.note {
             let math = Math { nodes: parse_linear(note), calc: false, ..Math::default() };
             let obj = InlineObject::Equation { linear: to_linear(&math.nodes), math, display: false };
@@ -413,6 +434,21 @@ fn paragraphs_with(lines: &[Line], props: &wordcraft_doc::CharProps, figures: Op
     }
     Ok(out)
 }
+
+/// The box around a general law: a thin slate line on a white ground (no shading), set in from the
+/// margins, so the law stands out without weighing on the page. Neighbouring laws have the same
+/// borders and indents, so they are joined in one box (Word's border group).
+fn frame(props: &mut wordcraft_doc::props::ParaProps) {
+    use wordcraft_doc::props::{Border, Borders, Rgb};
+    let line = |space: f32| Border { color: Some(Rgb(0x9A, 0xA6, 0xB2)), space, ..Border::single(0.75) };
+    props.borders =
+        Some(Borders { top: Some(line(5.0)), bottom: Some(line(5.0)), left: Some(line(8.0)), right: Some(line(8.0)), ..Borders::default() });
+    props.indent_left = Some(FRAME_INSET);
+    props.indent_right = Some(FRAME_INSET);
+}
+
+/// How far a law's box is set in from each margin, points.
+const FRAME_INSET: f32 = 36.0;
 
 /// A number as calc reads it: six significant digits, no trailing zeros, the document's decimal
 /// separator.
@@ -1263,14 +1299,14 @@ fn member_lines(st: &Structure, us: &[Unknown], m: &MemberResult, u: &Units, lab
         let tag = stretch_tag(&id, k, parts.len());
         let at = |x: f64| at(x, l, u.comma);
         out.push(stretch_header(src, s, &tag, u, labels));
-        // Where the stretch lies and the part whose equilibrium gives its laws.
+        // Where the stretch lies and the part whose equilibrium gives its laws: the drawing says
+        // it all, the laws follow it with no words.
         out.push(Line::figure(Figure::Stretch(strix_structure::Cut { member: m.id.clone(), from: s.x0, to: s.x1, tag: tag.clone(), action: None })));
-        out.push(Line::heading(labels.cut.replace("{a}", &src.a).replace("{T}", shear)));
         // With the reactions' and the loads' names where they can be, else the numbers.
         let [n, v, mo] = named::laws(st, us, m, s, u);
-        out.push(Line::eqs(vec![format!("N_{tag}(x) = {}", bare(&n.unwrap_or_else(|| law(&s.n, [f, &fl, &fl2, &fl3], u.comma))))], true));
-        out.push(Line::eqs(vec![format!("{shear}_{tag}(x) = {}", bare(&v.unwrap_or_else(|| law(&s.v, [f, &fl, &fl2, &fl3], u.comma))))], true));
-        out.push(Line::eqs(vec![format!("M_{tag}(x) = {}", bare(&mo.unwrap_or_else(|| law(&s.m, [&fm, f, &fl, &fl2], u.comma))))], true));
+        out.push(Line::law(format!("N_{tag}(x) = {}", bare(&n.unwrap_or_else(|| law(&s.n, [f, &fl, &fl2, &fl3], u.comma))))));
+        out.push(Line::law(format!("{shear}_{tag}(x) = {}", bare(&v.unwrap_or_else(|| law(&s.v, [f, &fl, &fl2, &fl3], u.comma))))));
+        out.push(Line::law(format!("M_{tag}(x) = {}", bare(&mo.unwrap_or_else(|| law(&s.m, [&fm, f, &fl, &fl2], u.comma))))));
         let inside: Vec<f64> = extremes.iter().copied().filter(|x| *x > s.x0 + 1e-9 && *x < s.x1 - 1e-9).collect();
         out.push(Line::heading(if inside.is_empty() { labels.values.clone() } else { labels.values_max.clone() }));
         let mut values = Vec::new();

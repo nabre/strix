@@ -34,7 +34,7 @@ pub use model::{
 };
 pub use names::{LoadName, load_names};
 pub use render::{Chains, StructureRendered, chains};
-pub use solve::{Analysis, Forces, MemberResult, Reaction, Status, analyse, analyse_released};
+pub use solve::{Analysis, Forces, MemberResult, Reaction, Status, analyse, analyse_released, negative_reaction};
 pub use working::{Resultant, ResultantKind, Stretch, resultants, stretches};
 
 /// Maximum nodes in a structure.
