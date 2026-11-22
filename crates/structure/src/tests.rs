@@ -897,3 +897,31 @@ fn a_roller_drawn_as_a_circle_restrains_like_a_roller() {
     let json = upward_force_beam(SupportKind::RollerCircle).to_json();
     assert!(json.contains("\"rollerCircle\""), "{json}");
 }
+
+/// N's diagram breaks only where a load acts along the member: a crosswise force and a load
+/// across it leave N's stretch whole, an askew force ends it.
+#[test]
+fn the_axial_force_s_stations_are_only_where_it_changes() {
+    let mut st = simple_beam();
+    st.nodes[1] = node("B", 6.5, 0.0);
+    st.loads = vec![
+        force_on("1", 1.75, 10.0),
+        Load::Distributed {
+            member: "1".into(),
+            q1: 0.0.into(),
+            q2: Some(4.0.into()),
+            from: 3.0.into(),
+            to: None,
+            angle: Num::new(-90.0),
+            axes: LoadAxes::Global,
+            per: LoadPer::Length,
+        },
+        Load::Force { node: None, member: Some("1".into()), at: 2.5.into(), value: 15.0.into(), angle: Num::new(-75.0) },
+    ];
+    let an = analyse(&st);
+    let m = &an.members[0];
+    let xs: Vec<f64> = notables(m, Action::Axial).iter().map(|n| n.x).collect();
+    assert!(xs.iter().all(|x| close(*x, 0.0) || close(*x, 2.5) || close(*x, 6.5)), "{xs:?}");
+    assert!(notables(m, Action::Shear).iter().any(|n| close(n.x, 1.75)));
+    assert_eq!(m.breakpoints_of(Action::Axial).len(), 3);
+}

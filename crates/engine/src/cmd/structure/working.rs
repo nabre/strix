@@ -66,8 +66,9 @@ struct Labels {
     /// A stretch's name before its tag (`Stretch 1a`).
     stretch: String,
     /// How a stretch's laws come from its drawing (`{a}`: the member's first node, `{T}`: the
-    /// shear's name).
+    /// shear's name; `cut_one`: one diagram's force `{F}` alone).
     cut: String,
+    cut_one: String,
     /// Before a stretch's values: at its ends; at its ends and M's extremes.
     values: String,
     values_max: String,
@@ -126,6 +127,21 @@ impl Labels {
                 "cut",
                 "Cut at x from {a}: the part before the cut (drawn in full) balances its loads, its reactions and N, {T}, M on the cut (drawn positive):",
             ),
+            cut_one: v
+                .get("labels")
+                .and_then(|l| l.get("cutOne"))
+                .and_then(Value::as_str)
+                .map(|s| s.chars().take(200).collect())
+                .unwrap_or_else(|| {
+                    let all = get("cut", "");
+                    if all.contains("N, {T}, M") {
+                        all.replace("N, {T}, M", "{F}")
+                            .replace("disegnati positivi", "disegnato positivo")
+                            .replace("dessinés positifs", "dessiné positif")
+                    } else {
+                        "Cut at x from {a}: the part before the cut (drawn in full) balances its loads, its reactions and {F} on the cut (drawn positive):".to_string()
+                    }
+                }),
             values: get("values", "Values at the ends of the stretch:"),
             values_max: get("valuesMax", "Values at the ends of the stretch and at M's extremes:"),
             jump: get("jump", "{T} changes sign under a concentrated load"),
@@ -386,7 +402,10 @@ fn paragraphs_with(lines: &[Line], props: &wordcraft_doc::CharProps, figures: Op
                 (false, false) => None,
             };
             let math = Math { nodes: parse_linear(eq), calc: true, calc_opts, ..Math::default() };
-            let obj = InlineObject::Equation { linear: to_linear(&math.nodes), math, display: line.display };
+            // An equation alone on its line is in display mode (a block): it wraps under its
+            // first `=` with a calculation's wider spacing; several side by side stay inline.
+            let display = line.display || (line.equations.len() == 1 && !labelled);
+            let obj = InlineObject::Equation { linear: to_linear(&math.nodes), math, display };
             let at = para.text.len();
             para.insert_object(at, obj, &props).map_err(|e| CmdError::Failed(e.to_string()))?;
         }
@@ -1245,7 +1264,7 @@ fn member_lines(st: &Structure, us: &[Unknown], m: &MemberResult, u: &Units, lab
         let at = |x: f64| at(x, l, u.comma);
         out.push(stretch_header(src, s, &tag, u, labels));
         // Where the stretch lies and the part whose equilibrium gives its laws.
-        out.push(Line::figure(Figure::Stretch(strix_structure::Cut { member: m.id.clone(), from: s.x0, to: s.x1, tag: tag.clone() })));
+        out.push(Line::figure(Figure::Stretch(strix_structure::Cut { member: m.id.clone(), from: s.x0, to: s.x1, tag: tag.clone(), action: None })));
         out.push(Line::heading(labels.cut.replace("{a}", &src.a).replace("{T}", shear)));
         // With the reactions' and the loads' names where they can be, else the numbers.
         let [n, v, mo] = named::laws(st, us, m, s, u);

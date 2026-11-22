@@ -607,6 +607,17 @@ fractions and the parentheses around substituted values never come near the line
 baseline (`x`, `a + b` in a sentence) leave the line as the text around it, so prose with inline
 symbols stays evenly spaced. Exact line spacing still fixes the line.
 
+A calculation wider than its paragraph breaks into lines at its operators, in a line of text as
+well as on a line of its own (a structure's `T(2.5 m) = V_A − q·2.5 m = … = −5.208 kN`): the
+first line stays on the text's baseline and nothing runs past the margin. A line that has to break
+goes back to its last relation (`=`, `<`, `≈`…) when that keeps it at least half full, so a chain
+of equalities breaks between its steps; the lines after the first start under the first `=`
+(when that is in the first half of the line), as a worked solution is written by hand, and they
+are spaced one and a half lines apart, like a calculation's steps, so a fraction or a bracket keeps
+clear of the next line. Equations that are not calculations keep Word's wrap indent and spacing
+(`crates/layout/src/math/breaks.rs`, `eq_wrap.rs`). A structure's working sets each equation that
+stands alone on its line in display mode (a block).
+
 The variable a sum, a product, an integral or a limit runs over is never substituted, whatever
 is defined under its name: after `i = 1..5` and `k = 2`, `∑_i▒k·i² =` shows
 `∑_i▒k·i² = ∑_i▒(2·i²) = 110`, and `∑_i▒i² =` shows `∑_i▒i² = 55` (nothing to substitute). Read

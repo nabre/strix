@@ -4165,5 +4165,6 @@ structure	Counter-clockwise	Antiorario
 structure	Clockwise	Orario
 structure	Stretch	Tratto
 structure	Cut at x from {a}: the part before the cut (drawn in full) balances its loads, its reactions and N, {T}, M on the cut (drawn positive):	Sezione a distanza x da {a}: la parte prima della sezione (a tratto pieno) è in equilibrio con i suoi carichi, le sue reazioni e N, {T}, M sulla sezione (disegnati positivi):
+structure	Cut at x from {a}: the part before the cut (drawn in full) balances its loads, its reactions and {F} on the cut (drawn positive):	Sezione a distanza x da {a}: la parte prima della sezione (a tratto pieno) è in equilibrio con i suoi carichi, le sue reazioni e {F} sulla sezione (disegnato positivo):
 structure	Values at the ends of the stretch:	Valori agli estremi del tratto:
 structure	Values at the ends of the stretch and at M's extremes:	Valori agli estremi del tratto e nei punti di estremo di M:

@@ -159,6 +159,13 @@ impl Pen {
         let head = head.min(len * 0.6);
         let base = add(tip, mul(d, -head));
         self.line(tail, base, c, w);
+        self.head(tip, d, head, half, c);
+    }
+
+    /// A filled arrowhead with its point at `tip`, pointing along the unit direction `d`, `head`
+    /// mm long and `half` of its length wide on each side.
+    fn head(&mut self, tip: P, d: P, head: f64, half: f64, c: Rgb) {
+        let base = add(tip, mul(d, -head));
         let n = (-d.1, d.0);
         self.fill(vec![tip, add(base, mul(n, head * half)), add(base, mul(n, -head * half))], c, None);
     }
@@ -254,6 +261,11 @@ impl Ctx<'_> {
 
     /// [`Ctx::node_names`] of the nodes `at` picks.
     fn node_names_where(&mut self, f: &Frame, at: &dyn Fn(&str) -> bool) {
+        self.node_names_styled(f, BLACK, true, at);
+    }
+
+    /// [`Ctx::node_names`] of the nodes `at` picks, in `color` and weight `bold`.
+    fn node_names_styled(&mut self, f: &Frame, color: Rgb, bold: bool, at: &dyn Fn(&str) -> bool) {
         let st = self.st;
         for n in &st.nodes {
             if n.id.is_empty() || !at(&n.id) || !st.members.iter().any(|m| m.a == n.id || m.b == n.id) {
@@ -264,7 +276,7 @@ impl Ctx<'_> {
             let away = self.free_side(&n.id);
             let supported = st.supports.iter().any(|s| s.node == n.id);
             let at = add(p, mul(away, if supported { 5.0 } else { 3.6 }));
-            self.pen.text((at.0, at.1 + 1.4), n.id.clone(), 2.8, true, PlotAnchor::Center, BLACK);
+            self.pen.text((at.0, at.1 + 1.4), n.id.clone(), 2.8, bold, PlotAnchor::Center, color);
         }
     }
 
@@ -895,7 +907,7 @@ impl Ctx<'_> {
 /// The values written on a diagram: the notable ones, a stretch of constant value once at its
 /// middle instead of at both its ends.
 fn shown_values(m: &MemberResult, action: Action) -> Vec<(crate::diagram::Notable, bool)> {
-    let bps = m.breakpoints();
+    let bps = m.breakpoints_of(action);
     let val = |x: f64, after: bool| action.of(m.forces(x, after));
     let mut constant: Vec<(f64, f64, f64)> = Vec::new();
     for w in bps.windows(2) {
@@ -925,7 +937,7 @@ fn shown_values(m: &MemberResult, action: Action) -> Vec<(crate::diagram::Notabl
 /// The diagram's points along a member, a list per stretch (the ends of a stretch take the
 /// values just inside it, so jumps show).
 fn sample(m: &MemberResult, action: Action) -> Vec<Vec<(f64, f64)>> {
-    let bps = m.breakpoints();
+    let bps = m.breakpoints_of(action);
     let mut out = Vec::new();
     for w in bps.windows(2) {
         let (x0, x1) = (w[0], w[1]);

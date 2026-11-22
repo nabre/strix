@@ -161,6 +161,30 @@ impl MemberResult {
         xs
     }
 
+    /// [`Self::breakpoints`] for one internal force: N's only where a load acts along the member
+    /// (a load across it leaves N's law as it was), T's and M's at every load.
+    pub fn breakpoints_of(&self, action: crate::diagram::Action) -> Vec<f64> {
+        if action != crate::diagram::Action::Axial {
+            return self.breakpoints();
+        }
+        let t = |p: f64, q: f64| p.abs() > self.tol.0.max(1e-12 * p.hypot(q));
+        let mut xs = vec![0.0, self.length];
+        for l in &self.loads {
+            match *l {
+                LocalLoad::Point { at, px, py } if t(px, py) => xs.push(at),
+                LocalLoad::Spread { from, to, px1, py1, px2, py2 } if t(px1, py1) || t(px2, py2) => {
+                    xs.push(from);
+                    xs.push(to);
+                }
+                _ => {}
+            }
+        }
+        xs.retain(|x| x.is_finite());
+        xs.sort_by(f64::total_cmp);
+        xs.dedup_by(|a, b| (*a - *b).abs() <= 1e-9 * (1.0 + self.length));
+        xs
+    }
+
     /// Is there a concentrated load at `x` (the diagrams jump there)?
     pub fn jumps_at(&self, x: f64) -> bool {
         let tol = 1e-9 * (1.0 + self.length);

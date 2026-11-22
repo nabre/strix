@@ -19,6 +19,7 @@ use wordcraft_doc::resolve::ResolvedChar;
 use wordcraft_fonts::math::{C, Construction, MathTable, glyph_bounds};
 use wordcraft_fonts::{FaceRef, FontDb};
 
+mod breaks;
 mod bx;
 mod eq_wrap;
 mod glyphs;
@@ -236,6 +237,7 @@ pub fn layout_equation(
         path: Vec::new(),
         node_stack: Vec::new(),
         row_spacing: eq_wrap::row_spacing(math),
+        align_relations: math.calc,
     };
     let st = St { level: 0, display, cramped: false, upright: false };
     let avail = if avail.is_finite() { avail.clamp(0.0, 1e5) } else { 0.0 };
@@ -244,7 +246,7 @@ pub fn layout_equation(
         [MNode::EqArr { rows }] if display && rows.iter().any(|r| split_number(r).is_some()) => cx.numbered(rows, st, avail, counter),
         [MNode::EqArr { rows }] if display => cx.eq_arr_wrapped(nodes, rows, st, avail, props),
         _ if display => cx.wrapped(nodes, st, avail, props),
-        _ => cx.arg(nodes, st, 0),
+        _ => cx.inline_wrapped(nodes, st, avail, props),
     };
     let mut slots = b.slots;
     let em = base;

@@ -1,9 +1,12 @@
 //! Notable values of the diagrams: at the ends of each stretch, at jumps, extremes and zeros.
 
+use serde::{Deserialize, Serialize};
+
 use crate::solve::{Forces, MemberResult};
 
 /// Which internal force.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum Action {
     /// Axial force N.
     Axial,
@@ -44,9 +47,10 @@ pub struct Notable {
 
 const SAMPLES: usize = 48;
 
-/// The notable values of `action` along member `m`, by position.
+/// The notable values of `action` along member `m`, by position (N's stretches end only where
+/// N's law changes: [`MemberResult::breakpoints_of`]).
 pub fn notables(m: &MemberResult, action: Action) -> Vec<Notable> {
-    let bps = m.breakpoints();
+    let bps = m.breakpoints_of(action);
     let val = |x: f64, after: bool| action.of(m.forces(x, after));
     let scale = bps.iter().flat_map(|&x| [val(x, false).abs(), val(x, true).abs()]).fold(0.0_f64, f64::max);
     let tol = 1e-9 * scale.max(1e-12);

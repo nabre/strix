@@ -228,7 +228,17 @@ mod tests {
         let views: Vec<View> = found.iter().map(|f| f.2.view).collect();
         assert_eq!(
             views,
-            [View::Structure, View::Equilibrium, View::Reactions, View::Axial, View::Section, View::Shear, View::Section, View::Moment]
+            [
+                View::Structure,
+                View::Equilibrium,
+                View::Reactions,
+                View::Section,
+                View::Axial,
+                View::Section,
+                View::Shear,
+                View::Section,
+                View::Moment
+            ]
         );
         assert!(found.iter().all(|f| f.2.group == "structure-1"));
         let t = text(&s);
@@ -262,14 +272,24 @@ mod tests {
         s.sel = Selection { anchor: at.clone(), focus: Pos { off: off + OBJ.len_utf8(), ..at } };
         s.run("structure.node", &json!({"id": "B", "x": 8})).unwrap();
         let found = structures(&s);
-        assert_eq!(found.len(), 8);
+        assert_eq!(found.len(), 9);
         for (_, _, st) in &found {
             assert_eq!(st.node("B").map(|n| n.x.value), Some(8.0), "{:?}", st.view);
         }
         let views: Vec<View> = found.iter().map(|f| f.2.view).collect();
         assert_eq!(
             views,
-            [View::Structure, View::Equilibrium, View::Reactions, View::Axial, View::Section, View::Shear, View::Section, View::Moment]
+            [
+                View::Structure,
+                View::Equilibrium,
+                View::Reactions,
+                View::Section,
+                View::Axial,
+                View::Section,
+                View::Shear,
+                View::Section,
+                View::Moment
+            ]
         );
     }
 
@@ -341,9 +361,11 @@ mod tests {
         assert!(equations(&s).iter().any(|e| e.0.starts_with("M_") && e.1 == 5));
     }
 
-    /// The moment's part draws each stretch cut too, between its heading and its law of M.
+    /// Each diagram part draws its stretches cut with only that diagram's internal force (`N`, `T`
+    /// or `M`) on the section and names only that force in the sentence after it.
     #[test]
-    fn the_moments_part_draws_each_stretch_cut() {
+    fn each_diagram_part_draws_its_stretches_with_its_own_internal_force() {
+        use strix_structure::Action;
         let st = json!({"nodes": [{"id": "A", "x": 0, "y": 0}, {"id": "B", "x": 4, "y": 0}],
             "members": [{"id": "1", "a": "A", "b": "B"}],
             "supports": [{"node": "A", "kind": "pin"}, {"node": "B", "kind": "roller"}],
@@ -358,6 +380,7 @@ mod tests {
                 View::Structure,
                 View::Equilibrium,
                 View::Reactions,
+                View::Section,
                 View::Axial,
                 View::Section,
                 View::Section,
@@ -378,10 +401,26 @@ mod tests {
                 })
                 .unwrap()
         };
-        for (f, tag) in found[7..9].iter().zip(["1a", "1b"]) {
-            assert_eq!(f.2.cut.as_ref().map(|c| c.tag.as_str()), Some(tag));
+        // Axial part: one joined stretch `1` with `Action::Axial` and "and N on the cut".
+        let n_cut = &found[3];
+        assert_eq!(n_cut.2.cut.as_ref().map(|c| (c.tag.as_str(), c.action)), Some(("1", Some(Action::Axial))));
+        let Block::Para(n_next) = &*s.doc.body[n_cut.0 + 1] else { panic!() };
+        assert!(n_next.text.contains("and N on the cut") && !n_next.text.contains("N, T, M"), "{}", n_next.text);
+        assert!(law_after(n_cut.0).starts_with("N_1(x)="), "{}", law_after(n_cut.0));
+
+        // Shear part: stretches `1a`, `1b` with `Action::Shear` and "and T on the cut".
+        for (f, tag) in found[5..7].iter().zip(["1a", "1b"]) {
+            assert_eq!(f.2.cut.as_ref().map(|c| (c.tag.as_str(), c.action)), Some((tag, Some(Action::Shear))));
             let Block::Para(next) = &*s.doc.body[f.0 + 1] else { panic!() };
-            assert!(next.text.contains("Cut at x from A"), "{}", next.text);
+            assert!(next.text.contains("and T on the cut") && !next.text.contains("N, T, M"), "{}", next.text);
+            assert!(law_after(f.0).starts_with(&format!("T_{tag}(x)=")), "{}", law_after(f.0));
+        }
+
+        // Moment part: stretches `1a`, `1b` with `Action::Moment` and "and M on the cut".
+        for (f, tag) in found[8..10].iter().zip(["1a", "1b"]) {
+            assert_eq!(f.2.cut.as_ref().map(|c| (c.tag.as_str(), c.action)), Some((tag, Some(Action::Moment))));
+            let Block::Para(next) = &*s.doc.body[f.0 + 1] else { panic!() };
+            assert!(next.text.contains("and M on the cut") && !next.text.contains("N, T, M"), "{}", next.text);
             assert!(law_after(f.0).starts_with(&format!("M_{tag}(x)=")), "{}", law_after(f.0));
         }
     }

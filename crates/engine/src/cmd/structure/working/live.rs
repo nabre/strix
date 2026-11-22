@@ -18,7 +18,7 @@ use crate::{CmdError, Session};
 const PREFIX: &str = "_StrixWorking_";
 
 /// The labels a working's words come from (`structure.working`'s and an exercise's).
-const KEYS: [&str; 28] = [
+const KEYS: [&str; 29] = [
     "heading",
     "loads",
     "reactions",
@@ -42,6 +42,7 @@ const KEYS: [&str; 28] = [
     "range",
     "stretch",
     "cut",
+    "cutOne",
     "values",
     "valuesMax",
     "jump",
