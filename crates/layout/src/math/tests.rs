@@ -98,8 +98,9 @@ fn long_display_equations_wrap_before_operators_and_indent() {
     let m = lay_in(&Math::default(), sum, true, avail, &repeat);
     let ls = lines(&m);
     assert!(ls.len() >= 2 && ls[0].1.last().is_some_and(|g| g.1 == "+") && ls[1].1[0].1 == "+", "{ls:?}");
-    // Inline equations never wrap.
-    assert_eq!(lines(&lay_in(&Math::default(), sum, false, avail, &mp)).len(), 1);
+    // Strix: inline equations wrap too (`eq_wrap.rs`), as wide as their lines.
+    let inline = lay_in(&Math::default(), sum, false, avail, &mp);
+    assert!(lines(&inline).len() >= 2 && inline.width <= avail + 0.01, "{}", inline.width);
     // A term wider than the line overflows it rather than breaking inside.
     let frac = lay_in(&Math::default(), "y=(a+b+c+d+e+f+g+h+i+j+k+l+m+n+o+p+q+r+s+t+u+v+w)/2", true, avail, &mp);
     assert!(frac.width > avail && frac.items.iter().any(|i| matches!(i, MItem::Rect { .. })), "{}", frac.width);

@@ -17,6 +17,8 @@ pub(super) struct Ctx {
     /// Line spacing of an equation array's rows, as a multiple of single spacing (Strix: a
     /// calculation's steps are spaced wider, `eq_wrap.rs`).
     pub(super) row_spacing: f32,
+    /// Strix: a calculation's wrapped lines line up under its first relation (`breaks.rs`).
+    pub(super) align_relations: bool,
 }
 
 pub(super) const MAX_NODES: usize = 200_000;

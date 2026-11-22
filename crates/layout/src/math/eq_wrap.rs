@@ -26,6 +26,19 @@ impl Ctx {
         (em * (super::rows::EQ_ROW_GAP + extra), em * (super::rows::EQ_ROW_SKIP + extra))
     }
 
+    /// Least space between a long equation's wrapped lines and least baseline-to-baseline
+    /// distance, in points at `em`: a calculation's lines are spaced as its steps
+    /// ([`STEPS_LINE_SPACING`]), so a fraction or a bracket on one line keeps well clear of the
+    /// next; other equations keep Word's tighter spacing.
+    pub(super) fn wrap_line_spacing(&self, em: f32) -> (f32, f32) {
+        if self.align_relations {
+            let extra = (STEPS_LINE_SPACING - 1.0) * super::rows::EQ_ROW_SKIP;
+            (em * (super::rows::EQ_ROW_GAP + extra), em * (super::rows::EQ_ROW_SKIP + extra))
+        } else {
+            (em * 0.3, em * 1.3)
+        }
+    }
+
     /// The equation array `rows` (the whole of display equation `nodes`) in `avail` points.
     pub(super) fn eq_arr_wrapped(&mut self, nodes: &[MNode], rows: &[Arg], st: St, avail: f32, mp: &MathProps) -> Bx {
         let budget = self.nodes;
@@ -68,6 +81,22 @@ impl Ctx {
         out.slot(&[], 1, w);
         finalize(&mut out, &[], em);
         out
+    }
+
+    /// An equation in a line of text (`nodes`), broken at its operators like a display equation
+    /// where it is wider than the paragraph's `avail` points: its first line sits on the text's
+    /// baseline, the rest below it.
+    pub(super) fn inline_wrapped(&mut self, nodes: &[MNode], st: St, avail: f32, mp: &MathProps) -> Bx {
+        let budget = self.nodes;
+        let whole = self.arg(nodes, st, 0);
+        if whole.w <= avail + 0.01 || avail <= 0.0 {
+            return whole;
+        }
+        self.nodes = budget;
+        match nodes {
+            [MNode::EqArr { rows }] => self.eq_arr_wrapped(nodes, rows, st, avail, mp),
+            _ => self.wrapped(nodes, st, avail, mp),
+        }
     }
 }
 
@@ -160,10 +189,106 @@ mod tests {
         assert_eq!(hit.path, [(0, 0)]);
     }
 
+    fn lay_with(lin: &str, display: bool, calc: bool, avail: f32) -> MathLayout {
+        crate::test_fonts();
+        let rc = wordcraft_doc::styles::StyleSheet::default().resolve_char(None, &Default::default());
+        let math = Math { nodes: parse_linear(lin), calc, ..Default::default() };
+        layout_equation(&math, lin, &rc, display, avail, &MathProps::default(), &mut 0)
+    }
+
+    /// Each line's left edge and baseline, top first: from the caret positions of the equation's
+    /// top level, which sit on its lines' baselines (glyph runs also sit on scripts' and
+    /// fractions' baselines).
+    fn line_starts(m: &MathLayout) -> Vec<(f32, f32)> {
+        let mut out: Vec<(f32, f32)> = Vec::new();
+        for s in m.slots.iter().filter(|s| s.path.is_empty()) {
+            match out.iter_mut().find(|(_, y)| (y - s.y).abs() < 0.5) {
+                Some(e) => e.0 = e.0.min(s.x),
+                None => out.push((s.x, s.y)),
+            }
+        }
+        out.sort_by(|a, b| b.1.total_cmp(&a.1));
+        out
+    }
+
+    /// A structure's working writes `T(2.5 m) = … = …` as an equation in a line of text: wider
+    /// than the paragraph, it breaks at its operators instead of running past the margin, its
+    /// first line on the text's baseline.
+    #[test]
+    fn an_inline_equation_wider_than_the_line_wraps() {
+        let lin = "T_1a (2.5 m)=V_A-q_1·2.5 m=(19.792 kN)-(10 kN/m)·2.5 m=19.792 kN-25 kN=-5.208 kN";
+        let full = lay_with(lin, false, true, 1e4);
+        assert_eq!(line_starts(&full).len(), 1);
+        let avail = full.width * 0.6;
+        let narrow = lay_with(lin, false, true, avail);
+        assert!(line_starts(&narrow).len() >= 2, "it wraps: {:?}", line_starts(&narrow));
+        assert!(narrow.width <= avail + 1.0, "fits the line: {} > {avail}", narrow.width);
+        assert!(line_starts(&narrow).first().is_some_and(|(_, y)| y.abs() < 0.01), "first line on the baseline");
+        assert!(narrow.ascent <= full.ascent + 0.5);
+        assert!(narrow.descent > full.descent + 5.0, "the rest below it");
+        // Every caret position is kept.
+        let offs = |m: &MathLayout| -> Vec<usize> {
+            let mut v: Vec<usize> = m.slots.iter().filter(|s| s.path.is_empty()).map(|s| s.off).collect();
+            v.sort_unstable();
+            v.dedup();
+            v
+        };
+        assert_eq!(offs(&narrow), offs(&full));
+    }
+
+    /// An inline equation that fits is laid out as before.
+    #[test]
+    fn an_inline_equation_that_fits_stays_on_one_line() {
+        let lin = "a+b=c";
+        let wide = lay_with(lin, false, false, 1e4);
+        let tight = lay_with(lin, false, false, wide.width + 0.5);
+        assert_eq!(line_starts(&tight).len(), 1);
+        assert!((tight.width - wide.width).abs() < 0.01);
+    }
+
+    /// A calculation's continuation lines start under its first `=` and break between the steps
+    /// of the chain (at a relation) rather than inside one.
+    #[test]
+    fn a_calculation_wraps_at_its_relations_under_the_first_one() {
+        let lin = "T_1a (2.5 m)=V_A-q_1·2.5 m=(19.792 kN)-(10 kN/m)·2.5 m=19.792 kN-25 kN=-5.208 kN";
+        let full = lay_with(lin, true, true, 1e4);
+        let avail = full.width * 0.6;
+        let calc = lay_with(lin, true, true, avail);
+        let starts = line_starts(&calc);
+        assert!(starts.len() >= 2, "it wraps: {starts:?}");
+        let first_eq = lay_with("T_1a (2.5 m)", true, true, 1e4).width;
+        for (x, _) in starts.iter().skip(1) {
+            assert!(*x > first_eq * 0.8 && *x < first_eq * 1.6, "under the first relation ({first_eq}): {starts:?}");
+        }
+        // Not a calculation: the wrap indent (72 pt) as Word does.
+        let plain = lay_with(lin, true, false, avail);
+        let plain_starts = line_starts(&plain);
+        assert!(plain_starts.iter().skip(1).all(|(x, _)| (x - 72.0).abs() < 3.0), "{plain_starts:?}");
+    }
+
+    /// A calculation's wrapped lines are spaced as its steps, one and a half lines apart, wider
+    /// than an ordinary long equation's.
+    #[test]
+    fn a_calculations_wrapped_lines_are_spaced_as_its_steps() {
+        let lin = "M=V_A·2.5 m-F_1·(2.5 m-0.875 m)-F_2·sin 75°·(2.5 m-2.5 m)=41.137 kN·m";
+        let full = lay_with(lin, true, true, 1e4);
+        let skip = |calc: bool| -> f32 {
+            let m = lay_with(lin, true, calc, full.width * 0.5);
+            let ys: Vec<f32> = line_starts(&m).iter().map(|l| l.1).collect();
+            assert!(ys.len() >= 2, "it wraps: {ys:?}");
+            ys.windows(2).map(|w| (w[0] - w[1]).abs()).fold(f32::MAX, f32::min)
+        };
+        let em = wordcraft_doc::styles::StyleSheet::default().resolve_char(None, &Default::default()).draw_size();
+        let (calc, plain) = (skip(true), skip(false));
+        assert!(calc >= em * 1.4 * 1.5 - 0.5, "one and a half lines: {calc} at {em}");
+        assert!(calc > plain + em * 0.5, "wider than an ordinary equation's: {calc} vs {plain}");
+    }
+
     #[test]
     fn hostile_widths_never_panic() {
         for avail in [0.0, -5.0, f32::NAN, f32::INFINITY, 1.0] {
             let _ = lay("█(a&=b+c@d&=e+f+g)", avail);
+            let _ = lay_with("a=b+c+d=e-f=g", false, true, avail);
         }
         let _ = lay("█()", 1.0);
     }
