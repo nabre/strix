@@ -86,7 +86,7 @@ pub(in crate::cmd::structure) fn parts(
     let mut shear_lines = Vec::new();
     let mut moment_lines = Vec::new();
     for (m, parts) in &members {
-        w.laws(m, &w.axial_parts(m, parts), Action::Axial, &mut axial_lines);
+        w.laws(m, &Writer::axial_parts(m, parts), Action::Axial, &mut axial_lines);
         w.laws(m, parts, Action::Shear, &mut shear_lines);
         w.laws(m, parts, Action::Moment, &mut moment_lines);
     }
@@ -103,7 +103,7 @@ pub(in crate::cmd::structure) fn parts(
     Ok(Parts {
         truss: false,
         reactions,
-        axial: paragraphs(&cap(axial_lines), props)?,
+        axial: paragraphs_with(&cap(axial_lines), props, Some(&figures))?,
         shear: paragraphs_with(&cap(shear_lines), props, Some(&figures))?,
         zeros: marked(&zero_lines, &zero_marked, Q_ZEROS)?,
         maxima: marked(&max_lines, &max_marked, Q_MAXIMA)?,
@@ -231,27 +231,26 @@ impl Writer<'_> {
 
     /// Member `m`'s stretches for N: neighbours with the same law of N joined, so N's
     /// intervals end only where an axial load (or a load's axial part) acts, not at every
-    /// load across the member.
-    fn axial_parts(&self, m: &MemberResult, parts: &[Stretch]) -> Vec<Stretch> {
-        let named = |s: &Stretch| super::named::laws(self.st, &self.us, m, s, self.u)[0].clone();
-        let mut out: Vec<(Stretch, Option<String>)> = Vec::new();
+    /// load across the member (as N's diagram, [`MemberResult::breakpoints_of`]). The joined
+    /// stretch's law is named afresh ([`Self::law`]).
+    fn axial_parts(m: &MemberResult, parts: &[Stretch]) -> Vec<Stretch> {
+        let mut out: Vec<Stretch> = Vec::new();
         for s in parts {
-            let name = named(s);
-            if let Some((last, last_name)) = out.last_mut() {
+            if let Some(last) = out.last_mut() {
                 let scale = last.n.iter().chain(s.n.iter()).fold(1e-12_f64, |a, c| a.max(c.abs()));
                 let xm = s.x1.abs().max(1.0);
                 let same = (0..4).all(|k| {
                     let (a, b) = (last.n.get(k).copied().unwrap_or(0.0), s.n.get(k).copied().unwrap_or(0.0));
                     ((a - b) * xm.powi(k as i32)).abs() <= 1e-9 * scale * xm.powi(3)
                 });
-                if same && *last_name == name && (last.x1 - s.x0).abs() <= 1e-9 * (1.0 + m.length) {
+                if same && (last.x1 - s.x0).abs() <= 1e-9 * (1.0 + m.length) {
                     last.x1 = s.x1;
                     continue;
                 }
             }
-            out.push((*s, name));
+            out.push(*s);
         }
-        out.into_iter().map(|(s, _)| s).collect()
+        out
     }
 
     /// Member `m`'s laws of `action`, stretch by stretch, with their values at the stretch's ends
@@ -264,12 +263,16 @@ impl Writer<'_> {
             }
             let (tag, _) = self.names(m, k, parts.len());
             out.push(stretch_header(src, s, &tag, self.u, self.labels));
-            if matches!(action, Action::Shear | Action::Moment) {
-                // Where the stretch lies and the part whose equilibrium gives its laws, with T's
-                // and with M's (N's stretches may join several of these: drawn with T's).
-                out.push(Line::figure(Figure::Stretch(strix_structure::Cut { member: m.id.clone(), from: s.x0, to: s.x1, tag: tag.clone() })));
-                out.push(Line::heading(self.labels.cut.replace("{a}", &src.a).replace("{T}", &self.shear)));
-            }
+            // Where the stretch lies and the part whose equilibrium gives this diagram's law,
+            // showing only the corresponding internal force (`N`, `T` or `M`) on the cut.
+            out.push(Line::figure(Figure::Stretch(strix_structure::Cut {
+                member: m.id.clone(),
+                from: s.x0,
+                to: s.x1,
+                tag: tag.clone(),
+                action: Some(action),
+            })));
+            out.push(Line::heading(self.labels.cut_one.replace("{a}", &src.a).replace("{F}", self.letter(action))));
             out.push(Line::eqs(vec![self.law(m, &tag, s, action)], true));
             let c = match action {
                 Action::Axial => &s.n,

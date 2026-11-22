@@ -484,7 +484,7 @@ fn an_exercise_working_follows_any_of_its_drawings() {
     s.run("structure.exercise", &json!({"labels": {"loads": "Carichi"}})).unwrap();
     assert!(has(&text_of(&s), "F_1=q_1·6 m"));
     // The diagram of M in the solution, changed: the statement and every part follow.
-    select_structure(&mut s, 7);
+    select_structure(&mut s, 8);
     s.run("structure.load", &shortened(4.0)).unwrap();
     let t = text_of(&s);
     assert!(has(&t, "F_1=q_1·4 m") && !has(&t, "F_1=q_1·6 m"), "{t}");
@@ -754,6 +754,25 @@ fn the_axial_force_s_intervals_end_only_at_axial_loads() {
     s.run("structure.exercise", &json!({"structure": st})).unwrap();
     let t = text_of(&s);
     assert!(has(&t, "T_1c(x)") && has(&t, "N_1a(x)") && has(&t, "N_1b(x)") && !has(&t, "N_1c(x)"), "{t}");
+}
+
+/// N's intervals join across loads acting crosswise, a triangular load from inside the
+/// interval among them, and the joined interval's law keeps the reactions' names.
+#[test]
+fn the_axial_force_joins_across_a_crosswise_varying_load() {
+    let st = json!({
+        "nodes": [{"id": "A", "x": 0, "y": 0}, {"id": "B", "x": 6.5, "y": 0}],
+        "members": [{"id": "1", "a": "A", "b": "B"}],
+        "supports": [{"node": "A", "kind": "pin"}, {"node": "B", "kind": "roller"}],
+        "loads": [
+            {"type": "distributed", "member": "1", "q1": 0, "q2": 4, "from": 1.75},
+            {"type": "force", "member": "1", "at": 2.5, "value": 15, "angle": -75}
+        ]
+    });
+    let mut s = Session::new(Document::new());
+    s.run("structure.exercise", &json!({"structure": st})).unwrap();
+    let t = text_of(&s);
+    assert!(has(&t, "N_1a(x) = -H_A") && has(&t, "N_1b(x)") && !has(&t, "N_1c(x)"), "{t}");
 }
 
 /// The working and the reactions the stiffness solution gives (`structure.get`).

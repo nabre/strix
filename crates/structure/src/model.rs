@@ -593,9 +593,10 @@ pub enum View {
     /// the dimensions their arms are read from.
     Equilibrium,
     /// One stretch of a written working ([`Structure::cut`]): the stretch marked on the
-    /// structure, the section half way along it, and the part before the section in full with
-    /// its reactions as unknowns, its loads and the internal forces `N`, `T`, `M` on the cut,
-    /// pointing the way they count positive; the rest faded.
+    /// structure, the section half way along it, the part before the section in full with its
+    /// reactions as unknowns, its loads and the internal force(s) on the cut (`N`, `T`, `M`, or
+    /// the diagram's own force alone), and the rest of the member faintly dashed so the whole
+    /// member can be seen.
     Section,
 }
 
@@ -625,7 +626,7 @@ fn default_width() -> f64 {
 }
 
 /// At most this many working labels are kept.
-const MAX_WORKING_LABELS: usize = 32;
+const MAX_WORKING_LABELS: usize = 40;
 
 /// A plane structure: beams, frames and trusses.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

@@ -4,6 +4,7 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::diagram::Action;
 use crate::model::Structure;
 
 /// One stretch of a member, cut at its middle: its laws `N_tag(x)`, `T_tag(x)`, `M_tag(x)` come
@@ -18,6 +19,10 @@ pub struct Cut {
     pub to: f64,
     /// The stretch's tag in the laws' names (`1`, `2a`).
     pub tag: String,
+    /// One internal force alone on the cut (an exercise's diagram part), or `None` for all
+    /// three (`N`, `T`, `M` together in a whole working).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub action: Option<Action>,
 }
 
 impl Cut {
