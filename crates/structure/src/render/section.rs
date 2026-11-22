@@ -151,8 +151,8 @@ impl Ctx<'_> {
     fn resume_gap(action: Option<Action>, rem_mm: f64) -> f64 {
         let want = match action {
             Some(Action::Shear) => 2.8,
-            Some(Action::Moment) => 5.8,
-            Some(Action::Axial) | None => N_LEN + 2.0,
+            Some(Action::Moment) => 6.2,
+            Some(Action::Axial) | None => N_LEN + 2.2,
         };
         if rem_mm > want + 2.2 { want } else { CUT_GAP.min(rem_mm * 0.35) }
     }
@@ -254,13 +254,13 @@ impl Ctx<'_> {
         let want_m = matches!(action, None | Some(Action::Moment));
 
         if want_n {
-            // N pulling the part (tension positive); named above its arrow so the dashed
-            // continuation of the member along `pe` stays clear.
+            // N pulling the part (tension positive); named above its arrow inside the cut gap so
+            // neither the dashed member nor faded loads past the cut cross it.
             let tail = add(ps, mul(pe, 0.7));
             let tip = add(ps, mul(pe, 0.7 + N_LEN));
             self.pen.arrow(tail, tip, COLOR_N, 0.45);
             let label_at =
-                if want_m { add(tip, add(mul(pe, -0.2), mul(pn, 0.95))) } else { add(ps, add(mul(pe, 0.7 + N_LEN * 0.52), mul(pn, 0.95))) };
+                if want_m { add(ps, add(mul(pe, 0.7 + N_LEN * 0.8), mul(pn, 0.85))) } else { add(ps, add(mul(pe, 0.7 + N_LEN * 0.52), mul(pn, 0.95))) };
             self.pen.subscripted(label_at, pn, "N", tag, COLOR_N);
         }
 
@@ -306,8 +306,12 @@ impl Ctx<'_> {
             arc.truncate(arc.len().saturating_sub(3));
             self.pen.poly(arc, COLOR_M, 0.45);
             self.pen.arrow(before, add(tip, mul(pe, -0.5)), COLOR_M, 0.45);
-            let label = add(center, add(mul(pe, r * 0.45), mul(pn, r + 1.4)));
-            self.pen.subscripted(label, pe, "M", tag, COLOR_M);
+            let label = if action == Some(Action::Moment) {
+                add(ps, add(mul(pe, 3.1), mul(pn, r + 0.55)))
+            } else {
+                add(ps, add(mul(pe, 3.5), mul(pn, r + 0.55)))
+            };
+            self.pen.subscripted(label, pn, "M", tag, COLOR_M);
         }
     }
 
