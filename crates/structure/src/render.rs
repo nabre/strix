@@ -95,6 +95,17 @@ fn lighter(c: Rgb, t: f64) -> Rgb {
     [mix(c[0]), mix(c[1]), mix(c[2])]
 }
 
+/// The largest distributed-load intensity on `st` (`0.0` when it has none).
+fn max_spread(st: &Structure) -> f64 {
+    st.loads
+        .iter()
+        .filter_map(|l| match l {
+            Load::Distributed { q1, q2, .. } => Some(q1.value.abs().max(q2.as_ref().map_or(0.0, |q| q.value.abs()))),
+            _ => None,
+        })
+        .fold(0.0_f64, f64::max)
+}
+
 #[derive(Default)]
 struct Pen {
     prims: Vec<PlotPrim>,
@@ -430,15 +441,13 @@ impl Ctx<'_> {
 
     /// The loads `which` picks, in colour `col`, with their names and values when `labelled`.
     fn loads_as(&mut self, f: &Frame, col: Rgb, labelled: bool, which: &dyn Fn(usize, &Load) -> bool) {
+        self.loads_with_max(f, col, labelled, max_spread(self.st), which);
+    }
+
+    /// [`Ctx::loads_as`] scaled against `qmax` (so a distributed load split across a section cut
+    /// keeps one scale on both sides).
+    fn loads_with_max(&mut self, f: &Frame, col: Rgb, labelled: bool, qmax: f64, which: &dyn Fn(usize, &Load) -> bool) {
         let st = self.st;
-        let qmax = st
-            .loads
-            .iter()
-            .filter_map(|l| match l {
-                Load::Distributed { q1, q2, .. } => Some(q1.value.abs().max(q2.as_ref().map_or(0.0, |q| q.value.abs()))),
-                _ => None,
-            })
-            .fold(0.0_f64, f64::max);
         let names = crate::names::load_names(st);
         // `F₁ = 20 kN`: the load's name before its value.
         let named = |k: usize, end: u8, value: String| match names.get(k).copied().flatten() {

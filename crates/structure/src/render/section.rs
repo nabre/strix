@@ -1,14 +1,15 @@
 //! One stretch of a written working ([`View::Section`](crate::View)): the stretch marked by a pale
-//! band (in full up to the cut, faint from the cut to the stretch's end), the member cut half way
-//! along it with a zigzag cut face, the part before the cut (the member's first end's side) drawn
-//! in full — its members, its loads with their names, its reactions as unknowns (`V_A`) — and on
-//! the cut the internal force(s) the rest of the structure puts on it (`N`, `T`, `M` together, or
-//! the single force [`Cut::action`](crate::Cut::action) asks for), pointing the way they count
-//! positive; the rest of the member (and any remaining skeleton) faintly dashed with its end node
-//! and support so the whole member is seen without loads or reactions past the cut; and the
+//! band of uniform intensity across both sides of the cut, the member cut half way along it with a
+//! zigzag cut face, the part before the cut (the member's first end's side) drawn in full — its
+//! members, its loads with their names, its reactions as unknowns (`V_A`) — and on the cut the
+//! internal force(s) the rest of the structure puts on it (`N`, `T`, `M` together, or the single
+//! force [`Cut::action`](crate::Cut::action) asks for), pointing the way they count positive; any
+//! loads strictly inside the remainder of the stretch past the cut drawn faded without labels; the
+//! rest of the member (and any remaining skeleton) faintly dashed with its end node and support so
+//! the whole member is seen without loads past the stretch or reactions past the cut; and the
 //! section's distance `x` from the member's first node as a progressive clear of the reactions.
 
-use super::{BLACK, COLOR_M, COLOR_N, COLOR_V, Ctx, Frame, GREY, LOAD, MEMBER_W, P, add, lighter, mul, pd, prim_box};
+use super::{BLACK, COLOR_M, COLOR_N, COLOR_V, Ctx, Frame, GREY, LOAD, MEMBER_W, P, add, lighter, max_spread, mul, pd, prim_box};
 use crate::cut::part_before;
 use crate::diagram::Action;
 use crate::model::{Load, Num, Structure};
@@ -48,7 +49,7 @@ impl Ctx<'_> {
         let Some(left_nodes) = &left else {
             // A member in a closed ring: no part lies before the cut alone. The stretch is marked
             // on the structure drawn whole.
-            self.band(at(geo.from), at(geo.to), pn, false);
+            self.band(at(geo.from), at(geo.to), pn);
             self.members(f, BLACK, MEMBER_W, true);
             self.supports(f, GREY);
             self.loads(f);
@@ -60,24 +61,34 @@ impl Ctx<'_> {
         let resume_mm = Self::resume_gap(geo.action, rem_mm);
         let cut_after = geo.cut + resume_mm / f.k.max(1e-9);
 
-        // 1. The stretch's band: in full up to the cut, faint after the cut gap up to the
+        // 1. The stretch's band: uniform intensity on both sides of the cut gap up to the
         //    stretch's end so the whole stretch [from, to] is seen without crossing N, T or M.
         if geo.cut > geo.from {
             let b0 = at(geo.from);
             self.pen.line(b0, ps, BAND, BAND_W);
-            self.band_tick(b0, pn, false);
+            self.band_tick(b0, pn);
         }
         if geo.to > cut_after + 1e-9 {
             let (b1, b2) = (at(cut_after), at(geo.to));
-            self.pen.line(b1, b2, lighter(BAND, 0.58), BAND_W);
-            self.band_tick(b2, pn, true);
+            self.pen.line(b1, b2, BAND, BAND_W);
+            self.band_tick(b2, pn);
         }
 
         // 2. The rest of the member (and any other members past the cut) faintly dashed so the
-        //    whole member A–B is seen in context, with no loads or reactions past the cut.
+        //    whole member A–B is seen in context, plus any loads strictly inside the remainder of
+        //    the stretch [cut_after, to] drawn faded without labels.
         let ghost_member = lighter(GREY, 0.25);
         let ghost_other = lighter(GREY, 0.52);
         self.ghost_rest(f, &geo, left_nodes, ps, pe, pn, rem_mm, resume_mm, ghost_member, ghost_other);
+        let qmax = max_spread(st);
+        let after = geo.loads_after(st, cut_after, f.k);
+        if !after.is_empty() {
+            let faded = Structure { loads: after, ..st.clone() };
+            let pen = std::mem::take(&mut self.pen);
+            let mut cx = Ctx { st: &faded, an: self.an, opts: self.opts, pen, amp_cap: self.amp_cap, placed: Vec::new() };
+            cx.loads_with_max(f, lighter(LOAD, 0.52), false, qmax, &|_, _| true);
+            self.pen = cx.pen;
+        }
 
         // 3. The part before the cut in full: the cut member up to `ps` with a zigzag cut face
         //    (and its dashed reference fibres when `M` is shown, matching the M sign convention),
@@ -118,8 +129,8 @@ impl Ctx<'_> {
         let mut cx = Ctx { st: &mine, an: self.an, opts: self.opts, pen, amp_cap: self.amp_cap, placed: Vec::new() };
         // `mine.loads` and `picked` are in the same order: the load's index picks it.
         let pick = |k: usize, named: bool| picked.get(k).is_some_and(|&(on, plain)| on && (plain == named));
-        cx.loads_as(f, LOAD, true, &|k, _| pick(k, true));
-        cx.loads_as(f, LOAD, false, &|k, _| pick(k, false));
+        cx.loads_with_max(f, LOAD, true, qmax, &|k, _| pick(k, true));
+        cx.loads_with_max(f, LOAD, false, qmax, &|k, _| pick(k, false));
         self.pen = cx.pen;
 
         self.unknowns_where(f, &in_left);
@@ -213,16 +224,16 @@ impl Ctx<'_> {
     }
 
     /// The pale band marking a stretch from `a` to `b` (paper), with a tick across each end.
-    fn band(&mut self, a: P, b: P, pn: P, faint: bool) {
-        self.pen.line(a, b, if faint { lighter(BAND, 0.58) } else { BAND }, BAND_W);
+    fn band(&mut self, a: P, b: P, pn: P) {
+        self.pen.line(a, b, BAND, BAND_W);
         for p in [a, b] {
-            self.band_tick(p, pn, faint);
+            self.band_tick(p, pn);
         }
     }
 
-    fn band_tick(&mut self, p: P, pn: P, faint: bool) {
-        let tick = lighter([0xC8, 0x8A, 0x10], if faint { 0.58 } else { 0.2 });
-        self.pen.line(add(p, mul(pn, BAND_W * 0.8)), add(p, mul(pn, -BAND_W * 0.8)), tick, if faint { 0.26 } else { 0.3 });
+    fn band_tick(&mut self, p: P, pn: P) {
+        let tick = lighter([0xC8, 0x8A, 0x10], 0.2);
+        self.pen.line(add(p, mul(pn, BAND_W * 0.8)), add(p, mul(pn, -BAND_W * 0.8)), tick, 0.3);
     }
 
     /// A short zigzag section-cut line across the member at `p` (`pe` along, `pn` across).
@@ -444,6 +455,46 @@ impl Geo {
             })
             .collect()
     }
+
+    /// Loads (or parts of distributed loads) acting strictly inside the remainder of the stretch
+    /// after the cut gap (`(cut_after, to)`), drawn faded without labels so every load in the
+    /// stretch is seen while only the part before the cut enters equilibrium.
+    fn loads_after(&self, st: &Structure, cut_after: f64, k: f64) -> Vec<Load> {
+        let eps = 1e-9 * (1.0 + self.len);
+        if self.to <= cut_after + eps {
+            return Vec::new();
+        }
+        st.loads
+            .iter()
+            .filter_map(|l| {
+                let mut l = l.clone();
+                match &mut l {
+                    Load::Force { member: Some(m), at, .. } | Load::Moment { member: Some(m), at, .. } => {
+                        let s = at.value.clamp(0.0, self.len);
+                        (*m == self.member && s > self.cut + eps && s >= cut_after && s < self.to - eps).then_some(l)
+                    }
+                    Load::Distributed { member, from, to, q1, q2, .. } if *member == self.member => {
+                        let s0 = from.value.clamp(0.0, self.len);
+                        let s1 = to.as_ref().map_or(self.len, |t| t.value).clamp(0.0, self.len);
+                        let (lo, hi) = if s0 <= s1 { (s0, s1) } else { (s1, s0) };
+                        let (b0, b1) = (lo.max(cut_after), hi.min(self.to));
+                        if b1 <= b0 + eps || (b1 - b0) * k < 1.8 {
+                            return None;
+                        }
+                        let (qa, qb) = (q1.value, q2.as_ref().map_or(q1.value, |q| q.value));
+                        let q_at = |s: f64| if (s1 - s0).abs() > eps { qa + (qb - qa) * (s - s0) / (s1 - s0) } else { qa };
+                        let (qa0, qa1) = (q_at(b0), q_at(b1));
+                        *from = Num::from(b0);
+                        *to = Some(Num::from(b1));
+                        *q1 = Num::from(qa0);
+                        *q2 = Some(Num::from(qa1));
+                        Some(l)
+                    }
+                    _ => None,
+                }
+            })
+            .collect()
+    }
 }
 
 #[cfg(test)]
@@ -574,16 +625,37 @@ mod tests {
         assert!(v_rev.0.abs() < 0.05 && v_rev.1 < -0.99, "{v_rev:?}");
     }
 
-    /// Beyond the cut, the rest of the member is faintly dashed up to `B` so the whole member is
-    /// seen, while loads and reactions past the cut are left out; `x` clears `V_A`.
+    /// Beyond the cut, the rest of the member is faintly dashed up to `B`, the stretch's yellow
+    /// band keeps one intensity on both sides of the cut, loads inside the remainder of the
+    /// stretch are drawn faded up to `to`, while concentrated loads on `to` or past the stretch
+    /// and reactions past the cut are left out; `x` clears `V_A`.
     #[test]
-    fn a_stretch_faintly_shows_the_whole_member_without_loads_past_the_cut() {
-        let mut st = beam(Some(Cut { member: "1".into(), from: 0.0, to: 2.0, tag: "1a".into(), action: Some(Action::Shear) }));
+    fn a_stretch_faintly_shows_the_whole_member_and_all_loads_in_the_stretch() {
+        let faded_load = super::lighter(super::LOAD, 0.52);
+        let mut st = beam(Some(Cut { member: "1".into(), from: 0.0, to: 2.5, tag: "1a".into(), action: Some(Action::Shear) }));
+        // Concentrated load right on the end of the stretch (`2.5`) and one past it (`5.0`): neither drawn.
+        st.loads.push(Load::Force { node: None, member: Some("1".into()), at: 2.5.into(), value: 12.0.into(), angle: Num::new(-90.0) });
         st.loads.push(Load::Force { node: None, member: Some("1".into()), at: 5.0.into(), value: 10.0.into(), angle: Num::new(-90.0) });
         let t = names(&st);
         assert!(t.iter().any(|p| p == "A") && t.iter().any(|p| p == "B"), "{t:?}");
         assert!(!t.iter().any(|p| p == "V_B" || p.starts_with("F")), "{t:?}");
+        // `q₁ = 10 kN/m` is written once, over the active part before the cut.
+        assert_eq!(t.iter().filter(|p| p.as_str() == "q₁ = 10 kN/m").count(), 1, "{t:?}");
         let prims = st.render(None).plot.prims;
+
+        // Both halves of the stretch's yellow band have the exact same full `BAND` colour.
+        let band_segs: Vec<(f64, f64)> = prims
+            .iter()
+            .filter_map(|p| match p {
+                strix_plot::PlotPrim::Path { pts, stroke: Some((c, w)), .. } if *c == super::BAND && (*w - super::BAND_W).abs() < 1e-6 => {
+                    Some((pts.iter().map(|q| q.0).fold(f64::MAX, f64::min), pts.iter().map(|q| q.0).fold(f64::MIN, f64::max)))
+                }
+                _ => None,
+            })
+            .collect();
+        assert_eq!(band_segs.len(), 2, "expected two equal-intensity band segments around the cut: {band_segs:?}");
+        let band_end = band_segs[1].1;
+
         // Solid black member stops at the cut; a dashed ghosted path continues to B.
         let solid_end = prims
             .iter()
@@ -604,6 +676,23 @@ mod tests {
             })
             .fold(f64::MIN, f64::max);
         assert!(dashed_end > solid_end + 20.0, "solid={solid_end} dashed={dashed_end}");
+
+        // Faded distributed-load arrows cover the second half of the stretch up to `band_end` (`to`),
+        // and stop there (even though `q₁` spans the whole 6 m beam), with no concentrated-force arrow
+        // at `to` (`ARROW = 11.0` taller than `SPREAD = 8.0`).
+        let faded_xs: Vec<f64> = prims
+            .iter()
+            .filter_map(|p| match p {
+                strix_plot::PlotPrim::Path { pts, stroke: Some((c, _)), .. } if *c == faded_load => {
+                    Some(pts.iter().map(|q| q.0).fold(f64::MIN, f64::max))
+                }
+                _ => None,
+            })
+            .collect();
+        assert!(!faded_xs.is_empty(), "expected faded load arrows in the second half of the stretch");
+        let faded_max_x = faded_xs.iter().copied().fold(f64::MIN, f64::max);
+        assert!((faded_max_x - band_end).abs() < 0.6, "faded_max_x={faded_max_x} band_end={band_end}");
+
         // `x`'s origin circle sits below `V_A`'s arrow, never on its shaft.
         let origin_y = prims
             .iter()
@@ -620,6 +709,21 @@ mod tests {
             })
             .fold(f64::MIN, f64::max);
         assert!(origin_y > va_bottom + 1.5, "origin_y={origin_y} va_bottom={va_bottom}");
+
+        // In a joined N stretch `[0, 6]`, a transverse force strictly inside `(cut, 6)` (at 4.5 m)
+        // is drawn faded without a label, while one at the end `6.0` is not.
+        let mut axial = beam(Some(Cut { member: "1".into(), from: 0.0, to: 6.0, tag: "1".into(), action: Some(Action::Axial) }));
+        axial.loads = vec![
+            Load::Force { node: None, member: Some("1".into()), at: 4.5.into(), value: 12.0.into(), angle: Num::new(-90.0) },
+            Load::Force { node: None, member: Some("1".into()), at: 6.0.into(), value: 12.0.into(), angle: Num::new(-90.0) },
+        ];
+        let axial_prims = axial.render(None).plot.prims;
+        let faded_heads = axial_prims
+            .iter()
+            .filter(|p| matches!(p, strix_plot::PlotPrim::Path { closed: true, fill: Some(c), pts, .. } if *c == faded_load && pts.len() == 3))
+            .count();
+        assert_eq!(faded_heads, 1, "expected only the interior force at 4.5 m to be drawn faded");
+        assert!(!names(&axial).iter().any(|p| p.starts_with("F")));
     }
 
     /// The shear's letter follows the diagram's title.
