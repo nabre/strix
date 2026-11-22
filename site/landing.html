@@ -25,7 +25,11 @@
       <a class="btn btn-ghost" href="{{base}}app/?sample">{{ctaTryWeb}}</a>
       <a class="btn btn-ghost" href="https://github.com/nabre/strix">{{ctaGitHub}}</a>
     </div>
-    <p class="note">{{heroNote}}</p>
+    <ul class="badges">
+      <li>{{badgeLicense}}</li>
+      <li>{{badgePlatforms}}</li>
+      <li>{{badgePrivacy}}</li>
+    </ul>
   </div>
   <div class="wrap">
     <figure class="shot hero-shot">
@@ -45,8 +49,21 @@
   </div>
 </section>
 
-<!-- How it works -->
-<section id="how" class="band">
+<!-- Three pillars -->
+<section id="pillars" class="band">
+  <div class="wrap">
+    <div class="eyebrow">{{pillarsEyebrow}}</div>
+    <h2>{{pillarsTitle}}</h2>
+    <div class="pillars">
+      <article class="pillar"><span class="pillar-n">01</span><h3>{{p1Title}}</h3><p>{{p1Text}}</p></article>
+      <article class="pillar"><span class="pillar-n">02</span><h3>{{p2Title}}</h3><p>{{p2Text}}</p></article>
+      <article class="pillar"><span class="pillar-n">03</span><h3>{{p3Title}}</h3><p>{{p3Text}}</p></article>
+    </div>
+  </div>
+</section>
+
+<!-- Workflow in 4 steps -->
+<section id="how">
   <div class="wrap">
     <div class="eyebrow">{{howEyebrow}}</div>
     <h2>{{howTitle}}</h2>
@@ -59,8 +76,8 @@
   </div>
 </section>
 
-<!-- Exercises -->
-<section id="exercises">
+<!-- Exercises & assessment showcase -->
+<section id="exercises" class="band">
   <div class="wrap show flip">
     <div>
       <div class="eyebrow">{{exEyebrow}}</div>
@@ -83,31 +100,7 @@
   </div>
 </section>
 
-<!-- Features -->
-<section id="features" class="band">
-  <div class="wrap">
-    <div class="eyebrow">{{featEyebrow}}</div>
-    <h2>{{featTitle}}</h2>
-    <p class="intro muted">{{featIntro}}</p>
-    <div class="bento">
-      <article class="tile wide"><span class="tile-n">01 · {{f1Kicker}}</span><h3>{{f1Title}}</h3><p>{{f1Text}}</p></article>
-      <article class="tile wide"><span class="tile-n">02 · {{f2Kicker}}</span><h3>{{f2Title}}</h3><p>{{f2Text}}</p></article>
-      <article class="tile"><span class="tile-n">03 · {{f3Kicker}}</span><h3>{{f3Title}}</h3><p>{{f3Text}}</p></article>
-      <article class="tile"><span class="tile-n">04 · {{f4Kicker}}</span><h3>{{f4Title}}</h3><p>{{f4Text}}</p></article>
-      <article class="tile"><span class="tile-n">05 · {{f5Kicker}}</span><h3>{{f5Title}}</h3><p>{{f5Text}}</p></article>
-      <article class="tile"><span class="tile-n">06 · {{f6Kicker}}</span><h3>{{f6Title}}</h3><p>{{f6Text}}</p></article>
-      <article class="tile"><span class="tile-n">07 · {{f7Kicker}}</span><h3>{{f7Title}}</h3><p>{{f7Text}}</p></article>
-      <article class="tile"><span class="tile-n">08 · {{f8Kicker}}</span><h3>{{f8Title}}</h3><p>{{f8Text}}</p></article>
-      <article class="tile"><span class="tile-n">09 · {{f10Kicker}}</span><h3>{{f10Title}}</h3><p>{{f10Text}}</p></article>
-      <article class="tile"><span class="tile-n">10 · {{f11Kicker}}</span><h3>{{f11Title}}</h3><p>{{f11Text}}</p></article>
-      <article class="tile"><span class="tile-n">11 · {{f12Kicker}}</span><h3>{{f12Title}}</h3><p>{{f12Text}}</p></article>
-      <article class="tile wide"><span class="tile-n">12 · {{f9Kicker}}</span><h3>{{f9Title}}</h3><p>{{f9Text}}</p></article>
-      <article class="tile wide soon"><span class="tile-n">{{plannedKicker}}</span><h3>{{plannedTitle}}</h3><p>{{plannedText}}</p></article>
-    </div>
-  </div>
-</section>
-
-<!-- WYSIWYG math -->
+<!-- Module 1: WYSIWYG math -->
 <section id="math">
   <div class="wrap show">
     <div>
@@ -149,7 +142,7 @@
   </div>
 </section>
 
-<!-- CAD -->
+<!-- Module 2: Parametric 2D CAD -->
 <section id="cad" class="band">
   <div class="wrap show">
     <div>
@@ -191,7 +184,7 @@
   </div>
 </section>
 
-<!-- Plane structures -->
+<!-- Module 3: Plane structures (N, T, M) -->
 <section id="structures">
   <div class="wrap show flip">
     <div>
@@ -215,7 +208,30 @@
   </div>
 </section>
 
-<!-- Agents -->
+<!-- Module 4: Scientific plots & calculated tables -->
+<section id="plots" class="band">
+  <div class="wrap show">
+    <div>
+      <div class="eyebrow">{{plotEyebrow}}</div>
+      <h2>{{plotTitle}}</h2>
+      <p class="intro">{{plotIntro}}</p>
+      <ul class="points">
+        <li>{{plot1}}</li>
+        <li>{{plot2}}</li>
+        <li>{{plot3}}</li>
+        <li>{{plot4}}</li>
+      </ul>
+    </div>
+    <figure class="shot">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="{{root}}assets/shots/{{lang}}/shot-plot-dark.png">
+        <img src="{{root}}assets/shots/{{lang}}/shot-plot-light.png" alt="{{shotPlotAlt}}" width="1440" height="900" loading="lazy">
+      </picture>
+    </figure>
+  </div>
+</section>
+
+<!-- Module 5: CLI automation & MCP server -->
 <section id="agents">
   <div class="wrap">
     <div class="eyebrow">{{agEyebrow}}</div>
@@ -225,10 +241,10 @@
       <div>
         <h3>{{agMcpTitle}}</h3>
 <pre><span class="c"># {{agMcpComment1}}</span>
-claude mcp add strix -- strix-cli mcp
+strix-cli mcp
 <span class="c"># {{agMcpComment2}}</span>
 strix --control 7981 &amp;
-claude mcp add strix-app -- strix-cli mcp --connect 127.0.0.1:7981</pre>
+strix-cli mcp --connect 127.0.0.1:7981</pre>
         <ul class="chips" aria-label="{{agMcpToolsLabel}}">
           <li>list_commands</li><li>execute</li><li>batch</li><li>type_text</li><li>select_text</li><li>inspect_document</li><li>render_page</li><li>save_document</li><li>screenshot</li>
         </ul>
@@ -246,6 +262,44 @@ strix-cli commands</pre>
       </div>
     </div>
     <p class="small muted">{{agNote}}</p>
+  </div>
+</section>
+
+<!-- Features overview -->
+<section id="features" class="band">
+  <div class="wrap">
+    <div class="eyebrow">{{featEyebrow}}</div>
+    <h2>{{featTitle}}</h2>
+    <p class="intro muted">{{featIntro}}</p>
+    <div class="bento">
+      <article class="tile wide"><span class="tile-n">01 · {{f1Kicker}}</span><h3>{{f1Title}}</h3><p>{{f1Text}}</p></article>
+      <article class="tile wide"><span class="tile-n">02 · {{f2Kicker}}</span><h3>{{f2Title}}</h3><p>{{f2Text}}</p></article>
+      <article class="tile"><span class="tile-n">03 · {{f3Kicker}}</span><h3>{{f3Title}}</h3><p>{{f3Text}}</p></article>
+      <article class="tile"><span class="tile-n">04 · {{f4Kicker}}</span><h3>{{f4Title}}</h3><p>{{f4Text}}</p></article>
+      <article class="tile"><span class="tile-n">05 · {{f5Kicker}}</span><h3>{{f5Title}}</h3><p>{{f5Text}}</p></article>
+      <article class="tile"><span class="tile-n">06 · {{f6Kicker}}</span><h3>{{f6Title}}</h3><p>{{f6Text}}</p></article>
+      <article class="tile"><span class="tile-n">07 · {{f7Kicker}}</span><h3>{{f7Title}}</h3><p>{{f7Text}}</p></article>
+      <article class="tile"><span class="tile-n">08 · {{f8Kicker}}</span><h3>{{f8Title}}</h3><p>{{f8Text}}</p></article>
+      <article class="tile"><span class="tile-n">09 · {{f10Kicker}}</span><h3>{{f10Title}}</h3><p>{{f10Text}}</p></article>
+      <article class="tile"><span class="tile-n">10 · {{f11Kicker}}</span><h3>{{f11Title}}</h3><p>{{f11Text}}</p></article>
+      <article class="tile"><span class="tile-n">11 · {{f12Kicker}}</span><h3>{{f12Title}}</h3><p>{{f12Text}}</p></article>
+      <article class="tile wide"><span class="tile-n">12 · {{f9Kicker}}</span><h3>{{f9Title}}</h3><p>{{f9Text}}</p></article>
+      <article class="tile wide soon"><span class="tile-n">{{plannedKicker}}</span><h3>{{plannedTitle}}</h3><p>{{plannedText}}</p></article>
+    </div>
+  </div>
+</section>
+
+<!-- Trust & privacy -->
+<section id="trust">
+  <div class="wrap">
+    <div class="eyebrow">{{trustEyebrow}}</div>
+    <h2>{{trustTitle}}</h2>
+    <div class="aspects">
+      <article class="aspect"><h3>{{t1Title}}</h3><p>{{t1Text}}</p></article>
+      <article class="aspect"><h3>{{t2Title}}</h3><p>{{t2Text}}</p></article>
+      <article class="aspect"><h3>{{t3Title}}</h3><p>{{t3Text}}</p></article>
+      <article class="aspect"><h3>{{t4Title}}</h3><p>{{t4Text}}</p></article>
+    </div>
   </div>
 </section>
 
@@ -322,22 +376,8 @@ strix-cli commands</pre>
   {{dlScript}}
 </section>
 
-<!-- Trust -->
-<section id="trust">
-  <div class="wrap">
-    <div class="eyebrow">{{trustEyebrow}}</div>
-    <h2>{{trustTitle}}</h2>
-    <div class="aspects">
-      <article class="aspect"><h3>{{t1Title}}</h3><p>{{t1Text}}</p></article>
-      <article class="aspect"><h3>{{t2Title}}</h3><p>{{t2Text}}</p></article>
-      <article class="aspect"><h3>{{t3Title}}</h3><p>{{t3Text}}</p></article>
-      <article class="aspect"><h3>{{t4Title}}</h3><p>{{t4Text}}</p></article>
-    </div>
-  </div>
-</section>
-
 <!-- Build from source -->
-<section id="start" class="band">
+<section id="start">
   <div class="wrap">
     <div class="eyebrow">{{startEyebrow}}</div>
     <h2>{{startTitle}}</h2>
@@ -360,12 +400,12 @@ trunk serve
 <span class="c"># http://127.0.0.1:8771/?sample</span></pre>
       </li>
     </ol>
-    <p class="small muted">{{startThen}} <a href="https://github.com/nabre/strix/blob/main/docs/calc.md">calc.md</a> · <a href="https://github.com/nabre/strix/blob/main/docs/exercise.md">exercise.md</a> · <a href="https://github.com/nabre/strix/blob/main/docs/cad.md">cad.md</a></p>
+    <p class="small muted">{{startThen}} <a href="https://github.com/nabre/strix/blob/main/docs/calc.md">calc.md</a> · <a href="https://github.com/nabre/strix/blob/main/docs/exercise.md">exercise.md</a> · <a href="https://github.com/nabre/strix/blob/main/docs/cad.md">cad.md</a> · <a href="https://github.com/nabre/strix/blob/main/docs/structures.md">structures.md</a> · <a href="https://github.com/nabre/strix/blob/main/docs/plot.md">plot.md</a></p>
   </div>
 </section>
 
 <!-- Licence -->
-<section id="license">
+<section id="license" class="band">
   <div class="wrap license">
     <div>
       <div class="eyebrow">{{licEyebrow}}</div>
