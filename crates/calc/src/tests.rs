@@ -2417,3 +2417,21 @@ fn a_substitution_keeps_digits_past_the_decimals() {
     let shown = r.last().and_then(|r| r.display.clone()).unwrap_or_default();
     assert!(!shown.contains("0.001 kN/mm") && shown.contains("(5·10^-4 kN/mm)") && shown.ends_with("= 1.25 kN"), "{shown}");
 }
+
+/// A call opened with a negative argument, or one that is a sum, keeps the argument whole in
+/// parentheses: `V·(-2 m)`, `(-2 m)²`, `- (-2 m)`, never `V·-2 m` nor `- -2 m`.
+#[test]
+fn a_call_opened_keeps_a_negative_argument_in_parentheses() {
+    let opts = Options { steps: true, ..Options::default() };
+    let r = evaluate(
+        &["V := 10 kN", "a := 1 m", "M(x) := V·x - V·(a - x)", "M(-2 m) = kN·m", "g(x) := 3 m - x + x^2/(1 m)", "g(-2 m) = m", "M(a + 1 m) = kN·m"],
+        &opts,
+    );
+    let shown: Vec<String> = r.iter().filter_map(|r| r.display.clone()).collect();
+    for s in &shown {
+        assert!(!s.contains("·-") && !s.contains("- -") && !s.contains("+ -"), "{s}");
+    }
+    assert!(shown[0].contains("V·(-2 m)") && shown[0].ends_with("= -50 kN·m"), "{shown:?}");
+    assert!(shown[1].contains("3 m - (-2 m) + (-2 m)²") && shown[1].ends_with("= 9 m"), "{shown:?}");
+    assert!(shown[2].contains("V·(a + 1 m)") && shown[2].ends_with("= 30 kN·m"), "{shown:?}");
+}
