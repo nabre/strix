@@ -1264,13 +1264,7 @@ fn member_lines(st: &Structure, us: &[Unknown], m: &MemberResult, u: &Units, lab
         let at = |x: f64| at(x, l, u.comma);
         out.push(stretch_header(src, s, &tag, u, labels));
         // Where the stretch lies and the part whose equilibrium gives its laws.
-        out.push(Line::figure(Figure::Stretch(strix_structure::Cut {
-            member: m.id.clone(),
-            from: s.x0,
-            to: s.x1,
-            tag: tag.clone(),
-            action: None,
-        })));
+        out.push(Line::figure(Figure::Stretch(strix_structure::Cut { member: m.id.clone(), from: s.x0, to: s.x1, tag: tag.clone(), action: None })));
         out.push(Line::heading(labels.cut.replace("{a}", &src.a).replace("{T}", shear)));
         // With the reactions' and the loads' names where they can be, else the numbers.
         let [n, v, mo] = named::laws(st, us, m, s, u);

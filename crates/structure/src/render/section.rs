@@ -57,11 +57,11 @@ impl Ctx<'_> {
         };
 
         let rem_mm = ((geo.len - geo.cut) * f.k).max(0.0);
-        let gap_mm = CUT_GAP.min(rem_mm * 0.35);
-        let cut_after = geo.cut + gap_mm / f.k.max(1e-9);
+        let resume_mm = Self::resume_gap(geo.action, rem_mm);
+        let cut_after = geo.cut + resume_mm / f.k.max(1e-9);
 
-        // 1. The stretch's band: in full up to the cut, faint from the cut to the stretch's end so
-        //    the whole stretch [from, to] is seen along the member.
+        // 1. The stretch's band: in full up to the cut, faint after the cut gap up to the
+        //    stretch's end so the whole stretch [from, to] is seen without crossing N, T or M.
         if geo.cut > geo.from {
             let b0 = at(geo.from);
             self.pen.line(b0, ps, BAND, BAND_W);
@@ -77,7 +77,7 @@ impl Ctx<'_> {
         //    whole member A–B is seen in context, with no loads or reactions past the cut.
         let ghost_member = lighter(GREY, 0.25);
         let ghost_other = lighter(GREY, 0.52);
-        self.ghost_rest(f, &geo, left_nodes, ps, pe, pn, rem_mm, gap_mm, ghost_member, ghost_other);
+        self.ghost_rest(f, &geo, left_nodes, ps, pe, pn, rem_mm, resume_mm, ghost_member, ghost_other);
 
         // 3. The part before the cut in full: the cut member up to `ps` with a zigzag cut face
         //    (and its dashed reference fibres when `M` is shown, matching the M sign convention),
@@ -135,6 +135,17 @@ impl Ctx<'_> {
         self.node_names_styled(f, lighter(GREY, 0.15), false, &|id| !in_left(id));
     }
 
+    /// Paper distance (mm) from the cut `ps` to where the faint continuation of the member (and
+    /// any remaining stretch band) resumes, leaving clean white room for the force(s) on the cut.
+    fn resume_gap(action: Option<Action>, rem_mm: f64) -> f64 {
+        let want = match action {
+            Some(Action::Shear) => 2.8,
+            Some(Action::Moment) => 5.8,
+            Some(Action::Axial) | None => N_LEN + 2.0,
+        };
+        if rem_mm > want + 2.2 { want } else { CUT_GAP.min(rem_mm * 0.35) }
+    }
+
     /// Faint dashed continuation of the cut member up to its second node, plus any other members
     /// beyond `left_nodes`, so the whole member is seen without competing with the free body.
     #[allow(clippy::too_many_arguments)]
@@ -147,7 +158,7 @@ impl Ctx<'_> {
         pe: P,
         pn: P,
         rem_mm: f64,
-        gap_mm: f64,
+        start_mm: f64,
         ghost_member: [u8; 3],
         ghost_other: [u8; 3],
     ) {
@@ -171,22 +182,12 @@ impl Ctx<'_> {
             }
         }
 
-        // The rest of the cut member itself, from the cut break (or past N's arrow when there is
-        // room) to its far node `B`.
+        // The rest of the cut member itself, from `start_mm` past the cut to its far node `B`.
         if rem_mm > 0.4 {
             let pb = at(geo.len);
-            let want_n = matches!(geo.action, None | Some(Action::Axial));
-            // Leave room outside the cut face for the single force drawn there (T across the face,
-            // M's semicircle, or N's shaft) before the ghosted continuation begins.
-            let min_gap = match geo.action {
-                Some(Action::Shear) => 2.6_f64.min(rem_mm * 0.45),
-                Some(Action::Moment) => gap_mm,
-                _ => gap_mm,
-            };
-            let start_mm = if want_n && rem_mm > N_LEN + 3.0 { N_LEN + 1.6 } else { min_gap };
             let p_start = add(ps, mul(pe, start_mm));
             if rem_mm > start_mm + 0.3 {
-                if (!want_n || rem_mm > N_LEN + 3.0) && rem_mm - start_mm > 2.5 {
+                if rem_mm - start_mm > 2.5 {
                     self.cut_face(p_start, pe, pn, ghost_member, 0.24);
                 }
                 self.pen.dashed(p_start, pb, ghost_member, 0.42);
@@ -247,11 +248,8 @@ impl Ctx<'_> {
             let tail = add(ps, mul(pe, 0.7));
             let tip = add(ps, mul(pe, 0.7 + N_LEN));
             self.pen.arrow(tail, tip, COLOR_N, 0.45);
-            let label_at = if want_m {
-                add(tip, add(mul(pe, -0.2), mul(pn, 0.95)))
-            } else {
-                add(ps, add(mul(pe, 0.7 + N_LEN * 0.52), mul(pn, 0.95)))
-            };
+            let label_at =
+                if want_m { add(tip, add(mul(pe, -0.2), mul(pn, 0.95))) } else { add(ps, add(mul(pe, 0.7 + N_LEN * 0.52), mul(pn, 0.95))) };
             self.pen.subscripted(label_at, pn, "N", tag, COLOR_N);
         }
 
@@ -263,10 +261,11 @@ impl Ctx<'_> {
             // the cut face; with N and M present too, it starts just below `ps` clear of N's shaft.
             let (tail, tip, label) = if action == Some(Action::Shear) {
                 let x_off = 1.35;
-                let half = 3.3;
+                let half = 3.5;
                 let tail = add(ps, add(mul(pe, x_off), mul(pn, half)));
                 let tip = add(ps, add(mul(pe, x_off), mul(pn, -half)));
-                let label = add(add(tip, mul(pn, 1.2)), mul(pe, -(x_off + 0.5)));
+                // Below the stretch's band (`BAND_W / 2 = 1.6 mm`), beside T's arrowhead.
+                let label = add(add(tip, mul(pn, 0.4)), mul(pe, -(x_off + 0.5)));
                 (tail, tip, label)
             } else {
                 let tail = add(ps, mul(pn, -0.8));
@@ -505,18 +504,19 @@ mod tests {
         }
         assert!(!t.iter().any(|p| p == "V_B"), "{t:?}");
         let back = Structure::from_json(&st.to_json()).unwrap();
-        assert_eq!((back.view, back.cut.as_ref().map(|c| c.tag.as_str()), back.cut.as_ref().and_then(|c| c.action)), (View::Section, Some("1a"), None));
+        assert_eq!(
+            (back.view, back.cut.as_ref().map(|c| c.tag.as_str()), back.cut.as_ref().and_then(|c| c.action)),
+            (View::Section, Some("1a"), None)
+        );
     }
 
     /// Each diagram's cut puts only its own internal force on the section and not the others, and
     /// round-trips its `action` through JSON.
     #[test]
     fn a_stretch_for_one_diagram_draws_only_its_internal_force() {
-        for (action, shown, hidden) in [
-            (Action::Axial, "N_1b", ["T_1b", "M_1b"]),
-            (Action::Shear, "T_1b", ["N_1b", "M_1b"]),
-            (Action::Moment, "M_1b", ["N_1b", "T_1b"]),
-        ] {
+        for (action, shown, hidden) in
+            [(Action::Axial, "N_1b", ["T_1b", "M_1b"]), (Action::Shear, "T_1b", ["N_1b", "M_1b"]), (Action::Moment, "M_1b", ["N_1b", "T_1b"])]
+        {
             let st = beam(Some(Cut { member: "1".into(), from: 2.5, to: 6.0, tag: "1b".into(), action: Some(action) }));
             let t = names(&st);
             assert!(t.iter().any(|p| p == shown), "{action:?} missing {shown}: {t:?}");
@@ -548,17 +548,22 @@ mod tests {
         };
         // Left-to-right beam (part before cut is on the left, cut on its right face):
         // N points right (+1, 0), T points down (0, +1) on paper, M's head at top points left.
-        let n_dir = head_dir(&beam(Some(Cut { member: "1".into(), from: 0.0, to: 4.0, tag: "1".into(), action: Some(Action::Axial) })), super::COLOR_N);
+        let n_dir =
+            head_dir(&beam(Some(Cut { member: "1".into(), from: 0.0, to: 4.0, tag: "1".into(), action: Some(Action::Axial) })), super::COLOR_N);
         assert!(n_dir.0 > 0.99 && n_dir.1.abs() < 0.05, "{n_dir:?}");
-        let v_dir = head_dir(&beam(Some(Cut { member: "1".into(), from: 0.0, to: 4.0, tag: "1".into(), action: Some(Action::Shear) })), super::COLOR_V);
+        let v_dir =
+            head_dir(&beam(Some(Cut { member: "1".into(), from: 0.0, to: 4.0, tag: "1".into(), action: Some(Action::Shear) })), super::COLOR_V);
         assert!(v_dir.0.abs() < 0.05 && v_dir.1 > 0.99, "{v_dir:?}");
         let m_st = beam(Some(Cut { member: "1".into(), from: 0.0, to: 4.0, tag: "1".into(), action: Some(Action::Moment) }));
         let m_dir = head_dir(&m_st, super::COLOR_M);
         assert!(m_dir.0 < -0.7, "M head points back over the piece: {m_dir:?}");
         // Reference fibres are drawn dashed on the lower (`−y`) side of the active member.
-        let has_ref_fibres = m_st.render(None).plot.prims.iter().any(|p| {
-            matches!(p, strix_plot::PlotPrim::Path { stroke: Some((_, w)), dash, .. } if !dash.is_empty() && (*w - 0.24).abs() < 1e-6)
-        });
+        let has_ref_fibres = m_st
+            .render(None)
+            .plot
+            .prims
+            .iter()
+            .any(|p| matches!(p, strix_plot::PlotPrim::Path { stroke: Some((_, w)), dash, .. } if !dash.is_empty() && (*w - 0.24).abs() < 1e-6));
         assert!(has_ref_fibres);
 
         // Right-to-left member (part before cut is on the right, cut on its left face):
@@ -583,7 +588,9 @@ mod tests {
         let solid_end = prims
             .iter()
             .filter_map(|p| match p {
-                strix_plot::PlotPrim::Path { pts, stroke: Some((c, w)), dash, .. } if *c == super::BLACK && *w == super::MEMBER_W && dash.is_empty() => {
+                strix_plot::PlotPrim::Path { pts, stroke: Some((c, w)), dash, .. }
+                    if *c == super::BLACK && *w == super::MEMBER_W && dash.is_empty() =>
+                {
                     Some(pts.iter().map(|q| q.0).fold(f64::MIN, f64::max))
                 }
                 _ => None,
