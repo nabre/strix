@@ -4067,7 +4067,6 @@ structure	Shear force	Effort tranchant
 structure	Bending moment	Moment fléchissant
 structure	Symbols	Symboles
 structure	Name the panels by their symbols	Nommer les panneaux par leurs symboles
-structure	Written over the diagrams' panels; the working keeps the symbols.	Écrits au-dessus des panneaux des diagrammes ; le développement garde les symboles.
 structure	Positive Senses	Sens positifs
 structure	Rotation	Rotation
 structure	Positive to the right	Positif vers la droite

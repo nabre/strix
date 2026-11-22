@@ -323,29 +323,29 @@ fn properties_group(app: &mut WordApp, ui: &mut Ui, st: &Value, on: bool) {
                         let _ = app.run("structure.set", json!({"title": t.trim()}));
                     }
                 });
+                let lu = st["lengthUnit"].as_str().unwrap_or("m").to_string();
+                let fu = st["forceUnit"].as_str().unwrap_or("kN").to_string();
+                menu_button(
+                    ui,
+                    app,
+                    crate::widgets::MenuButtonOptions::new(
+                        "ruler",
+                        Some("Units"),
+                        "The units of lengths and forces (moments are their product)",
+                        false,
+                        "structure.set",
+                    ),
+                    |ui, app| {
+                        for u in ["m", "cm", "mm"] {
+                            mi_check(ui, app, u, lu == u, "structure.set", json!({"lengthUnit": u}));
+                        }
+                        ui.separator();
+                        for u in ["kN", "daN", "N"] {
+                            mi_check(ui, app, u, fu == u, "structure.set", json!({"forceUnit": u}));
+                        }
+                    },
+                );
             });
-            let lu = st["lengthUnit"].as_str().unwrap_or("m").to_string();
-            let fu = st["forceUnit"].as_str().unwrap_or("kN").to_string();
-            menu_button(
-                ui,
-                app,
-                crate::widgets::MenuButtonOptions::new(
-                    "ruler",
-                    Some("Units"),
-                    "The units of lengths and forces (moments are their product)",
-                    false,
-                    "structure.set",
-                ),
-                |ui, app| {
-                    for u in ["m", "cm", "mm"] {
-                        mi_check(ui, app, u, lu == u, "structure.set", json!({"lengthUnit": u}));
-                    }
-                    ui.separator();
-                    for u in ["kN", "daN", "N"] {
-                        mi_check(ui, app, u, fu == u, "structure.set", json!({"forceUnit": u}));
-                    }
-                },
-            );
         });
     });
 }

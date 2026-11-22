@@ -4147,7 +4147,6 @@ structure	Shear force	Sforzo di taglio
 structure	Bending moment	Momento flettente
 structure	Symbols	Simboli
 structure	Name the panels by their symbols	Intitola i pannelli con i loro simboli
-structure	Written over the diagrams' panels; the working keeps the symbols.	Scritti sopra i pannelli dei diagrammi; il procedimento usa sempre i simboli.
 structure	Positive Senses	Versi positivi
 structure	Rotation	Rotazione
 structure	Positive to the right	Positivo verso destra

@@ -176,7 +176,8 @@ struct Line {
     stepped: bool,
     /// Its results with the document's decimals, never in scientific notation: a stretch's
     /// values, where what is left of a balance is no digit worth reading (`0`, not
-    /// `1.819·10^-14`).
+    /// `1.819·10^-14`). A substituted value smaller than the decimals show keeps its digits, so
+    /// it may be written with a power of ten (`(5·10^-4 kN/mm)`); the results never are.
     rounded: bool,
     /// In place of words and equations, a drawing of the structure ([`Figure`]).
     figure: Option<Figure>,

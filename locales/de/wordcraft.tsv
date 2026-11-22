@@ -4068,7 +4068,6 @@ structure	Shear force	Querkraft
 structure	Bending moment	Biegemoment
 structure	Symbols	Symbole
 structure	Name the panels by their symbols	Die Felder mit ihren Symbolen benennen
-structure	Written over the diagrams' panels; the working keeps the symbols.	Über den Feldern der Diagramme geschrieben; der Rechenweg behält die Symbole.
 structure	Positive Senses	Positive Richtungen
 structure	Rotation	Drehung
 structure	Positive to the right	Positiv nach rechts

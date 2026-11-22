@@ -18,13 +18,13 @@ use crate::{CmdError, CmdResult, Session, p};
 
 /// The questions of the exercise holding the structure at `pos` written with the shear's new
 /// symbol `new` where they had `old` (`… the shear force T.` becomes `… the shear force V.`),
-/// each word keeping its formatting; the solution repeats them.
-pub(super) fn rename_shear(s: &mut Session, pos: &Pos, old: &str, new: &str) {
+/// each word keeping its formatting; the solution repeats them. True when a question changed.
+pub(super) fn rename_shear(s: &mut Session, pos: &Pos, old: &str, new: &str) -> bool {
     if pos.story != StoryRef::Body || old.is_empty() || old == new {
-        return;
+        return false;
     }
-    let Some(&top) = pos.path.0.first() else { return };
-    let Some((first, last)) = super::super::exercise::question_blocks_at(s, top as usize) else { return };
+    let Some(&top) = pos.path.0.first() else { return false };
+    let Some((first, last)) = super::super::exercise::question_blocks_at(s, top as usize) else { return false };
     let mut changed = false;
     for i in first..=last.min(s.doc.body.len().saturating_sub(1)) {
         let Some(Block::Para(p)) = s.doc.body.get(i).map(|b| &**b) else { continue };
@@ -52,6 +52,7 @@ pub(super) fn rename_shear(s: &mut Session, pos: &Pos, old: &str, new: &str) {
     if changed {
         s.touch();
     }
+    changed
 }
 
 pub(super) fn run(s: &mut Session, v: &Value) -> CmdResult {

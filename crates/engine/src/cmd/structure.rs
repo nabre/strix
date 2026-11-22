@@ -405,7 +405,9 @@ fn set(s: &mut Session, v: &Value) -> CmdResult {
     let convert = replacement.is_none();
     let mut shear = None;
     let r = edit(s, |st| {
-        let old = working::shear_name(st);
+        // The symbol the questions were written with: the laws' (`T`), or, in an exercise
+        // written before the questions took it, the diagram's title as it was (`T [kN]`).
+        let old = [working::shear_name(st), st.titles.v.trim().to_string()];
         if let Some(new) = replacement {
             *st = new;
         }
@@ -414,11 +416,16 @@ fn set(s: &mut Session, v: &Value) -> CmdResult {
         Ok(())
     })?;
     // An exercise's questions name the shear by its symbol: they take the new one.
-    if let Some((old, new)) = shear.filter(|(old, new)| old != new)
+    if let Some((old, new)) = shear.filter(|([old, _], new)| old != new)
         && let Some((pos, _)) = selected_source(s)
     {
-        exercise::rename_shear(s, &pos, &old, &new);
-        super::calc::recalculate_now(s);
+        let mut changed = exercise::rename_shear(s, &pos, &old[0], &new);
+        if !changed && old[1] != old[0] {
+            changed = exercise::rename_shear(s, &pos, &old[1], &new);
+        }
+        if changed {
+            super::calc::recalculate_now(s);
+        }
     }
     Ok(r)
 }
