@@ -403,12 +403,31 @@ fn edit(s: &mut Session, edit: impl FnOnce(&mut Structure) -> Result<(), CmdErro
 fn set(s: &mut Session, v: &Value) -> CmdResult {
     let replacement = structure_param(v)?;
     let convert = replacement.is_none();
-    edit(s, |st| {
+    let mut shear = None;
+    let r = edit(s, |st| {
+        // The symbol the questions were written with: the laws' (`T`), or, in an exercise
+        // written before the questions took it, the diagram's title as it was (`T [kN]`).
+        let old = [working::shear_name(st), st.titles.v.trim().to_string()];
         if let Some(new) = replacement {
             *st = new;
         }
-        apply_settings(st, v, convert)
-    })
+        apply_settings(st, v, convert)?;
+        shear = Some((old, working::shear_name(st)));
+        Ok(())
+    })?;
+    // An exercise's questions name the shear by its symbol: they take the new one.
+    if let Some((old, new)) = shear.filter(|([old, _], new)| old != new)
+        && let Some((pos, _)) = selected_source(s)
+    {
+        let mut changed = exercise::rename_shear(s, &pos, &old[0], &new);
+        if !changed && old[1] != old[0] {
+            changed = exercise::rename_shear(s, &pos, &old[1], &new);
+        }
+        if changed {
+            super::calc::recalculate_now(s);
+        }
+    }
+    Ok(r)
 }
 
 fn node(s: &mut Session, v: &Value) -> CmdResult {

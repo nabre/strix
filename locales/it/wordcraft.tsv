@@ -3930,6 +3930,8 @@ structure	y	y
 	Signs	Segni
 	Mark each area of the diagrams with its sign	Segna ogni area dei diagrammi col suo segno
 	Panel Layout	Disposizione dei riquadri
+	Diagram Names	Nomi dei diagrammi
+	Positive Senses	Versi positivi
 	How the panels are laid out: one under the other, or two by two	Come si dispongono i riquadri: uno sotto l'altro o a due a due
 	Automatic (Frames in Two Columns)	Automatica (telai su due colonne)
 	One Column	Una colonna
@@ -4145,7 +4147,6 @@ structure	Shear force	Sforzo di taglio
 structure	Bending moment	Momento flettente
 structure	Symbols	Simboli
 structure	Name the panels by their symbols	Intitola i pannelli con i loro simboli
-structure	Written over the diagrams' panels; the working keeps the symbols.	Scritti sopra i pannelli dei diagrammi; il procedimento usa sempre i simboli.
 structure	Positive Senses	Versi positivi
 structure	Rotation	Rotazione
 structure	Positive to the right	Positivo verso destra

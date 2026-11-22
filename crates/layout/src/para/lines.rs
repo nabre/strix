@@ -425,7 +425,8 @@ impl<'e> Breaker<'e> {
             }
             let Some(st) = pl.styles.get(c.style as usize) else { continue };
             let object = if let ClKind::Object(o) = c.kind { Some(o) } else { None };
-            let math = object.is_some_and(|o| pl.maths.iter().any(|(k, _)| *k == o));
+            let math_layout = object.and_then(|o| pl.maths.iter().find(|(k, _)| *k == o)).map(|(_, m)| &**m);
+            let math = math_layout.is_some();
             let check_box = object.is_some_and(|o| pl.check_boxes.contains(&o));
             // A picture sits on the baseline of its run (raised or lowered by its position):
             // the line keeps that font's ascent and descent, and grows to fit it.
@@ -439,7 +440,11 @@ impl<'e> Breaker<'e> {
                 if math {
                     // Exact spacing keeps the run's baseline; tall math may overflow the
                     // fixed line box without moving adjacent text up by its denominator.
-                    if matches!(rp.line_spacing, LineSpacing::Exactly(_)) { (st.ascent, st.descent) } else { (c.obj_h, c.obj_d) }
+                    if matches!(rp.line_spacing, LineSpacing::Exactly(_)) {
+                        (st.ascent, st.descent)
+                    } else {
+                        super::math_leading::math_line_extent(st, math_layout, c.obj_h, c.obj_d)
+                    }
                 } else {
                     ex.obj_asc = ex.obj_asc.max(c.obj_h);
                     // A lowered picture reaches below the baseline, with exact spacing no further

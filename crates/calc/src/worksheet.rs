@@ -1114,12 +1114,67 @@ impl Worksheet {
     /// The working of formula `f`, worth `value`, before its result: the closed form of its sums
     /// (`(x + a)^n` for a binomial sum), shown when it gives the very value the terms add up
     /// to, then the values substituted. Empty when there is nothing to show.
+    ///
+    /// A call of a user function is opened first (`M(6 m)` as
+    /// `V_A·6 m − F_1·(6 m − 1 m)`), so the reader sees which law gives the value, then its
+    /// values substituted.
     fn working(&self, f: &Expr, skip: Option<&str>, value: &Value) -> Vec<String> {
+        let opened = inline_calls(f, &self.scope, 0);
+        if &opened != f
+            && !has_call(&opened)
+            && !is_quantity(&opened)
+            && eval(&opened, &self.scope, Names::Worksheet).is_ok_and(|v| agree(value, &v, &self.opts).is_ok())
+        {
+            let mut lines = vec![self.written(&opened)];
+            lines.extend(self.working(&opened, skip, value));
+            lines.extend(self.terms_worked(&opened));
+            return lines;
+        }
         let closed =
             crate::series::closed_form(f).filter(|c| eval(c, &self.scope, Names::Worksheet).is_ok_and(|v| agree(value, &v, &self.opts).is_ok()));
         let mut lines: Vec<String> = closed.iter().map(|c| self.written(c)).collect();
         lines.extend(self.substituted(closed.as_ref().unwrap_or(f), skip));
         lines
+    }
+
+    /// A sum `f` with each term worked out (`167.321 kN·m − 150 kN·m − 17.321 kN·m`), so the
+    /// reader sees what each term weighs and how they add up to the result; `None` when `f` is
+    /// no sum of two terms or more, when a term has no single value, or when every term is
+    /// already a value alone.
+    fn terms_worked(&self, f: &Expr) -> Option<String> {
+        fn flatten<'e>(e: &'e Expr, negative: bool, out: &mut Vec<(bool, &'e Expr)>, depth: usize) {
+            match e {
+                Expr::Bin(op @ (BinOp::Add | BinOp::Sub), a, b) if depth < crate::MAX_DEPTH => {
+                    flatten(a, negative, out, depth + 1);
+                    flatten(b, negative != (*op == BinOp::Sub), out, depth + 1);
+                }
+                _ => out.push((negative, e)),
+            }
+        }
+        let mut terms = Vec::new();
+        flatten(f, false, &mut terms, 0);
+        // Each term a parameter or a quantity alone: the substitution already shows its value.
+        if terms.len() < 2 || terms.iter().all(|(_, t)| is_quantity(t) || matches!(t, Expr::Name(_) | Expr::Num(_))) {
+            return None;
+        }
+        let whole = self.hint(f);
+        let mut out = String::new();
+        for (k, (negative, term)) in terms.iter().enumerate() {
+            let q = eval(term, &self.scope, Names::Worksheet).ok()?.expect_scalar().ok()?;
+            let shown = Quantity { value: if *negative { -q.value } else { q.value }, ..q };
+            let hint = self.hint(term).or_else(|| whole.clone());
+            let (number, unit) = self.auto_hinted(&Value::Scalar(Quantity { value: shown.value.abs(), ..shown }), hint.as_deref());
+            let text = with_unit(&number, &unit);
+            // A term worth nothing keeps the sign it is written with (`− 0 kN·m`).
+            let minus = if shown.value == 0.0 { *negative } else { shown.value < 0.0 };
+            match (k, minus) {
+                (0, false) => out.push_str(&text),
+                (0, true) => out.push_str(&format!("-{text}")),
+                (_, false) => out.push_str(&format!(" + {text}")),
+                (_, true) => out.push_str(&format!(" - {text}")),
+            }
+        }
+        Some(out)
     }
 
     /// Parameter `name`'s value as a substitution writes it: in parentheses when it has a unit,
@@ -1129,9 +1184,31 @@ impl Worksheet {
         if Some(name) == skip {
             return None;
         }
-        let shown = self.shown(name)?;
+        let shown = self.shown_whole(name)?;
         let bare = shown.chars().all(|c| c.is_ascii_digit() || c == '.' || c == ',');
         Some(if bare { shown } else { format!("({shown})") })
+    }
+
+    /// Parameter `name`'s value as [`Self::shown`] writes it, but never with digits rounded away:
+    /// with [`Count::Decimals`] a value whose digits fall past the decimals (`0.0005` with 3) is
+    /// written as [`Count::Auto`] would, so a substitution never reads `(0.001 kN/mm)` for it.
+    fn shown_whole(&self, name: &str) -> Option<String> {
+        let v = self.scope.get(name)?;
+        let hint = self.scope.hints.iter().find(|(n, _)| n == name).map(|(_, h)| h.as_str());
+        let (number, unit) = self.auto_hinted(v, hint);
+        if self.opts.count == Count::Decimals {
+            // Trailing zeros aside, does the value need more decimals than are shown?
+            let trim = |t: &str| {
+                if t.contains(['.', ',']) { t.trim_end_matches('0').trim_end_matches(['.', ',']).to_string() } else { t.to_string() }
+            };
+            let fine = Options { digits: 12, zeros: false, ..self.opts };
+            let (exact, _) = self.auto_hinted_in(v, hint, &fine);
+            if trim(&number) != trim(&exact) {
+                let (number, unit) = self.auto_hinted_in(v, hint, &Options { count: Count::Auto, ..self.opts });
+                return Some(with_unit(&number, &unit));
+            }
+        }
+        Some(with_unit(&number, &unit))
     }
 
     /// True when `expr` reads a parameter other than `x` (`h·r`, not `3 m·5 m`).
@@ -1827,13 +1904,18 @@ impl Worksheet {
         }
     }
 
-    /// Like [`Self::auto`], but a plain number with a dimensionless unit `hint` (`°`, `%`) is
+    /// Like [`Self::auto_in`] in the document's format, but a plain number with a dimensionless unit `hint` (`°`, `%`) is
     /// shown in it.
     pub(crate) fn auto_hinted(&self, v: &Value, hint: Option<&str>) -> (String, String) {
+        self.auto_hinted_in(v, hint, &self.opts)
+    }
+
+    /// [`Self::auto_hinted`] with the number format `opts`.
+    fn auto_hinted_in(&self, v: &Value, hint: Option<&str>, opts: &Options) -> (String, String) {
         if v.dim().is_dimensionless()
             && let Some(h) = hint
             && let Some(u) = unit(h)
-            && let Ok(number) = in_unit_text(v, u, h, &self.opts)
+            && let Ok(number) = in_unit_text(v, u, h, opts)
         {
             return (number, h.to_string());
         }
@@ -1845,41 +1927,40 @@ impl Worksheet {
                 && affine(h).is_some()
             {
                 let shown = match working {
-                    Some((_, q, text)) => in_unit_text(v, *q, text, &self.opts).map(|n| (n, text.clone())),
-                    None => unit(h)
-                        .ok_or(CalcError::UnknownUnit(h.to_string()))
-                        .and_then(|q| in_unit_text(v, q, h, &self.opts))
-                        .map(|n| (n, h.to_string())),
+                    Some((_, q, text)) => in_unit_text(v, *q, text, opts).map(|n| (n, text.clone())),
+                    None => {
+                        unit(h).ok_or(CalcError::UnknownUnit(h.to_string())).and_then(|q| in_unit_text(v, q, h, opts)).map(|n| (n, h.to_string()))
+                    }
                 };
                 if let Ok(shown) = shown {
                     return shown;
                 }
             }
-            return self.auto(v);
+            return self.auto_in(v, opts);
         }
         // A composed unit (`kN·m`) or an explicit rounding unit, unless a working unit was written.
         if !v.dim().is_dimensionless()
             && self.working_unit(v.dim()).is_none()
             && let Some(h) = hint
             && let Some(u) = self.unit_quantity(h)
-            && let Ok(number) = in_unit_text(v, u, h, &self.opts)
+            && let Ok(number) = in_unit_text(v, u, h, opts)
         {
             return (number, h.to_string());
         }
-        self.auto(v)
+        self.auto_in(v, opts)
     }
 
-    /// `v`'s numbers and unit when none is asked for: the working unit of its dimension, else
-    /// the automatic one.
-    pub(crate) fn auto(&self, v: &Value) -> (String, String) {
+    /// `v`'s numbers and unit when none is asked for, in the number format `opts`: the working
+    /// unit of its dimension, else the automatic one.
+    fn auto_in(&self, v: &Value, opts: &Options) -> (String, String) {
         // A °C/°F working unit shows absolute temperatures only (see `auto_hinted`).
         if let Some((_, q, text)) = self.scope.working.iter().find(|(d, _, _)| *d == v.dim())
             && affine(text).is_none()
-            && let Ok(number) = in_unit_text(v, *q, text, &self.opts)
+            && let Ok(number) = in_unit_text(v, *q, text, opts)
         {
             return (number, text.clone());
         }
-        auto_text(v, &self.opts)
+        auto_text(v, opts)
     }
 
     /// `v` as formatted numbers and unit text, in the requested unit or the automatic one.

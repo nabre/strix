@@ -16,6 +16,45 @@ use wordcraft_doc::{Block, InlineObject, Paragraph, Pos, StoryRef, para_block};
 
 use crate::{CmdError, CmdResult, Session, p};
 
+/// The questions of the exercise holding the structure at `pos` written with the shear's new
+/// symbol `new` where they had `old` (`… the shear force T.` becomes `… the shear force V.`),
+/// each word keeping its formatting; the solution repeats them. True when a question changed.
+pub(super) fn rename_shear(s: &mut Session, pos: &Pos, old: &str, new: &str) -> bool {
+    if pos.story != StoryRef::Body || old.is_empty() || old == new {
+        return false;
+    }
+    let Some(&top) = pos.path.0.first() else { return false };
+    let Some((first, last)) = super::super::exercise::question_blocks_at(s, top as usize) else { return false };
+    let mut changed = false;
+    for i in first..=last.min(s.doc.body.len().saturating_sub(1)) {
+        let Some(Block::Para(p)) = s.doc.body.get(i).map(|b| &**b) else { continue };
+        if super::working::renamed_symbol(&p.text, old, new) == p.text {
+            continue;
+        }
+        let Some(block) = s.doc.body.get_mut(i) else { continue };
+        let Block::Para(p) = std::sync::Arc::make_mut(block) else { continue };
+        // From the end, so the earlier offsets stay where they are.
+        let found: Vec<usize> = p.text.match_indices(old).map(|(off, _)| off).collect();
+        for off in found.into_iter().rev() {
+            let alone = |t: &str| super::working::renamed_symbol(t, old, new) != t;
+            let start = p.text.get(..off).and_then(|h| h.char_indices().next_back()).map_or(off, |(k, _)| k);
+            let end = p.text.get(off + old.len()..).and_then(|t| t.chars().next()).map_or(off + old.len(), |c| off + old.len() + c.len_utf8());
+            if !p.text.get(start..end).is_some_and(alone) {
+                continue;
+            }
+            let props = p.props_at(off).clone();
+            if p.delete(off, off + old.len()).is_ok() && p.insert_text(off, new, &props).is_ok() {
+                changed = true;
+            }
+        }
+        p.touch();
+    }
+    if changed {
+        s.touch();
+    }
+    changed
+}
+
 pub(super) fn run(s: &mut Session, v: &Value) -> CmdResult {
     let given = super::structure_param(v)?;
     let convert = given.is_none();
@@ -35,7 +74,7 @@ pub(super) fn run(s: &mut Session, v: &Value) -> CmdResult {
     let label = |k: &str, d: &str| -> String {
         v.get("labels").and_then(|l| l.get(k)).and_then(Value::as_str).map(|t| t.chars().take(400).collect()).unwrap_or_else(|| d.to_string())
     };
-    let shear = st.titles.v.clone();
+    let shear = super::working::shear_name(&st);
     let title = label("title", "Structure");
     let text = label("text", "For the structure in the figure, loaded as shown:");
     // The questions: their words from `questions` (the working's own words are in `labels`).

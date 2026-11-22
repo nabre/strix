@@ -52,27 +52,32 @@ impl Pen {
 
     /// The senses the reactions' equations count positive, as the textbooks draw them: an arrow
     /// along x and one along y from a common origin, each the way its axis counts positive and
-    /// named at its tip, and a curved arrow marked `+` the way a rotation counts positive; in the
-    /// title row whose top left corner is `at` (`TITLE_ROW` high).
+    /// named at its tip, and a curved arrow marked `+` the way a rotation counts positive, in
+    /// the quadrant between the two arrows, its opening towards their origin; in the title row
+    /// whose top left corner is `at` (`TITLE_ROW` high). Bold heads, readable at a glance.
     pub(super) fn positive(&mut self, at: P, pos: Positive) {
-        let (w, len) = (0.35, 6.5);
+        let (w, len, head, half) = (0.45, 7.5, 2.4, 0.42);
         let (sx, sy) = (pos.sx(), pos.sy());
         // The origin at the corner the arrows leave from (paper y grows downwards).
-        let o = add(at, (if sx > 0.0 { 1.0 } else { 1.0 + len }, if sy > 0.0 { 1.5 + len } else { 1.5 }));
+        let small = TEXT * 0.85;
+        // With y downwards, room above the x arrow for its name.
+        let o = add(at, (if sx > 0.0 { 1.0 } else { 1.0 + len }, if sy > 0.0 { 1.0 + len } else { 1.5 + small }));
         let tx = add(o, (sx * len, 0.0));
         let ty = add(o, (0.0, -sy * len));
-        self.arrow(o, tx, BLACK, w);
-        self.arrow(o, ty, BLACK, w);
-        self.dot(o, 0.35, BLACK, None);
-        let small = TEXT * 0.85;
-        // `x` under its tip, `y` beside its tip, away from the other arrow.
-        self.text(add(tx, (0.0, small * 1.15)), "x".to_string(), small, false, PlotAnchor::Center, BLACK);
-        let (yx, anchor) = if sx > 0.0 { (-0.9, PlotAnchor::Right) } else { (0.9, PlotAnchor::Left) };
+        self.arrow_sized(o, tx, BLACK, w, head, half);
+        self.arrow_sized(o, ty, BLACK, w, head, half);
+        self.dot(o, 0.4, BLACK, None);
+        // `x` by its tip and `y` beside its tip, both outside the quadrant the rotation takes.
+        let xy = if sy > 0.0 { small * 1.15 } else { -small * 0.65 };
+        self.text(add(tx, (0.0, xy)), "x".to_string(), small, false, PlotAnchor::Center, BLACK);
+        let (yx, anchor) = if sx > 0.0 { (-1.1, PlotAnchor::Right) } else { (1.1, PlotAnchor::Left) };
         self.text(add(ty, (yx, small * 0.75)), "y".to_string(), small, false, anchor, BLACK);
-        // The rotation beside them.
-        let c = add(at, (len + 6.5, 5.0));
-        self.couple(c, 2.6, pos.sr() > 0.0, BLACK, w);
-        self.text(add(c, (0.0, small * 0.38)), "+".to_string(), small, false, PlotAnchor::Center, BLACK);
+        // The rotation in the quadrant between the arrows (x and y both positive), open towards
+        // the origin (the angles counter-clockwise from the right, y up).
+        let q = add(o, (sx * 4.3, -sy * 4.3));
+        let gap = (-sy).atan2(-sx).to_degrees();
+        self.couple_sized(q, 2.3, pos.sr() > 0.0, BLACK, w, (gap + 40.0, gap + 320.0), 4, (1.8, 0.5));
+        self.text(add(q, (0.0, small * 0.38)), "+".to_string(), small, false, PlotAnchor::Center, BLACK);
     }
 
     /// Half a turn round a piece's end `p` on its outer side: on the left end (`left`) from below

@@ -1326,6 +1326,13 @@ pub(super) fn statement_and_prompts(s: &Session) -> Option<(Option<(usize, usize
     Some((ex.text_blocks, ex.prompts.clone()))
 }
 
+/// First and last top-level block of the questions of the exercise holding top-level block `top`.
+pub(super) fn question_blocks_at(s: &Session, top: usize) -> Option<(usize, usize)> {
+    let layout = scan(s);
+    let e = layout.parts.get(top).and_then(|(e, _)| *e)?;
+    layout.exercises.get(e)?.question_blocks
+}
+
 pub(super) fn exercise_at_caret(s: &Session) -> Option<usize> {
     if s.sel.focus.story != StoryRef::Body {
         return None;
