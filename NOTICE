@@ -26,6 +26,11 @@ Interface translations (locales/): vendored from storytold/craft-i18n at commit
 contributors; translators are credited in locales/ATTRIBUTION-craft-i18n.md. The strix.tsv
 catalogs are modified (product name, later Strix rows); common.tsv files are unmodified.
 
+JPEG encoding (the jpeg-encoder crate, through craft-image-codecs): this software is based in part
+on the work of the Independent JPEG Group. jpeg-encoder is MIT OR Apache-2.0; its forward DCT is
+ported from libjpeg-turbo and is under the IJG licence, Copyright (C) 1991-2020, Thomas G. Lane,
+Guido Vollbeding; libjpeg-turbo modifications Copyright (C) 2015, 2020, D. R. Commander.
+
 The original WordCraft notice follows, unchanged.
 
 ------------------------------------------------------------------------------------------------
