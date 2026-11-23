@@ -229,7 +229,8 @@ impl Reader {
                 };
                 let name = s.label.as_deref().and_then(|a| cells_of(a).first().copied()).map(|at| label(self.cell(at))).unwrap_or_default();
                 let name = if name.is_empty() { format!("Series {}", i + 1) } else { name };
-                ChartSeries { name, values, ..Default::default() }
+                // A scatter series is drawn as markers without a line, as the chart writes it.
+                ChartSeries::new(kind, name, values)
             })
             .collect();
         // A scatter chart's x values: its first series' domain.
@@ -257,7 +258,9 @@ impl Reader {
                 legend,
                 data_labels,
                 cat_axis: Default::default(),
-                val_axis: wordcraft_doc::chart::value_axis(),
+                // Pie and doughnut charts have no axes: a plain one, as `ChartSpec::sample` gives them, so
+                // the chart reads back as the model it was written from.
+                val_axis: if kind.is_round() { Default::default() } else { wordcraft_doc::chart::value_axis() },
             }
             .sanitized(),
         )

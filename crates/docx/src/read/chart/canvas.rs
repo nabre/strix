@@ -42,8 +42,22 @@ pub(super) fn widest(items: &[String], size: f32) -> f32 {
     items.iter().map(|s| text_w(s, size)).fold(0.0, f32::max)
 }
 
+/// Text in `rect`; `angle` degrees clockwise turns it about the rect's centre (axis titles).
 pub(super) fn text(out: &mut Vec<GraphicItem>, rect: Rect, s: &str, size: f32, align: TextAlign, bold: bool) {
-    out.push(GraphicItem::Text { rect: rect.arr(), text: s.to_string(), size, color: TEXT, bold, italic: false, align, font: None, angle: 0.0 });
+    text_angle(out, rect, s, size, align, bold, 0.0);
+}
+
+/// One line of chart text in `rect`, turned `angle` degrees clockwise about its centre, `rect`
+/// being the box the turned text takes (upstream's convention, which this code is written in).
+/// Strix's text items turn counter-clockwise about the level box (a CAD drawing's rotated text,
+/// docs/upstream.md), so the angle is negated and, for a quarter turn, the box is turned back
+/// level about its centre.
+pub(super) fn text_angle(out: &mut Vec<GraphicItem>, rect: Rect, s: &str, size: f32, align: TextAlign, bold: bool, angle: f32) {
+    let quarter = ((angle.rem_euclid(180.0)) - 90.0).abs() < 1.0;
+    let rect =
+        if quarter { Rect { x: rect.x + rect.w / 2.0 - rect.h / 2.0, y: rect.y + rect.h / 2.0 - rect.w / 2.0, w: rect.h, h: rect.w } } else { rect };
+    let angle = if angle == 0.0 { 0.0 } else { -angle };
+    out.push(GraphicItem::Text { rect: rect.arr(), text: s.to_string(), size, color: TEXT, bold, italic: false, align, font: None, angle });
 }
 
 /// Text centred on `cx` with its top at `y`.

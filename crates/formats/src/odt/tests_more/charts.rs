@@ -137,7 +137,7 @@ fn line_area_pie_doughnut_and_scatter_classes() {
     let s = spec(&chart_xml("chart:scatter", "", "", "", scatter)).unwrap();
     assert_eq!(s.kind, ChartType::Scatter);
     assert_eq!(s.categories, vec!["10", "14", "8", "16"]);
-    assert_eq!(s.series, vec![ChartSeries { name: "South".into(), values: vec![Some(12.0), None, Some(11.0), Some(13.0)], ..Default::default() }]);
+    assert_eq!(s.series, vec![ChartSeries::new(ChartType::Scatter, "South".into(), vec![Some(12.0), None, Some(11.0), Some(13.0)])]);
 }
 
 #[test]
