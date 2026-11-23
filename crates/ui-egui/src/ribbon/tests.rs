@@ -1249,7 +1249,12 @@ fn table_shading_split_keeps_palette_and_apply_separate() {
         .shapes
         .iter()
         .find_map(|s| match &s.shape {
-            egui::Shape::Rect(r) if r.fill == egui::Color32::RED && r.rect.size() == vec2(15.0, 15.0) => Some(r.rect.center()),
+            // Strix's own palette (`color_palette`) draws its swatches at `SWATCH` points.
+            egui::Shape::Rect(r)
+                if r.fill == egui::Color32::RED && r.rect.size() == vec2(crate::color_palette::SWATCH, crate::color_palette::SWATCH) =>
+            {
+                Some(r.rect.center())
+            }
             _ => None,
         })
         .expect("red standard colour is visible in the palette");

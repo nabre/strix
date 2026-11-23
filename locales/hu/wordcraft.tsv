@@ -2754,3 +2754,6 @@ paper	Envelope DL	DL boríték
 	Calculated\nTable	Számított\ntáblázat
 	Graph\nPaper	Milliméter-\npapír
 	New\nCalculation	Új\nszámítás
+	Dictionary file:	Szótárfájl:
+	Not set: custom-dictionary.txt in the settings folder	Nincs megadva: custom-dictionary.txt a beállítások mappájában
+	A custom-word dictionary file (.dic or plain text) used with the main dictionary.	Egyéni szavakat tartalmazó fájl (.dic vagy egyszerű szöveg), amelyet a fő szótárral együtt használ.

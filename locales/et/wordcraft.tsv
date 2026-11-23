@@ -2705,3 +2705,6 @@ paper	Envelope DL	Ümbrik DL
 	Calculated\nTable	Arvutatud\ntabel
 	Graph\nPaper	Millimeetri-\npaber
 	New\nCalculation	Uus\narvutus
+	Dictionary file:	Sõnastikufail:
+	Not set: custom-dictionary.txt in the settings folder	Määramata: custom-dictionary.txt seadete kaustas
+	A custom-word dictionary file (.dic or plain text) used with the main dictionary.	Kohandatud sõnade fail (.dic või lihttekst), mida kasutatakse koos põhisõnastikuga.

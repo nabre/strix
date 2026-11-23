@@ -4166,3 +4166,6 @@ structure	Clockwise	Orario
 structure	Stretch	Tratto
 structure	Values at the ends of the stretch:	Valori agli estremi del tratto:
 structure	Values at the ends of the stretch and at M's extremes:	Valori agli estremi del tratto e nei punti di estremo di M:
+	Dictionary file:	File del dizionario:
+	Not set: custom-dictionary.txt in the settings folder	Non impostato: custom-dictionary.txt nella cartella delle impostazioni
+	A custom-word dictionary file (.dic or plain text) used with the main dictionary.	Un file di parole personalizzate (.dic o testo semplice) usato insieme al dizionario principale.

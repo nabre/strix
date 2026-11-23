@@ -5239,9 +5239,10 @@ fn host_saves_go_back_to_the_opened_file() {
     assert!(got.iter().all(|(_, _, len)| *len > 0));
 }
 
-/// A file opened from an editable format Strix saves (OpenDocument, Word) goes back under its
-/// own name; OpenDocument only while it has no Strix objects. One opened from a format Strix only
-/// reads (Markdown, Word 97–2003), or from OpenDocument with Strix objects, is an import: Save hands it back as a Strix document of
+/// A file opened from an editable format Strix saves (OpenDocument, Word, and Markdown since its
+/// source view edits the file's own text) goes back under its own name; OpenDocument and Markdown
+/// only while they have no Strix objects. One opened from a format Strix only reads (Word
+/// 97–2003), or from OpenDocument or Markdown with Strix objects, is an import: Save hands it back as a Strix document of
 /// the same name, never over the opened file (#2445). The host page never had that name, so it's
 /// a new file: Save As.
 #[test]
@@ -5250,7 +5251,8 @@ fn host_save_of_an_imported_file_writes_a_strix_document() {
         ("report.odt", false, "report.odt", false),
         ("letter.docx", false, "letter.docx", false),
         ("memo.dotx", false, "memo.dotx", false),
-        ("notes.md", false, "notes.xmath", true),
+        ("notes.md", false, "notes.md", false),
+        ("notes.md", true, "notes.xmath", true),
         ("report.odt", true, "report.xmath", true),
         // Word documents keep Strix objects (docs/word-round-trip.md).
         ("letter.docx", true, "letter.docx", false),

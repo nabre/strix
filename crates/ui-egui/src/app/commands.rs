@@ -208,11 +208,17 @@ impl WordApp {
             }
             // An export is a copy, and so is a save in a format that doesn't keep everything (a
             // page image, plain text): the document itself still has unsaved changes.
-            let marked_saved = matches!(id, "file.save" | "file.saveAs") && keeps_everything(&name);
             // Save As tells the host page the document is now this file, which it only is when the
             // save marks it saved. A Save under a name the page never sent (an untitled document,
             // an imported .doc saved as .docx) is a new file too, never an overwrite.
             let opened_name = self.session.path.as_ref().and_then(|p| p.file_name()).map(|n| n.to_string_lossy().to_string());
+            // A Markdown file without Strix objects saved over itself, or as another Markdown
+            // file, is that file (its source view edits its own text), as `file.save` has it.
+            let markdown = |n: &str| wordcraft_engine::cmd::md_source::is_markdown_file(std::path::Path::new(n));
+            let markdown_kept = markdown(&name)
+                && opened_name.as_deref().is_some_and(markdown)
+                && !wordcraft_engine::strix_objects::has_strix_objects(&self.session.doc);
+            let marked_saved = matches!(id, "file.save" | "file.saveAs") && (keeps_everything(&name) || markdown_kept);
             let new_file = id == "file.saveAs" || opened_name.as_deref() != Some(name.as_str());
             let delivered = match (&self.services.host_save, &self.services.download) {
                 (Some(host), _) => host(&name, &bytes, marked_saved && new_file),

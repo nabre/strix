@@ -121,9 +121,9 @@ pub struct Server {
 
 impl Server {
     pub fn new(backend: Box<dyn Backend>) -> Self {
-        let info = Info { name: "wordcraft", title: "Strix", version: env!("CARGO_PKG_VERSION"), max_line: MAX_REQUEST_LINE };
+        let info = Info { name: "strix", title: "Strix Writer", version: env!("CARGO_PKG_VERSION"), max_line: MAX_REQUEST_LINE };
         let options = Options {
-            website_url: Some("https://getartcraft.com/apps/strix".into()),
+            website_url: Some("https://github.com/nabre/strix".into()),
             // Clients read every tool failure from the result, as before the shared core.
             tool_errors_as_results: true,
             strict_request_ids: true,

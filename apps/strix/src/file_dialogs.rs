@@ -164,10 +164,6 @@ impl Launcher {
                                     Ok(Some(path)) => Ok(vec![path.to_string_lossy().into_owned()]),
                                     Ok(None) => Ok(Vec::new()),
                                     Err(e) if crate::portal_save::is_cancelled_error(&e) => Ok(Vec::new()),
-                                    Err(e) if crate::portal_save::is_ambiguous_filter_error(&e) => {
-                                        log::warn!("portal save format ambiguous ({e}); cancelling save without explicit format choice");
-                                        Ok(Vec::new())
-                                    }
                                     Err(e) => {
                                         // Giving the dialog up cancels the request. A portal that then
                                         // fails with another error must not open the rfd dialog, which

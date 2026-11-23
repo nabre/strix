@@ -355,7 +355,40 @@ fn proofing(app: &mut WordApp, ui: &mut Ui) {
     ui.add_enabled_ui(app.session.view.proofing, |ui| flag(app, ui, "Mark grammar errors as you type", "markGrammar", pr.mark_grammar));
     ui.add_space(8.0);
     section(ui, "Custom dictionary");
+    custom_dictionary_file(app, ui);
     custom_dictionary(app, ui);
+}
+
+/// The Dictionary file field (#5840): a custom-word dictionary file (`custom.dic`, or plain text)
+/// that becomes where Add to Dictionary writes. The path is committed only by Apply or Enter, as
+/// each half-typed draft would otherwise bind (and later write to) whatever file it names.
+fn custom_dictionary_file(app: &mut WordApp, ui: &mut Ui) {
+    let saved = app.session.prefs.custom_dictionary.clone().unwrap_or_default();
+    let id = egui::Id::unique("options_custom_dictionary_file");
+    let mut file = ui.data(|d| d.get_temp::<String>(id)).unwrap_or_else(|| saved.clone());
+    let file_label = ui.label(tl!("Dictionary file:")).id;
+    ui.horizontal(|ui| {
+        let r = ui
+            .add(egui::TextEdit::singleline(&mut file).desired_width(320.0).hint_text(tl!("Not set: custom-dictionary.txt in the settings folder")))
+            .labelled_by(file_label);
+        let enter = r.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
+        let changed = file.trim() != saved;
+        if ui.add_enabled(changed, egui::Button::new(tl!("Apply"))).clicked() || (enter && changed) {
+            let value = if file.trim().is_empty() { "auto" } else { file.trim() };
+            match app.run("file.options", json!({"customDictionary": value})) {
+                // Shown as saved (`~/` expanded).
+                Ok(_) => file = app.session.prefs.custom_dictionary.clone().unwrap_or_default(),
+                Err(e) => app.status(e),
+            }
+        }
+        if ui.add_enabled(!saved.is_empty(), egui::Button::new(tl!("Clear"))).clicked()
+            && app.run("file.options", json!({"customDictionary": "auto"})).is_ok()
+        {
+            file.clear();
+        }
+    });
+    ui.data_mut(|d| d.insert_temp(id, file));
+    note(ui, "A custom-word dictionary file (.dic or plain text) used with the main dictionary.");
 }
 
 /// Where the spelling dictionaries come from (#1063): a folder searched before the system's

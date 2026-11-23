@@ -7346,6 +7346,7 @@ dependencies = [
  "chardetng",
  "chrono",
  "craft-metafile",
+ "craft-mime",
  "encoding_rs",
  "getrandom 0.3.4",
  "hmac",

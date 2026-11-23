@@ -1186,7 +1186,8 @@ fn save_as_saves_in_wordcraft_when_the_system_dialog_never_shows() {
     b.name = "kept".into();
     let crate::file_browser::Step::Pick(path) = b.accept() else { panic!("picked") };
     a.close_file_browser(Some(path));
-    let saved = dir.join("kept.docx");
+    // A name without an extension is a Strix document (`.xmath`), Strix's own format.
+    let saved = dir.join("kept.xmath");
     assert_eq!(a.session.path.as_deref(), Some(saved.as_path()));
     let back = wordcraft_engine::io::open_path(&saved).unwrap();
     assert!(back.plain_text(wordcraft_doc::StoryRef::Body).contains("Saved past a silent portal"));
@@ -1626,7 +1627,9 @@ fn about_stays_at_the_bottom_of_a_side_menu_that_fits() {
         let language = if rtl { "right to left" } else { "left to right" };
         let h = file_page_harness(rtl, mac, 900.0);
         let about = side_menu_button(&h, "About");
-        let bottom = 900.0 - 8.0 - 12.0;
+        // Strix: the wordmark rail sits at the menu's foot, under About.
+        let rail = crate::brand::RAIL_H + h.ctx.global_style().spacing.item_spacing.y;
+        let bottom = 900.0 - 8.0 - 12.0 - rail;
         assert!((about.max.y - bottom).abs() < 0.5, "{language}, mac {mac}: About sits at the bottom of the menu: {about:?}");
     }
 }

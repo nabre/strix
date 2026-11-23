@@ -252,7 +252,11 @@ fn imported_docx_without_strix_objects_saves_in_place() {
     assert_eq!(a.session.path.as_deref(), Some(original.as_path()));
     assert!(saved_text(&original).contains("Quarterly report"));
     a.run("file.saveAs", json!({})).unwrap();
-    assert_eq!(shown.borrow()[0].0, FileDialogRequest::Save { name: "report.docx".into(), dir: None, native_only: None });
+    // Save As opens in the document's own folder (upstream #4209).
+    assert_eq!(
+        shown.borrow()[0].0,
+        FileDialogRequest::Save { name: "report.docx".into(), dir: Some(dir.to_string_lossy().into_owned()), native_only: None }
+    );
     answer(&shown, None);
     let _ = std::fs::remove_dir_all(&dir);
 }

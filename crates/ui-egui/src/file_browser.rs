@@ -633,13 +633,13 @@ mod tests {
     #[test]
     fn selecting_a_file_preserves_leading_spaces() {
         let dir = scratch("selected-path");
-        let selected = dir.join(" report.docx");
-        let sibling = dir.join("report.docx");
+        let selected = dir.join(" report.xmath");
+        let sibling = dir.join("report.xmath");
         std::fs::write(&selected, b"selected original").unwrap();
         std::fs::write(&sibling, b"sibling original").unwrap();
         for save in [false, true] {
             let req = if save {
-                FileDialogRequest::Save { name: "Draft.docx".into(), dir: None, native_only: None }
+                FileDialogRequest::Save { name: "Draft.xmath".into(), dir: None, native_only: None }
             } else {
                 FileDialogRequest::Open { purpose: "document".into() }
             };
@@ -870,7 +870,8 @@ mod tests {
         use egui_kittest::kittest::{NodeT, Queryable};
         let dir = scratch("entry_accessibility");
         let folder = dir.join("Drafts");
-        let file = dir.join("chapter.docx");
+        // Strix documents are the Open dialog's first type.
+        let file = dir.join("chapter.xmath");
         std::fs::create_dir(&folder).unwrap();
         std::fs::write(&file, b"x").unwrap();
         let browser =
@@ -892,19 +893,19 @@ mod tests {
             (browser, None),
         );
         h.run_steps(4);
-        for name in ["Drafts", "chapter.docx"] {
+        for name in ["Drafts", "chapter.xmath"] {
             assert_eq!(h.get_by_role_and_label(Role::Button, name).accesskit_node().toggled(), Some(Toggled::False));
         }
         h.get_by_role_and_label(Role::Button, "Drafts").click();
         h.run_steps(2);
         assert_eq!(h.state().0.selected.as_ref(), Some(&folder));
         assert_eq!(h.get_by_role_and_label(Role::Button, "Drafts").accesskit_node().toggled(), Some(Toggled::True));
-        h.get_by_role_and_label(Role::Button, "chapter.docx").click();
+        h.get_by_role_and_label(Role::Button, "chapter.xmath").click();
         h.run_steps(2);
         assert_eq!(h.state().0.selected.as_ref(), Some(&file));
-        assert_eq!(h.state().0.name, "chapter.docx");
+        assert_eq!(h.state().0.name, "chapter.xmath");
         assert_eq!(h.get_by_role_and_label(Role::Button, "Drafts").accesskit_node().toggled(), Some(Toggled::False));
-        assert_eq!(h.get_by_role_and_label(Role::Button, "chapter.docx").accesskit_node().toggled(), Some(Toggled::True));
+        assert_eq!(h.get_by_role_and_label(Role::Button, "chapter.xmath").accesskit_node().toggled(), Some(Toggled::True));
         h.get_by_role_and_label(Role::Button, "Open").click();
         h.run_steps(2);
         assert_eq!(h.state().1, Some(Some(file)));

@@ -42,7 +42,7 @@ pub type FileDialogAnswer = Result<Vec<String>, String>;
 /// Most font files one Add Font pick tries; the rest of a bigger selection is skipped.
 const MAX_FONTS_PER_PICK: usize = 2000;
 
-const PICTURES: &[&str] = &["png", "jpg", "jpeg", "gif", "webp", "bmp", "wmf", "emf"];
+const PICTURES: &[&str] = &["png", "jpg", "jpeg", "gif", "webp", "bmp", "tif", "tiff", "wmf", "emf"];
 /// Strix's own formats: a document and a template.
 const NATIVE: &[&str] = &[wordcraft_engine::io::NATIVE_DOC_EXT, wordcraft_engine::io::NATIVE_TEMPLATE_EXT];
 /// Every document format Open reads: Strix's own, then the ones it imports.

@@ -223,6 +223,19 @@ Other languages work the same way: replace `pt_BR` with the language's folder an
 from the LibreOffice repository (for example `it_IT/it_IT.aff`; the Spanish ones are all in
 `es/`, for example `es/es_MX.aff`).
 
+## Custom word dictionary (custom.dic)
+
+Words added via **Add to Dictionary** or through `review.addToDictionary` are kept in a custom dictionary.
+By default, WordCraft saves them to `custom-dictionary.txt` in the settings folder.
+
+To use an existing freestanding custom dictionary (such as Microsoft Word's `CUSTOM.DIC`):
+1. Open **File › Options › Proofing**.
+2. Under **Custom dictionary**, set **Dictionary file** to the path of your `.dic` or text file and press **Enter** or **Apply**. The path is saved then, not while you type. Absolute paths or `~/` paths (expanded via `HOME` or `USERPROFILE`) are supported.
+3. Words in that dictionary are checked in conjunction with the main dictionary, and new additions persist back to the file. Switching dictionaries clears previously loaded custom words from memory and loads the words from the newly selected file.
+4. **Clear** (or setting `"customDictionary": "auto"`) means automatic: it reverts to the default settings folder, reloading the words from `custom-dictionary.txt`.
+
+WordCraft supports plain UTF-8 word lists as well as UTF-16LE with BOM (`[0xFF, 0xFE]`), UTF-16BE with BOM (`[0xFE, 0xFF]`), and UTF-8 with BOM, preserving the file's original encoding when saving additions or removals. Lines that do not conform to valid single words (such as comments or malformed entries) are ignored during spellchecking, but existing lines are preserved verbatim when saving back so that custom dictionaries shared with Word retain non-word lines, comments, and original casing. Files in another encoding (for example Windows-1252/ANSI) are refused with an error and left untouched rather than guessed: convert such a file to UTF-8 once and select it again. The chosen file must also be a regular, writable file; symbolic links and read-only files are refused. If a save is refused at run time, the new word stays in the in-memory dictionary for the session and the reason is written to the log, so Add to Dictionary never fails or loses the word mid-session.
+
 ## Checking that it works
 
 - Restart Strix. The status bar no longer says **(no dictionary)**, and a misspelled word
@@ -244,6 +257,7 @@ Never commit dictionary files to this repository: they stay on the user's system
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-11-23 | trivial | Freestanding custom dictionary file (Word's CUSTOM.DIC or plain text) in File › Options › Proofing, from upstream #5840/#5899; committed with Apply or Enter |
 | 2026-11-10 | trivial | European Portuguese has its own dictionary, `pt_PT`, which Strix downloads too (craft-proof reads it for *Português (Portugal)*; before, `pt_BR` served every region) |
 | 2026-11-10 | minor | WordCraft 0.17.0 merged into Strix: proofing is craft-proof; Strix's downloaded dictionaries are searched as the Dictionaries folder when you haven't set one, and downloads go to whichever folder that is |
 | 2026-11-03 | trivial | Language packs (CP4.3): the missing-pack bar offers a language before the list is fetched and gets the list, then the pack, on Install; a missing or stale list is fetched once while downloading is on; the caret's typing language counts |

@@ -2747,3 +2747,6 @@ paper	Envelope DL	봉투 DL
 	New\nCalculation	새\n계산
 	Envelope #10	봉투 #10
 	Envelope DL	봉투 DL
+	Dictionary file:	사전 파일:
+	Not set: custom-dictionary.txt in the settings folder	설정 안 됨: 설정 폴더의 custom-dictionary.txt
+	A custom-word dictionary file (.dic or plain text) used with the main dictionary.	기본 사전과 함께 사용하는 사용자 단어 사전 파일(.dic 또는 일반 텍스트)입니다.

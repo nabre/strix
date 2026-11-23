@@ -4087,3 +4087,6 @@ structure	Clockwise	Im Uhrzeigersinn
 structure	Stretch	Abschnitt
 structure	Values at the ends of the stretch:	Werte an den Enden des Abschnitts:
 structure	Values at the ends of the stretch and at M's extremes:	Werte an den Enden des Abschnitts und an den Extremstellen von M:
+	Dictionary file:	Wörterbuchdatei:
+	Not set: custom-dictionary.txt in the settings folder	Nicht festgelegt: custom-dictionary.txt im Einstellungsordner
+	A custom-word dictionary file (.dic or plain text) used with the main dictionary.	Eine Datei mit eigenen Wörtern (.dic oder Nur-Text), die zusammen mit dem Hauptwörterbuch verwendet wird.

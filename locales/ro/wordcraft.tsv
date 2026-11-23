@@ -3186,3 +3186,6 @@ paper	Envelope DL	Plic DL
 	Calculated\nTable	Tabel\ncalculat
 	Graph\nPaper	Hârtie\nmilimetrică
 	New\nCalculation	Calcul\nnou
+	Dictionary file:	Fișier dicționar:
+	Not set: custom-dictionary.txt in the settings folder	Nesetat: custom-dictionary.txt din folderul de setări
+	A custom-word dictionary file (.dic or plain text) used with the main dictionary.	Un fișier cu cuvinte personalizate (.dic sau text simplu) folosit împreună cu dicționarul principal.

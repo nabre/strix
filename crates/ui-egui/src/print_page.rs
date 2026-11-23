@@ -87,6 +87,16 @@ const PARITIES: [(&str, &str); 3] = [("all", "All pages in the range"), ("odd", 
 const NO_SCALING: &str = "none";
 const ORIENTATIONS: [(&str, &str); 3] = [("auto", "Auto orientation"), ("portrait", "Portrait"), ("landscape", "Landscape")];
 
+/// How the preview draws a page: tracked changes marked as the print job marks them, headers and
+/// footers at full strength (the preview is the printed page, not the editing view).
+pub(super) fn preview_options(app: &WordApp) -> wordcraft_render::RenderOptions {
+    let mut opts = wordcraft_render::RenderOptions::default();
+    opts.display.markup = app.session.prefs.print_markup;
+    opts.display.revisions = app.session.prefs.markup.clone();
+    opts.display.dim_header = false;
+    opts
+}
+
 /// A choice list over `(id, label)` pairs; true when the choice changed.
 fn choice(ui: &mut Ui, salt: &str, current: &mut String, items: &[(&str, &str)], label: &egui::Response) -> bool {
     choice_in(ui, salt, current, items, label, |s| tl!(s))
@@ -137,15 +147,24 @@ fn choice_named(ui: &mut Ui, salt: &str, current: &mut String, items: &[(&str, &
     changed
 }
 
-/// What the preview's layout is made from besides the document's text: the revision, Print
-/// Markup, the file name and path FILENAME fields show (#6282: Save As and Rename change them
-/// without an edit), and the font database generation the app has seen (#6283:
-/// `WordApp::watch_fonts` moves it when fonts are added or removed).
-type LayoutKey = (u64, bool, (String, String), u64);
+/// The settings that decide how tracked changes and comments look in the print preview:
+/// Print Markup and Track Changes Options.
+type MarkupKey = (bool, wordcraft_layout::display::MarkupOptions);
+
+/// The [`MarkupKey`] now.
+fn markup_key(app: &WordApp) -> MarkupKey {
+    (app.session.prefs.print_markup, app.session.prefs.markup.clone())
+}
+
+/// What the preview's layout is made from besides the document's text: the document id, the
+/// revision, Print Markup and Track Changes Options, the file name and path FILENAME fields show
+/// (#6282: Save As and Rename change them without an edit), and the font database generation the
+/// app has seen (#6283: `WordApp::watch_fonts` moves it when fonts are added or removed).
+type LayoutKey = (u64, u64, MarkupKey, (String, String), u64);
 
 /// The [`LayoutKey`] now.
 fn layout_key(app: &WordApp) -> LayoutKey {
-    (app.session.rev(), app.session.prefs.print_markup, app.session.resolved_filenames(), app.font_generation)
+    (app.session.document_id(), app.session.rev(), markup_key(app), app.session.resolved_filenames(), app.font_generation)
 }
 
 /// The output layout, kept while what it is made from ([`LayoutKey`]) is unchanged.
@@ -157,7 +176,7 @@ fn layout_of(app: &WordApp, ctx: &egui::Context) -> Arc<DocLayout> {
     {
         return l;
     }
-    let l = app.session.export_layout_with(app.session.prefs.print_markup);
+    let l = app.session.print_layout(app.session.prefs.print_markup);
     ctx.data_mut(|d| d.insert_temp(id, (key, l.clone())));
     l
 }
@@ -183,7 +202,7 @@ fn page_texture(app: &WordApp, ctx: &egui::Context, lay: &Arc<DocLayout>, page: 
     {
         return Some(t);
     }
-    let img = wordcraft_render::render_page(&app.session.doc, pg, scale, &Default::default());
+    let img = wordcraft_render::render_page(&app.session.doc, pg, scale, &preview_options(app));
     let color = egui::ColorImage::from_rgba_unmultiplied([img.width as usize, img.height as usize], &img.to_straight());
     let tex = ctx.load_texture("print_page_preview", color, egui::TextureOptions::LINEAR);
     let key: TextureKey = (Arc::downgrade(lay), page, scale.to_bits());
@@ -612,6 +631,24 @@ mod tests {
     use super::*;
     use crate::Services;
     use wordcraft_engine::Session;
+
+    /// #5232, #6267: the preview draws tracked changes in the Track Changes Options colours and
+    /// headers at full strength, and a change of those options gives a new layout key (the cached
+    /// layout and pages are drawn again), as two documents at the same revision do.
+    #[test]
+    fn the_preview_follows_track_changes_options_and_tells_documents_apart() {
+        let mut app = WordApp::new(Session::new(wordcraft_doc::Document::from_text("Synthetic tracked text")), Services::default());
+        assert!(!preview_options(&app).display.dim_header);
+        let before = layout_key(&app);
+        app.run("review.trackingOptions", json!({"insertColor": "0000FF", "deleteColor": "FF0000"})).unwrap();
+        assert_eq!(preview_options(&app).display.revisions, app.session.prefs.markup);
+        assert_ne!(layout_key(&app), before, "the tracking colours refresh the preview");
+        let other = WordApp::new(Session::new(wordcraft_doc::Document::from_text("Another document")), Services::default());
+        let mut same = WordApp::new(Session::new(wordcraft_doc::Document::from_text("Synthetic tracked text")), Services::default());
+        same.session.prefs.markup = other.session.prefs.markup.clone();
+        assert_eq!(other.session.rev(), same.session.rev(), "the test needs equal revisions");
+        assert_ne!(layout_key(&other), layout_key(&same), "each document has its own cached layout");
+    }
 
     /// Print Markup changes layout and pixels without changing the document revision.
     #[test]

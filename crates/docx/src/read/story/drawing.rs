@@ -612,12 +612,18 @@ impl Reader<'_> {
             outline_fill: paint.outline_fill,
             ..ShapeExtra::default()
         };
-        // A rounded rectangle's own corner (`adj`, ECMA-376 §20.1.10.56); other presets drawn as
-        // rounded rectangles keep the default.
-        if prst == "roundRect" {
+        // A rounded rectangle's own corner (`adj`, ECMA-376 §20.1.10.56), and a picture frame's
+        // own border width (`adj1`, same units); other presets drawn as rounded rectangles keep
+        // the default.
+        let own = match prst {
+            "roundRect" => Some("adj"),
+            "frame" => Some("adj1"),
+            _ => None,
+        };
+        if let Some(name) = own {
             extra.corner = sppr
                 .and_then(|s| s.child("a:prstGeom"))
-                .and_then(|g| preset_adj(g, "adj"))
+                .and_then(|g| preset_adj(g, name))
                 .and_then(|v| u32::try_from(v.clamp(0, i64::from(wordcraft_doc::connector::MAX_CORNER))).ok());
         }
         // Arrowheads: any end type but `none` (ECMA-376 §20.1.10.33) is drawn as a triangle of its

@@ -411,15 +411,6 @@ pub fn is_cancelled_error(err: &str) -> bool {
     err == ERR_CANCELLED
 }
 
-/// Error message returned when the portal dialog does not report the selected filter and
-/// the saved filename does not explicitly specify a distinct format.
-pub const ERR_AMBIGUOUS_FILTER: &str = "the save dialog did not report which file type was picked";
-
-/// Returns true if `err` represents an ambiguous filter error from the desktop portal.
-pub fn is_ambiguous_filter_error(err: &str) -> bool {
-    err == ERR_AMBIGUOUS_FILTER
-}
-
 /// Finds the index of the filter in `filters` matching `saved_filter`, first by exact label,
 /// then by unambiguous match against the filter's extensions.
 fn match_filter(filters: &[Filter], saved_filter: Option<&Filter>) -> Option<usize> {
@@ -464,6 +455,19 @@ pub fn is_ambiguous_filter(saved: &Saved, req: &SaveRequest) -> bool {
     }
 }
 
+/// The path to save to for the dialog's answer `saved`, and the index of the file type it stands
+/// for. When the portal doesn't say which type was picked and the name doesn't say it either (the
+/// suggested extension kept, or none), the type the dialog opened on is taken: Strix saves in the
+/// format the dialog showed rather than giving up a save the user confirmed (WordCraft cancels it).
+fn chosen_path(saved: &Saved, req: &SaveRequest) -> (PathBuf, Option<usize>) {
+    let picked = match_filter(&req.filters, saved.filter.as_ref()).or_else(|| if is_ambiguous_filter(saved, req) { req.current } else { None });
+    let exts: &[String] = match chosen_type(&req.filters, picked) {
+        Some(i) => req.filters.get(i).map(|(_, e)| e.as_slice()).unwrap_or(&[]),
+        None => &[],
+    };
+    (with_chosen_type(&saved.path, req.suggested.as_deref(), exts), picked)
+}
+
 /// Save As on Linux and BSDs: the portal's dialog, with the file name given the extension of the
 /// file type picked in the dropdown. When that changes the name to one that already exists on disk,
 /// the dialog opens again under the new name, so the portal asks before replacing it (it asked only
@@ -471,15 +475,7 @@ pub fn is_ambiguous_filter(saved: &Saved, req: &SaveRequest) -> bool {
 pub fn save_as(conn: &zbus::blocking::Connection, mut req: SaveRequest) -> Result<Option<PathBuf>, String> {
     loop {
         let Some(saved) = save_file(conn, &req)? else { return Ok(None) };
-        if is_ambiguous_filter(&saved, &req) {
-            return Err(ERR_AMBIGUOUS_FILTER.to_string());
-        }
-        let picked = match_filter(&req.filters, saved.filter.as_ref());
-        let exts: &[String] = match chosen_type(&req.filters, picked) {
-            Some(i) => req.filters.get(i).map(|(_, e)| e.as_slice()).unwrap_or(&[]),
-            None => &[],
-        };
-        let path = with_chosen_type(&saved.path, req.suggested.as_deref(), exts);
+        let (path, picked) = chosen_path(&saved, &req);
         let needs_reopen = entry_exists(&path) || (path != saved.path && is_document_portal(&saved.path));
         if path == saved.path || !needs_reopen {
             return Ok(Some(path));
@@ -858,8 +854,8 @@ mod tests {
         assert!(!is_document_portal(Path::new("/run/flatpak/other/test.docx")));
     }
 
-    /// When the portal omits `current_filter`, ambiguous saves (unchanged suggested extension or bare name)
-    /// are rejected, while an explicitly typed different format is accepted.
+    /// When the portal omits `current_filter`, saves with the suggested extension kept or a bare name
+    /// are ambiguous ([`chosen_path`] then takes the opening type), an explicitly typed format isn't.
     #[test]
     fn ambiguous_filters_require_explicit_format() {
         let exts = |e: &[&str]| e.iter().map(|s| s.to_string()).collect::<Vec<_>>();
@@ -902,5 +898,22 @@ mod tests {
         let single_req =
             SaveRequest { filters: vec![("PDF (*.pdf)".into(), exts(&["pdf"]))], suggested: Some("Document1.docx".into()), ..Default::default() };
         assert!(!is_ambiguous_filter(&unchanged, &single_req));
+    }
+
+    /// Strix: a save the portal answers without the picked type is not given up. The suggested
+    /// name kept, or no extension at all, saves in the type the dialog opened on; a typed
+    /// extension Strix saves is the user's choice.
+    #[test]
+    fn a_save_without_the_picked_type_takes_the_type_the_dialog_opened_on() {
+        let exts = |e: &[&str]| e.iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        let filters = vec![("Word Document (*.docx)".into(), exts(&["docx"])), ("PDF (*.pdf)".into(), exts(&["pdf"]))];
+        let req = SaveRequest { filters, suggested: Some("Document1.docx".into()), current: Some(0), ..Default::default() };
+        let saved = |p: &str| Saved { path: PathBuf::from(p), filter: None };
+        assert_eq!(chosen_path(&saved("/docs/Document1.docx"), &req), (PathBuf::from("/docs/Document1.docx"), Some(0)));
+        assert_eq!(chosen_path(&saved("/docs/Letter"), &req), (PathBuf::from("/docs/Letter.docx"), Some(0)));
+        assert_eq!(chosen_path(&saved("/docs/Letter.pdf"), &req), (PathBuf::from("/docs/Letter.pdf"), None));
+        // The portal says PDF was picked: the kept suggested extension becomes the type's.
+        let pdf = Saved { path: PathBuf::from("/docs/Document1.docx"), filter: Some(("PDF (*.pdf)".into(), exts(&["pdf"]))) };
+        assert_eq!(chosen_path(&pdf, &req), (PathBuf::from("/docs/Document1.pdf"), Some(1)));
     }
 }

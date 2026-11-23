@@ -21,8 +21,10 @@ fn flatpak_update_permissions() {
     let args = manifests.map(finish_args);
     assert_eq!(args[0], args[1], "source and release permissions must agree");
     for permissions in args {
-        for required in ["--share=network", "--talk-name=org.freedesktop.Flatpak"] {
-            assert!(permissions.contains(&required), "missing update permission: {required}");
-        }
+        // Strix: release checks need the network. Upstream also grants
+        // `--talk-name=org.freedesktop.Flatpak` so the shared updater can update the installation
+        // through `flatpak-spawn --host`; that runs commands outside the sandbox, so Strix leaves
+        // it to the owner (docs/upstream.md) and the Flatpak is updated by Flatpak itself.
+        assert!(permissions.contains(&"--share=network"), "missing update permission: --share=network");
     }
 }

@@ -3062,3 +3062,6 @@ paper	Envelope DL	კონვერტი DL
 	New\nExercise	ახალი\nსავარჯიშო
 	Show\nSteps	ნაბიჯების\nჩვენება
 	Switch\nWindows	ფანჯრების\nგადართვა
+	Dictionary file:	ლექსიკონის ფაილი:
+	Not set: custom-dictionary.txt in the settings folder	არ არის მითითებული: custom-dictionary.txt პარამეტრების საქაღალდეში
+	A custom-word dictionary file (.dic or plain text) used with the main dictionary.	საკუთარი სიტყვების ფაილი (.dic ან უბრალო ტექსტი), რომელიც ძირითად ლექსიკონთან ერთად გამოიყენება.
