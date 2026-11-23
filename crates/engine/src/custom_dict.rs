@@ -223,14 +223,17 @@ pub fn save_custom_dictionary(path: &Path, removed: &[String]) -> Result<(), Str
 
     let mut out_lines: Vec<String> = Vec::new();
     let mut existing_keys: HashSet<String> = HashSet::new();
+    // Words the file holds that proofing doesn't yet: added only once the save is known to fit.
+    let mut from_file: Vec<String> = Vec::new();
 
     if path.exists() {
         let bytes = crate::io::read_file_capped(&path_str, MAX_CUSTOM_FILE_BYTES, "dictionary")?;
         encoding = detect_file_encoding(&bytes);
         let text = decode_dictionary_bytes(&bytes).map_err(|e| format!("{path_str}: {e}"))?;
 
-        let line_count = text.lines().count();
-        if line_count > MAX_CUSTOM_WORDS {
+        // Count words as reading does (parse_dictionary_words), not blank lines or comments, so a
+        // file that loads can be saved again.
+        if count_words(text.lines()) > MAX_CUSTOM_WORDS {
             return Err(format!("{path_str}: dictionary exceeds limit of {MAX_CUSTOM_WORDS} words"));
         }
 
@@ -243,7 +246,7 @@ pub fn save_custom_dictionary(path: &Path, removed: &[String]) -> Result<(), Str
             }
             out_lines.push(line.to_string());
             if let Some(k) = wordcraft_proof::custom_word(line) {
-                wordcraft_proof::add_word(&k);
+                from_file.push(k.clone());
                 existing_keys.insert(k);
             } else {
                 existing_keys.insert(line.to_lowercase());
@@ -251,25 +254,35 @@ pub fn save_custom_dictionary(path: &Path, removed: &[String]) -> Result<(), Str
         }
     }
 
-    for w in removed {
-        wordcraft_proof::remove_word(w);
-    }
-
+    let removed_now: HashSet<String> = removed.iter().cloned().collect();
     for w in wordcraft_proof::user_dictionary() {
-        if !existing_keys.contains(&w) && !removed_keys.contains(&w) {
+        if !existing_keys.contains(&w) && !removed_keys.contains(&w) && !removed_now.contains(&w) {
             out_lines.push(w.clone());
             existing_keys.insert(w);
         }
     }
 
-    if out_lines.len() > MAX_CUSTOM_WORDS {
+    if count_words(out_lines.iter().map(String::as_str)) > MAX_CUSTOM_WORDS {
         return Err(format!("Dictionary at '{}' exceeds maximum word limit ({})", path_str, MAX_CUSTOM_WORDS));
     }
     let bytes = encode_dictionary_words(&out_lines, encoding);
     if bytes.len() as u64 > MAX_CUSTOM_FILE_BYTES {
         return Err(format!("Dictionary at '{}' exceeds maximum file size ({} bytes)", path_str, MAX_CUSTOM_FILE_BYTES));
     }
+
+    // The save fits: only now does the in-memory dictionary change.
+    for w in removed {
+        wordcraft_proof::remove_word(w);
+    }
+    for k in &from_file {
+        wordcraft_proof::add_word(k);
+    }
     crate::io::write_file(&path_str, &bytes)
+}
+
+/// How many of `lines` are dictionary words, as [`parse_dictionary_words`] counts them.
+fn count_words<'a>(lines: impl Iterator<Item = &'a str>) -> usize {
+    lines.filter(|l| wordcraft_proof::custom_word(l.trim_matches(|c: char| c == '\r' || c == '\n')).is_some()).count()
 }
 
 #[cfg(test)]
@@ -561,6 +574,64 @@ mod tests {
         let read_back = std::fs::read(&path).unwrap();
         assert_eq!(read_back.len(), large_content.len());
         wordcraft_proof::remove_word("newword");
+    }
+
+    /// A save refused for its size leaves the in-memory dictionary as it was: the file's words
+    /// aren't added and the words to remove stay.
+    #[test]
+    fn a_refused_save_leaves_the_in_memory_dictionary_unchanged() {
+        let _guard = DICT_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        clear_user_dictionary();
+        struct ResetDict;
+        impl Drop for ResetDict {
+            fn drop(&mut self) {
+                clear_user_dictionary();
+            }
+        }
+        let _reset = ResetDict;
+
+        let dir = TestDir::new("refused-unchanged");
+        let path = dir.path().join("custom.dic");
+        std::fs::write(&path, "fromfileword\n").unwrap();
+
+        let prefix = "a".repeat(58);
+        for i in 0..70_000 {
+            wordcraft_proof::add_word(&format!("{prefix}{i:05}"));
+        }
+        wordcraft_proof::add_word("keptword");
+        let before = wordcraft_proof::user_dictionary();
+
+        let res = save_custom_dictionary(&path, &["keptword".to_string()]);
+        assert!(res.is_err(), "the output is over the byte limit");
+        assert_eq!(wordcraft_proof::user_dictionary(), before);
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), "fromfileword\n");
+    }
+
+    /// Blank lines and lines that aren't words don't count toward the word limit, as when reading:
+    /// a file with exactly MAX_CUSTOM_WORDS words and some blank lines loads and saves again.
+    #[test]
+    fn blank_lines_do_not_count_toward_the_word_limit_on_save() {
+        let _guard = DICT_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        clear_user_dictionary();
+        struct ResetDict;
+        impl Drop for ResetDict {
+            fn drop(&mut self) {
+                clear_user_dictionary();
+            }
+        }
+        let _reset = ResetDict;
+
+        let dir = TestDir::new("blank-lines-limit");
+        let path = dir.path().join("custom.dic");
+        let mut text = String::from("\n\n\n");
+        for i in 0..MAX_CUSTOM_WORDS {
+            text.push_str(&format!("w{i}\n"));
+        }
+        std::fs::write(&path, &text).unwrap();
+
+        assert_eq!(load_custom_dictionary(&path).unwrap().len(), MAX_CUSTOM_WORDS);
+        save_custom_dictionary(&path, &[]).unwrap();
+        assert_eq!(read_custom_dictionary_words(&path).unwrap().len(), MAX_CUSTOM_WORDS);
     }
 
     /// Test that read_custom_dictionary_words returns Ok(empty) on a missing file.
