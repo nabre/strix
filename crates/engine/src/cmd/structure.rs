@@ -76,6 +76,55 @@ fn selected_source(s: &Session) -> Option<(wordcraft_doc::Pos, Arc<str>)> {
     }
 }
 
+/// The drawing a change to the structure at `pos` is made to: `pos`, unless it is in one of its
+/// group's written workings (a free body, a stretch), which the change writes again; then the
+/// group's drawing outside them, the structure itself (a report's, an exercise's statement)
+/// before the others.
+fn base_of(s: &Session, pos: &wordcraft_doc::Pos, src: &str) -> wordcraft_doc::Pos {
+    let Ok(st) = Structure::from_json(src) else { return pos.clone() };
+    let block = |p: &wordcraft_doc::Pos| {
+        (p.story == wordcraft_doc::StoryRef::Body && p.path.0.len() == 1).then(|| p.path.0.first().map(|&t| t as usize)).flatten()
+    };
+    if !block(pos).is_some_and(|i| working::rewrites(s, &st.group, i)) {
+        return pos.clone();
+    }
+    let mut found: Option<(bool, wordcraft_doc::Pos)> = None;
+    for (i, b) in s.doc.body.iter().enumerate() {
+        let wordcraft_doc::Block::Para(p) = &**b else { continue };
+        if working::rewrites(s, &st.group, i) {
+            continue;
+        }
+        for (off, o) in p.objects_with_offsets() {
+            if let InlineObject::Graphic { graphic, .. } = o
+                && graphic.kind == GraphicKind::Structure
+                && let Some(other) = graphic.structure.as_deref().and_then(|j| Structure::from_json(j).ok())
+                && other.group == st.group
+            {
+                let itself = matches!(other.view, strix_structure::View::All | strix_structure::View::Structure);
+                if found.as_ref().is_none_or(|(was, _)| itself && !was) {
+                    let path = wordcraft_doc::Path(vec![u32::try_from(i).unwrap_or(u32::MAX)]);
+                    found = Some((itself, wordcraft_doc::Pos::new(wordcraft_doc::StoryRef::Body, path, off)));
+                }
+            }
+        }
+    }
+    found.map_or_else(|| pos.clone(), |(_, p)| p)
+}
+
+/// Selects the structure itself in place of the selected drawing of its written working (a free
+/// body, a stretch), which a change writes again, so its editor edits the structure; returns
+/// whether the selection moved.
+pub fn select_base(s: &mut Session) -> bool {
+    let Some((pos, src)) = selected_source(s) else { return false };
+    let base = base_of(s, &pos, &src);
+    if base == pos {
+        return false;
+    }
+    let end = wordcraft_doc::Pos { off: base.off.saturating_add(wordcraft_doc::para::OBJ.len_utf8()), ..base.clone() };
+    s.sel = Selection { anchor: base, focus: end };
+    true
+}
+
 /// User-authored strings of the selected structure (title, names, expressions), so interface
 /// localization audits treat them as document content.
 pub fn selected_structure_texts(s: &Session) -> Vec<String> {
@@ -337,7 +386,7 @@ fn sync_group(s: &mut Session, pos: &wordcraft_doc::Pos, st: &Structure) {
             if let Some(InlineObject::Graphic { graphic, .. }) = p.object_at_mut(off)
                 && let Some(other) = graphic.structure.as_deref().and_then(|src| Structure::from_json(src).ok())
             {
-                let mine = Structure { view: other.view, width: other.width, cut: other.cut.clone(), ..st.clone() };
+                let mine = Structure { view: other.view, width: other.width, cut: other.cut.clone(), pivot: other.pivot.clone(), ..st.clone() };
                 Arc::make_mut(graphic).structure = Some(mine.to_json().into());
             }
         }
@@ -391,8 +440,12 @@ fn get(s: &mut Session, _: &Value) -> CmdResult {
     }))
 }
 
-/// The selected structure, changed by `edit`, stored and redrawn; returns `structure.get`.
+/// The selected structure (the structure itself when a drawing of its working is selected),
+/// changed by `edit`, stored and redrawn; returns `structure.get`.
 fn edit(s: &mut Session, edit: impl FnOnce(&mut Structure) -> Result<(), CmdError>) -> CmdResult {
+    // A drawing of the structure's working is written again by the change: the structure takes
+    // it, and stays selected.
+    select_base(s);
     let (pos, src) = selected_source(s).ok_or_else(|| CmdError::Disabled("select a structure first".into()))?;
     let mut st = Structure::from_json(&src).map_err(|e| CmdError::Failed(format!("the structure can't be read: {e}")))?;
     edit(&mut st)?;

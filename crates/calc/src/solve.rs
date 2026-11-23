@@ -138,7 +138,7 @@ pub(crate) fn isolate_steps(lhs: &Expr, rhs: &Expr, x: &str) -> Option<(Expr, Ve
         match side {
             Expr::Name(n) if n == x => return Some((other, steps)),
             Expr::Neg(e) => {
-                other = neg_expr(other);
+                other = negate(other);
                 side = e;
             }
             Expr::Bin(op, a, b) => {
@@ -424,6 +424,20 @@ fn move_add(a: Expr, b: Expr) -> Expr {
     } else {
         bin(BinOp::Add, a, b)
     }
+}
+
+/// `−e` for a side crossing a minus over: a leading minus inside a product or quotient goes
+/// instead of a second one in front (`−V = −F·d/(6 m)` gives `V = F·d/(6 m)`, not `V = −−F·…`).
+fn negate(e: Expr) -> Expr {
+    /// `e` without its leading minus, when it has one.
+    fn strip(e: &Expr) -> Option<Expr> {
+        match e {
+            Expr::Neg(inner) => Some((**inner).clone()),
+            Expr::Bin(op @ (BinOp::Mul | BinOp::Div), a, b) => strip(a).map(|a| bin(*op, a, (**b).clone())),
+            _ => None,
+        }
+    }
+    strip(&e).unwrap_or_else(|| neg_expr(e))
 }
 
 fn neg_expr(e: Expr) -> Expr {

@@ -953,6 +953,11 @@ fn solutions_show_formula_substitution_and_result() {
     assert_eq!(steps(&["L = 4.5 m", "q = 12 kN/m", "M = q·L^2/8"]).unwrap(), ["= (12 kN/m)·(4.5 m)²/8", "= 30.375 kN·m"]);
     // Each step of the algebra on a line of its own.
     assert_eq!(steps(&["A = 50 cm^2", "A = π·d^2/4"]).unwrap(), ["π·d² = 4·A", "d² = 4·A/π", "d = √(4·A/π)", "d = √(4·(50 cm²)/π)", "d = 0.0798 m"]);
+    // A minus on the unknown crosses over into the other side's leading one, never `V = --F·…`.
+    assert_eq!(
+        steps(&["F = 60 kN", "d = 3 m", "0 kN·m = -V·6 m + F·d"]).unwrap(),
+        ["-V·6 m = -F·d", "-V = -F·d/(6 m)", "V = F·d/(6 m)", "V = (60 kN)·(3 m)/(6 m)", "V = 30 kN"]
+    );
     // Plain numbers in the substitution need no parentheses; negatives do.
     assert_eq!(steps(&["a = 2", "b = -3", "c = a·b"]).unwrap(), ["= 2·(-3)", "= -6"]);
     // Solved numerically: the equation with the values, then the result, marked as numerical.

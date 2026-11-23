@@ -806,9 +806,3 @@ fn clamp_pos(at: f64, length: f64, member: &str, warnings: &mut Vec<String>) -> 
     }
     at.clamp(0.0, length)
 }
-
-/// A reaction's value, taken positive the way the structure counts it, that came out negative (not
-/// a rounding's leftover of a zero one): the stretches draw it and write it the way it really acts.
-pub fn negative_reaction(v: f64) -> bool {
-    v < -1e-9
-}

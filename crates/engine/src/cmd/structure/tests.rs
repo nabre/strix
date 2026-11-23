@@ -254,6 +254,16 @@ fn the_working_follows_the_positive_senses() {
     assert!(has(&t, "V_A&=-30 kN"), "{t}");
     assert!(has_value(&t, "M_1(3 m)", "45 kN·m"), "{t}");
     assert!(has(&t, "taken positive the way their arrows point"), "{t}");
+    // Clockwise with y up: V_B, taken upwards, turns the other way about A and is written so (the
+    // equation not turned to make its first term positive); it still comes out positive.
+    let mut s = Session::new(Document::new());
+    s.run("structure.insert", &json!({"template": "beam"})).unwrap();
+    s.run("structure.set", &json!({"positive": {"rotation": "cw"}})).unwrap();
+    s.run("structure.working", &json!({})).unwrap();
+    let t = text_of(&s);
+    assert!(!t.contains('⚠'), "{t}");
+    assert!(has(&t, "0 kN·m&=-V_B·6 m+F_1·d_(1,A)") && has(&t, "V_B&=30 kN"), "{t}");
+    assert!(!t.contains("--"), "{t}");
     // A frame with x to the left: its horizontal reaction changes sign.
     let mut s = Session::new(Document::new());
     s.run("structure.insert", &json!({"template": "frame"})).unwrap();
@@ -498,7 +508,7 @@ fn an_exercise_working_follows_any_of_its_drawings() {
     s.run("structure.exercise", &json!({"labels": {"loads": "Carichi"}})).unwrap();
     assert!(has(&text_of(&s), "F_1=q_1·6 m"));
     // The diagram of M in the solution, changed: the statement and every part follow.
-    select_structure(&mut s, 8);
+    select_structure(&mut s, 9);
     s.run("structure.load", &shortened(4.0)).unwrap();
     let t = text_of(&s);
     assert!(has(&t, "F_1=q_1·4 m") && !has(&t, "F_1=q_1·6 m"), "{t}");
@@ -668,7 +678,7 @@ fn the_reactions_working_draws_the_free_body() {
     let mut s = Session::new(Document::new());
     s.run("structure.insert", &json!({"template": "beam"})).unwrap();
     s.run("structure.working", &json!({})).unwrap();
-    assert_eq!(views(&s), [View::All, View::Equilibrium, View::Section]);
+    assert_eq!(views(&s), [View::All, View::Equilibrium, View::Arms, View::Section]);
     let t = text_of(&s);
     let (reactions, first) = (t.find("Reactions:").unwrap(), t.find("ΣM").unwrap());
     let figure = s
@@ -683,7 +693,46 @@ fn the_reactions_working_draws_the_free_body() {
     assert!(figure < loads);
     assert!(reactions < first);
     s.run("structure.working", &json!({})).unwrap();
-    assert_eq!(views(&s), [View::All, View::Equilibrium, View::Section]);
+    assert_eq!(views(&s), [View::All, View::Equilibrium, View::Arms, View::Section]);
+}
+
+/// Before each moment equation the working draws its lever arms about the point, in the
+/// structure's group: the paragraph right before the equation's heading.
+#[test]
+fn the_working_draws_the_lever_arms_before_each_moment_equation() {
+    let mut s = Session::new(Document::new());
+    s.run("structure.insert", &json!({"template": "beam"})).unwrap();
+    s.run("structure.working", &json!({})).unwrap();
+    let arms: Vec<(usize, strix_structure::Structure)> = s
+        .doc
+        .body
+        .iter()
+        .enumerate()
+        .filter_map(|(i, b)| {
+            let Block::Para(p) = &**b else { return None };
+            p.objects.iter().find_map(|o| match o {
+                InlineObject::Graphic { graphic, .. } => {
+                    let st = strix_structure::Structure::from_json(graphic.structure.as_deref()?).ok()?;
+                    (st.view == strix_structure::View::Arms).then_some((i, st))
+                }
+                _ => None,
+            })
+        })
+        .collect();
+    let moments: Vec<usize> = s
+        .doc
+        .body
+        .iter()
+        .enumerate()
+        .filter(|(_, b)| matches!(&***b, Block::Para(p) if p.text.contains("ΣM") || linear_of(p).contains("ΣM")))
+        .map(|(i, _)| i)
+        .collect();
+    assert_eq!(arms.len(), 1, "one moment equation, one drawing");
+    assert_eq!(moments.len(), 1);
+    let (at, st) = &arms[0];
+    assert_eq!(*at + 1, moments[0]);
+    assert_eq!(st.pivot, Some(strix_structure::Pivot::whole("A")));
+    assert_eq!(st.group, "structure-1");
 }
 
 /// Each value at a station is a line of its own, in the working and in an exercise's parts.
@@ -788,9 +837,9 @@ fn the_axial_force_joins_across_a_crosswise_varying_load() {
     s.run("structure.exercise", &json!({"structure": st})).unwrap();
     let t = text_of(&s);
     assert!(has(&t, "N_1b(x)") && !has(&t, "N_1c(x)"), "{t}");
-    // H_A came out negative (−3.882 kN): the stretch draws it the way it acts, by its size, and
-    // its law follows the drawing.
-    assert!(has(&t, "N_1a(x) = (3.8822857 kN)") && !has(&t, "N_1a(x) = -H_A"), "{t}");
+    // H_A came out negative (−3.882 kN): the stretch draws it by name, the way it was taken
+    // positive, and its law follows the drawing (its value enters when substituted).
+    assert!(has(&t, "N_1a(x) = -H_A") && !has(&t, "N_1a(x) = (3.8822857 kN)"), "{t}");
 }
 
 /// The working and the reactions the stiffness solution gives (`structure.get`).
@@ -1114,4 +1163,71 @@ fn the_summary_quotes_the_greatest_moment_by_its_value() {
     // Worked out again (a recalculation reads the working back): the same.
     s.run("calc.recalculate", &json!({})).unwrap();
     assert_eq!(text_of(&s), t);
+}
+
+/// The structures of the body: (view, node B's x).
+fn drawings(s: &Session) -> Vec<(strix_structure::View, Option<f64>)> {
+    let mut out = Vec::new();
+    for b in &s.doc.body {
+        let Block::Para(p) = &**b else { continue };
+        for o in &p.objects {
+            if let InlineObject::Graphic { graphic, .. } = o
+                && let Some(st) = graphic.structure.as_deref().and_then(|j| strix_structure::Structure::from_json(j).ok())
+            {
+                out.push((st.view, st.node("B").map(|n| n.x.value)));
+            }
+        }
+    }
+    out
+}
+
+/// A change made through a drawing made from the structure (its working's free body, arms or
+/// stretch, which the change writes again) is made to the structure itself, which stays
+/// selected so the next change works too; and every drawing follows it.
+#[test]
+fn a_change_through_a_working_figure_is_made_to_the_structure() {
+    use strix_structure::View;
+    let fresh = || {
+        let mut s = Session::new(Document::new());
+        s.run("structure.insert", &json!({"template": "beam"})).unwrap();
+        s.run("structure.working", &json!({})).unwrap();
+        s
+    };
+    let count = drawings(&fresh()).len();
+    assert!(count >= 3, "{:?}", drawings(&fresh()));
+    for k in 1..count {
+        let mut s = fresh();
+        select_structure(&mut s, k);
+        assert_ne!(selected_view(&mut s), View::All);
+        s.run("structure.node", &json!({"id": "B", "x": 8})).unwrap();
+        assert_eq!(selected_view(&mut s), View::All, "figure {k}");
+        s.run("structure.node", &json!({"id": "B", "x": 9})).unwrap();
+        let found = drawings(&s);
+        assert_eq!(found.len(), count, "{found:?}");
+        assert!(found.iter().all(|d| d.1 == Some(9.0)), "figure {k}: {found:?}");
+        assert_eq!(found.first().map(|d| d.0), Some(View::All));
+    }
+}
+
+/// In an exercise, a change made through the free body of its solution's working is made to
+/// the structure in its statement, which stays selected.
+#[test]
+fn a_change_through_an_exercise_free_body_is_made_to_the_statement() {
+    use strix_structure::View;
+    let mut s = Session::new(Document::new());
+    s.run("structure.exercise", &json!({})).unwrap();
+    let count = drawings(&s).len();
+    let k = drawings(&s).iter().position(|d| d.0 == View::Equilibrium).unwrap();
+    select_structure(&mut s, k);
+    s.run("structure.node", &json!({"id": "B", "x": 8})).unwrap();
+    assert_eq!(selected_view(&mut s), View::Structure);
+    let found = drawings(&s);
+    assert_eq!(found.len(), count, "{found:?}");
+    assert!(found.iter().all(|d| d.1 == Some(8.0)), "{found:?}");
+}
+
+/// The view of the selected structure.
+fn selected_view(s: &mut Session) -> strix_structure::View {
+    let r = s.run("structure.get", &json!({})).unwrap();
+    serde_json::from_value::<strix_structure::Structure>(r["structure"].clone()).unwrap().view
 }

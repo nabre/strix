@@ -436,6 +436,9 @@ pub(crate) fn open(app: &mut WordApp) -> Result<(), String> {
     if app.cad.is_some() {
         return Err("close the CAD drawing first".into());
     }
+    // A drawing of the structure's working (a free body, a stretch), which a change writes
+    // again, opens the structure itself, which its changes are made to.
+    wordcraft_engine::cmd::structure::select_base(&mut app.session);
     if app.structure_edit.is_none() {
         app.structure_edit = Some(app.ui.tab.clone());
     }

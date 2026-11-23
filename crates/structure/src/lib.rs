@@ -19,6 +19,7 @@ mod diagram;
 mod linalg;
 mod model;
 mod names;
+mod pivot;
 mod render;
 mod solve;
 mod working;
@@ -33,8 +34,9 @@ pub use model::{
     Structure, Support, SupportKind, Titles, View,
 };
 pub use names::{LoadName, load_names};
+pub use pivot::Pivot;
 pub use render::{Chains, StructureRendered, chains};
-pub use solve::{Analysis, Forces, MemberResult, Reaction, Status, analyse, analyse_released, negative_reaction};
+pub use solve::{Analysis, Forces, MemberResult, Reaction, Status, analyse, analyse_released};
 pub use working::{Resultant, ResultantKind, Stretch, resultants, stretches};
 
 /// Maximum nodes in a structure.

@@ -97,6 +97,12 @@ pub(in crate::cmd::structure) fn any(s: &Session, group: &str) -> bool {
     })
 }
 
+/// Whether body block `i` is in one of `group`'s written workings, which a change to the
+/// structure writes again.
+pub(in crate::cmd::structure) fn holds(s: &Session, group: &str, i: usize) -> bool {
+    !group.is_empty() && PARTS.iter().any(|&p| range(s, &name(group, p)).is_some_and(|(a, b)| a <= i && i <= b))
+}
+
 /// Keeps in `st` the working's words given in `v`'s `labels`.
 pub(in crate::cmd::structure) fn keep_labels(st: &mut Structure, v: &Value) {
     let Some(labels) = v.get("labels").and_then(Value::as_object) else { return };

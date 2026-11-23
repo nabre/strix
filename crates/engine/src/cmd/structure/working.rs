@@ -258,6 +258,8 @@ enum Figure {
     FreeBody,
     /// A stretch of the internal forces' laws, cut ([`View::Section`](strix_structure::View)).
     Stretch(strix_structure::Cut),
+    /// The lever arms of a moment equation about a point ([`View::Arms`](strix_structure::View)).
+    Arms(strix_structure::Pivot),
 }
 
 /// The drawings of structure `st` (as written: its parameters, not their values) the working's
@@ -272,6 +274,7 @@ impl Figures<'_> {
         match figure {
             Figure::FreeBody => free_body(self.s, self.st),
             Figure::Stretch(cut) => stretch_figure(self.s, self.st, cut),
+            Figure::Arms(pivot) => arms_figure(self.s, self.st, pivot),
         }
     }
 }
@@ -279,6 +282,7 @@ impl Figures<'_> {
 /// Writes the selected structure's working after it, or again in place when it has one: in a
 /// hidden bookmark ([`live`]), so a change to the structure writes it again.
 pub(super) fn run(s: &mut Session, v: &Value) -> CmdResult {
+    super::select_base(s);
     let (mut pos, src) = super::selected_source(s).ok_or_else(|| CmdError::Disabled("select a structure first".into()))?;
     let mut st = Structure::from_json(&src).map_err(|e| CmdError::Failed(format!("the structure can't be read: {e}")))?;
     let props = s.doc.para_at(&pos).map(|p| p.mark.clone()).unwrap_or_default();
@@ -316,6 +320,12 @@ pub(super) fn run(s: &mut Session, v: &Value) -> CmdResult {
     Ok(json!({ "lines": count, "recalculated": report }))
 }
 
+/// Whether body block `i` is in one of `group`'s written workings (a change to the structure
+/// writes it again).
+pub(super) fn rewrites(s: &Session, group: &str, i: usize) -> bool {
+    live::holds(s, group, i)
+}
+
 /// The structure's workings other than the whole one, written again.
 fn refresh_others(s: &mut Session, src: &std::sync::Arc<str>, st: &Structure, pos: &mut wordcraft_doc::Pos) -> Result<(), CmdError> {
     let exercise = [Part::Reactions, Part::Axial, Part::Shear, Part::Zeros, Part::Maxima, Part::Moments];
@@ -343,6 +353,13 @@ fn whole(s: &Session, src: &std::sync::Arc<str>, v: &Value, props: &wordcraft_do
 /// so it follows the structure; written again with the working).
 fn free_body(s: &Session, st: &Structure) -> InlineObject {
     let fig = Structure { view: strix_structure::View::Equilibrium, working_key: String::new(), ..st.clone() };
+    super::graphic(s, &fig)
+}
+
+/// The lever arms of a moment equation: structure `st`'s free body (the part `pivot` balances)
+/// with each force's arm about the point measured and named as the equation names it.
+fn arms_figure(s: &Session, st: &Structure, pivot: &strix_structure::Pivot) -> InlineObject {
+    let fig = Structure { view: strix_structure::View::Arms, pivot: Some(pivot.clone()), working_key: String::new(), ..st.clone() };
     super::graphic(s, &fig)
 }
 
@@ -633,6 +650,11 @@ struct Equation {
     loads: Vec<(f64, String)>,
     /// The loads' arms it uses, worked out before it: name and definition (`d_(1,A) = 3 m`).
     arms: Vec<(String, String)>,
+    /// A moment's point and the part it balances, drawn with its arms before it when a force
+    /// turns about it by an arm ([`Figure::Arms`]).
+    pivot: Option<strix_structure::Pivot>,
+    /// Does a force turn about the point by an arm (a couple has none)?
+    levers: bool,
 }
 
 /// Units of the structure as calc writes them.
@@ -830,7 +852,16 @@ const TOL: f64 = 1e-9;
 /// Translation along `axis` (0: x, 1: y) of the loads and unknowns, summed the way the axis
 /// counts positive.
 fn translation(axis: usize, us: &[Unknown], rs: &[Resultant], u: &Units, label: String) -> Equation {
-    let mut eq = Equation { label, after: ":".to_string(), moment: false, unknowns: Vec::new(), loads: Vec::new(), arms: Vec::new() };
+    let mut eq = Equation {
+        label,
+        after: ":".to_string(),
+        moment: false,
+        unknowns: Vec::new(),
+        loads: Vec::new(),
+        arms: Vec::new(),
+        pivot: None,
+        levers: false,
+    };
     let sense = if axis == 0 { u.signs.0 } else { u.signs.1 };
     for (i, k) in us.iter().enumerate() {
         if let Acts::Along(d) = k.acts {
@@ -857,7 +888,16 @@ fn translation(axis: usize, us: &[Unknown], rs: &[Resultant], u: &Units, label: 
 /// positive (counter-clockwise unless the structure says clockwise).
 /// `pivot` is the point's subscript, which names the loads' arms about it (`d_(1,A)`).
 fn rotation(p: (f64, f64), pivot: &str, us: &[(usize, &Unknown)], rs: &[&Resultant], u: &Units, label: String) -> Equation {
-    let mut eq = Equation { label, after: ":".to_string(), moment: true, unknowns: Vec::new(), loads: Vec::new(), arms: Vec::new() };
+    let mut eq = Equation {
+        label,
+        after: ":".to_string(),
+        moment: true,
+        unknowns: Vec::new(),
+        loads: Vec::new(),
+        arms: Vec::new(),
+        pivot: None,
+        levers: false,
+    };
     let sense = u.signs.2;
     for &(i, k) in us {
         let (dx, dy) = (k.at.0 - p.0, k.at.1 - p.1);
@@ -875,6 +915,7 @@ fn rotation(p: (f64, f64), pivot: &str, us: &[(usize, &Unknown)], rs: &[&Resulta
                         u.length(arm)
                     };
                     eq.unknowns.push((i, arm, format!("{}·{text}", k.name)));
+                    eq.levers = true;
                 }
             }
         }
@@ -905,6 +946,7 @@ impl Equation {
     /// A load's moment: the part of resultant `r` along `axis` times its arm (`arm`, a factor),
     /// the arm named `d_(…,pivot)` after the force (inline for a load with no name).
     fn load_term(&mut self, v: f64, r: &Resultant, axis: usize, arm: String, pivot: &str, u: &Units) {
+        self.levers = true;
         let force = u.component(r, axis);
         let Some(mut idx) = u.force_idx(r) else {
             self.loads.push((v, format!("{force}·{arm}")));
@@ -933,8 +975,10 @@ impl Equation {
         {
             return format!("{t} = {zero}");
         }
-        // Both sides turned so the first unknown's term is positive (calc would write `V_A = --…`).
-        let flip = present.first().map_or(1.0, |(_, c, _)| if *c < 0.0 { -1.0 } else { 1.0 });
+        // Both sides turned so the first unknown's term is positive (calc would write `V_A = --…`),
+        // but a rotation keeps the sense it counts positive: clockwise, `V_B·6 m` turning the other
+        // way is written `-V_B·6 m`.
+        let flip = if self.moment { 1.0 } else { present.first().map_or(1.0, |(_, c, _)| if *c < 0.0 { -1.0 } else { 1.0 }) };
         let mut out = String::new();
         let push = |sign: f64, t: &str, out: &mut String| {
             if out.is_empty() {
@@ -1148,38 +1192,26 @@ fn lines(st: &Structure, an: &strix_structure::Analysis, labels: &Labels, comma:
     }
     for id in &points {
         if let Some(n) = st.node(id) {
-            eqs.push(rotation((n.x.value, n.y.value), &sub(id, 0), &all, &all_rs, &u, format!("ΣM_{} = 0", sub(id, 0))));
+            let mut e = rotation((n.x.value, n.y.value), &sub(id, 0), &all, &all_rs, &u, format!("ΣM_{} = 0", sub(id, 0)));
+            e.pivot = Some(strix_structure::Pivot::whole(id));
+            eqs.push(e);
         }
     }
     eqs.push(translation(0, &us, &rs, &u, "ΣF_x = 0".to_string()));
     eqs.push(translation(1, &us, &rs, &u, "ΣF_y = 0".to_string()));
     for (hinge, members) in hinge_parts(st) {
         let Some(h) = st.node(&hinge) else { continue };
-        let in_part = |node: &str| members.iter().any(|&k| st.members.get(k).is_some_and(|m| m.a == node || m.b == node));
+        let names: Vec<String> = members.iter().filter_map(|&k| st.members.get(k).map(|m| m.id.clone())).collect();
+        let pivot = strix_structure::Pivot { node: hinge.clone(), members: names.clone() };
         // A support at the hinge itself is shared: the part's equation would be ambiguous.
         if us.iter().any(|k| k.node == hinge) {
             continue;
         }
-        let part_us: Vec<(usize, &Unknown)> = us.iter().enumerate().filter(|(_, k)| in_part(&k.node)).collect();
-        let part_rs: Vec<&Resultant> = rs
-            .iter()
-            .filter(|r| match st.loads.get(r.load) {
-                Some(strix_structure::Load::Distributed { member, .. }) => {
-                    members.iter().any(|&k| st.members.get(k).is_some_and(|m| &m.id == member))
-                }
-                Some(strix_structure::Load::Force { member: Some(m), .. } | strix_structure::Load::Moment { member: Some(m), .. }) => {
-                    members.iter().any(|&k| st.members.get(k).is_some_and(|x| &x.id == m))
-                }
-                // A load on a node: in the part when the node is (at the hinge it has no arm, but a
-                // couple there is ambiguous: left out).
-                Some(strix_structure::Load::Force { node: Some(n), .. }) => n != &hinge && in_part(n),
-                Some(strix_structure::Load::Moment { node: Some(n), .. }) => n != &hinge && in_part(n),
-                _ => false,
-            })
-            .collect();
-        let names: Vec<String> = members.iter().filter_map(|&k| st.members.get(k).map(|m| m.id.clone())).collect();
+        let part_us: Vec<(usize, &Unknown)> = us.iter().enumerate().filter(|(_, k)| pivot.has_node(st, &k.node)).collect();
+        let part_rs: Vec<&Resultant> = rs.iter().filter(|r| st.loads.get(r.load).is_some_and(|l| pivot.has_load(st, l))).collect();
         let mut e = rotation((h.x.value, h.y.value), &sub(&hinge, 0), &part_us, &part_rs, &u, format!("ΣM_{} = 0", sub(&hinge, 0)));
         e.after = format!(" ({} {}, {} {}):", labels.hinge, hinge, labels.member, names.join(", "));
+        e.pivot = Some(pivot);
         eqs.push(e);
     }
     let mut known = vec![false; us.len()];
@@ -1205,6 +1237,10 @@ fn lines(st: &Structure, an: &strix_structure::Analysis, labels: &Labels, comma:
                 && let Some(slot) = known.get_mut(i)
             {
                 *slot = true;
+            }
+            // A moment's arms drawn before it.
+            if let (true, true, Some(p)) = (e.moment, e.levers, &e.pivot) {
+                out.push(Line::figure(Figure::Arms(p.clone())));
             }
             out.push(Line::noted(String::new(), e.label.clone(), e.after.clone()));
             // Its arms first, each once (a hinge's part may share an arm with its support's).

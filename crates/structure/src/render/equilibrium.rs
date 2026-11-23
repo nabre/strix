@@ -24,7 +24,7 @@ fn askew(d: (f64, f64)) -> bool {
 
 /// A name's subscript from a node name, as the working writes it: its letters and digits (its
 /// number among the supports when it has none).
-fn node_sub(id: &str, fallback: usize) -> String {
+pub(super) fn node_sub(id: &str, fallback: usize) -> String {
     let s: String = id.chars().filter(|c| c.is_alphanumeric()).take(8).collect();
     if s.is_empty() { fallback.to_string() } else { s }
 }
@@ -65,10 +65,20 @@ impl Pen {
 impl Ctx<'_> {
     /// The free body of the reactions' working.
     pub(super) fn equilibrium(&mut self, f: &Frame) {
-        let st = self.st;
-        let faded = lighter(LOAD, 0.6);
         self.members(f, BLACK, MEMBER_W, true);
         self.supports(f, lighter(GREY, 0.45));
+        let stations = self.resultants_named(f, &|_| true);
+        self.dimensions_with(f, &stations);
+        self.unknowns(f);
+        self.node_names(f);
+    }
+
+    /// The loads `which` picks as the free body draws them: faded where they act, each
+    /// distributed load's resultant and each askew force's parts named as the working names
+    /// them. The distributed loads' centroids, as stations for the dimensions.
+    pub(super) fn resultants_named(&mut self, f: &Frame, which: &dyn Fn(&Load) -> bool) -> Vec<(String, f64)> {
+        let st = self.st;
+        let faded = lighter(LOAD, 0.6);
         // What the resultants and the parts stand for, faded and unnamed.
         let askew_force = |l: &Load| match l {
             Load::Force { angle, .. } => {
@@ -77,10 +87,13 @@ impl Ctx<'_> {
             }
             _ => false,
         };
-        self.loads_as(f, faded, false, &|_, l| matches!(l, Load::Distributed { .. }) || askew_force(l));
+        self.loads_as(f, faded, false, &|_, l| which(l) && (matches!(l, Load::Distributed { .. }) || askew_force(l)));
         let names = load_names(st);
         let mut stations: Vec<(String, f64)> = Vec::new();
         for r in resultants(st) {
+            if !st.loads.get(r.load).is_some_and(which) {
+                continue;
+            }
             let Some(name) = names.get(r.load).copied().flatten() else { continue };
             let n = name.number.to_string();
             let p = f.p(r.at.0, r.at.1);
@@ -133,9 +146,7 @@ impl Ctx<'_> {
                 self.named_arrow(p, dc, (len * size).max(5.0), &i, LOAD, level_side);
             }
         }
-        self.dimensions_with(f, &stations);
-        self.unknowns(f);
-        self.node_names(f);
+        stations
     }
 
     /// An arrow of `len` mm acting at `p` along paper direction `d`, named `F` with the indices
@@ -160,19 +171,9 @@ impl Ctx<'_> {
         self.unknowns_where(f, &|_| true);
     }
 
-    /// [`Ctx::unknowns`] of the supports at the nodes `at` picks.
+    /// [`Ctx::unknowns`] of the supports at the nodes `at` picks. The stretches draw their known reactions so too, by name the way they count positive, as
+    /// the laws use them (one that came out negative too: its value enters when substituted).
     pub(super) fn unknowns_where(&mut self, f: &Frame, at: &dyn Fn(&str) -> bool) {
-        self.reactions_named(f, at, false);
-    }
-
-    /// [`Ctx::unknowns_where`] once the reactions are known: one that came out negative points the
-    /// way it really acts and is written by its size (`5 kN`), as the reactions' result draws it
-    /// and the stretch's laws use it; the others keep their names.
-    pub(super) fn known_reactions_where(&mut self, f: &Frame, at: &dyn Fn(&str) -> bool) {
-        self.reactions_named(f, at, true);
-    }
-
-    fn reactions_named(&mut self, f: &Frame, at: &dyn Fn(&str) -> bool, known: bool) {
         let an = self.an;
         let pos = self.st.positive;
         let (sx, sy) = (pos.sx(), pos.sy());
@@ -184,31 +185,30 @@ impl Ctx<'_> {
             let s = node_sub(&r.node, k + 1);
             let phi = r.angle.to_radians();
             let below = (phi.sin(), phi.cos());
-            // Each component along the way it counts positive, with its value that way.
-            let mut comps: Vec<((f64, f64), &str, f64)> = Vec::new();
+            // Each component along the way it counts positive.
+            let mut comps: Vec<((f64, f64), &str)> = Vec::new();
             match r.kind {
                 SupportKind::Fixed | SupportKind::Pin => {
-                    comps.push(((sx, 0.0), "H", r.fx * sx));
-                    comps.push(((0.0, sy), "V", r.fy * sy));
+                    comps.push(((sx, 0.0), "H"));
+                    comps.push(((0.0, sy), "V"));
                 }
                 SupportKind::Roller | SupportKind::RollerCircle | SupportKind::Link | SupportKind::Slider => {
                     let n = (-phi.sin(), phi.cos());
                     if n.0.abs() < TOL {
-                        comps.push(((0.0, sy), "V", r.fy * sy));
+                        comps.push(((0.0, sy), "V"));
                     } else if n.1.abs() < TOL {
-                        comps.push(((sx, 0.0), "H", r.fx * sx));
+                        comps.push(((sx, 0.0), "H"));
                     } else {
-                        comps.push((n, "R", r.fx * n.0 + r.fy * n.1));
+                        comps.push((n, "R"));
                     }
                 }
             }
             // The node's name takes its free side.
             let mut taken: Vec<P> = vec![self.free_side(&r.node)];
-            for (axis, letter, v) in comps {
+            for (axis, letter) in comps {
                 // The arrow stands on the side the positive way picks, as the reactions' result.
                 let side = self.arrow_side(&r.node, pd(axis), below);
-                let flip = known && crate::negative_reaction(v);
-                let ap = mul(pd(axis), if flip { -1.0 } else { 1.0 });
+                let ap = pd(axis);
                 taken.push(side);
                 let far = add(p, mul(side, ARROW + 2.0));
                 let near = add(p, mul(side, 1.0));
@@ -217,24 +217,12 @@ impl Ctx<'_> {
                 } else {
                     self.pen.arrow(near, far, REACTION, 0.4);
                 }
-                if flip {
-                    let label = self.force(v.abs());
-                    self.pen.beside(add(far, mul(side, 0.8)), side, label, REACTION);
-                } else {
-                    self.pen.subscripted(add(far, mul(side, 0.8)), side, letter, &s, REACTION);
-                }
+                self.pen.subscripted(add(far, mul(side, 0.8)), side, letter, &s, REACTION);
             }
             if matches!(r.kind, SupportKind::Fixed | SupportKind::Slider) {
-                let v = r.m * pos.sr();
-                let flip = known && crate::negative_reaction(v);
-                self.pen.couple(p, 5.0, (pos.sr() > 0.0) != flip, REACTION, 0.4);
+                self.pen.couple(p, 5.0, pos.sr() > 0.0, REACTION, 0.4);
                 let free = self.free_side_avoiding(&r.node, &taken);
-                if flip {
-                    let label = self.moment(v.abs());
-                    self.pen.beside(add(p, mul(free, 6.5)), free, label, REACTION);
-                } else {
-                    self.pen.subscripted(add(p, mul(free, 6.5)), free, "M", &s, REACTION);
-                }
+                self.pen.subscripted(add(p, mul(free, 6.5)), free, "M", &s, REACTION);
             }
         }
     }
