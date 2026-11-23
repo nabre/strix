@@ -1161,12 +1161,7 @@ fn next_first_line(ctx: &mut Ctx, block: usize, width: f32, depth: usize, new_pa
                 let bottom = if joined(ctx.doc, &ctx.doc.body, block + 1, Some(block + 2), None) { 0.0 } else { own.bottom };
                 // Its space after merged with the space before of the one after it, as on the page.
                 let after = space_after_merged(ctx, block + 1, &pl.rp, listed);
-                pl.rp.space_before
-                    + top
-                    + pl.height
-                    + bottom
-                    + after
-                    + next_first_line(ctx, block + 1, width, depth + 1, new_page, counters)
+                pl.rp.space_before + top + pl.height + bottom + after + next_first_line(ctx, block + 1, width, depth + 1, new_page, counters)
             } else {
                 // The room this one needs to start on the page with the kept paragraph before
                 // it (#966).
