@@ -338,7 +338,7 @@ impl WordApp {
             "export" => {
                 let ext = pending.unwrap_or_else(|| "pdf".into());
                 let name = format!("{}.{}", self.title_stem(), export_file_ext(&ext));
-                (FileDialogRequest::Save { name, dir: None }, AfterPick::Export { ext })
+                (FileDialogRequest::Save { name, dir: None, native_only: None }, AfterPick::Export { ext })
             }
             _ => (FileDialogRequest::Open { purpose: "document".into() }, AfterPick::OpenDocument { document: self.session.document_id() }),
         };
@@ -639,7 +639,7 @@ mod tests {
         std::fs::write(&sibling, b"sibling original").unwrap();
         for save in [false, true] {
             let req = if save {
-                FileDialogRequest::Save { name: "Draft.docx".into(), dir: None }
+                FileDialogRequest::Save { name: "Draft.docx".into(), dir: None, native_only: None }
             } else {
                 FileDialogRequest::Open { purpose: "document".into() }
             };
@@ -664,7 +664,7 @@ mod tests {
             let dir = scratch(if removed { "selected-folder-removed" } else { "selected-folder-live" });
             let folder = dir.join("Drafts");
             std::fs::create_dir(&folder).unwrap();
-            let req = FileDialogRequest::Save { name: "chapter.docx".into(), dir: None };
+            let req = FileDialogRequest::Save { name: "chapter.docx".into(), dir: None, native_only: None };
             let mut browser = FileBrowser::new(req, AfterPick::OpenDocument { document: 0 }, dir.clone(), false);
             let entry = browser.listing.as_ref().unwrap().entries.iter().find(|entry| entry.path == folder).unwrap().clone();
             browser.select(&entry);
@@ -687,7 +687,7 @@ mod tests {
         let dir = scratch("removed-selected-file");
         let selected = dir.join(" report.docx");
         std::fs::write(&selected, b"original").unwrap();
-        let req = FileDialogRequest::Save { name: "Draft.docx".into(), dir: None };
+        let req = FileDialogRequest::Save { name: "Draft.docx".into(), dir: None, native_only: None };
         let mut browser = FileBrowser::new(req, AfterPick::OpenDocument { document: 0 }, dir.clone(), false);
         let entry = browser.listing.as_ref().unwrap().entries.iter().find(|entry| entry.path == selected).unwrap().clone();
         browser.select(&entry);
@@ -953,7 +953,7 @@ mod tests {
         a.close_file_browser(Some(path.clone()));
         assert!(std::fs::read_to_string(&path).unwrap().contains("Exported in Strix"));
         // Word 2003 XML starts on its own type, though Word XML writes .xml too.
-        let req = FileDialogRequest::Save { name: "x.xml".into(), dir: None };
+        let req = FileDialogRequest::Save { name: "x.xml".into(), dir: None, native_only: None };
         let b = FileBrowser::new(req, AfterPick::Export { ext: crate::print_page::EXPORT_WORD_2003.into() }, dir.clone(), false);
         assert_eq!(b.filters[b.filter].0, "Word 2003 XML Document (*.xml)");
         let _ = std::fs::remove_dir_all(&dir);
@@ -967,7 +967,7 @@ mod tests {
         let mut a = WordApp::new(Session::new(wordcraft_doc::Document::new()), Services::default());
         a.run("text.insert", json!({"text": "Template text"})).unwrap();
         for (label, ext) in [("OpenDocument Text Template (*.ott)", "ott"), ("Flat OpenDocument Text (*.fodt)", "fodt")] {
-            let req = FileDialogRequest::Save { name: "x.pdf".into(), dir: None };
+            let req = FileDialogRequest::Save { name: "x.pdf".into(), dir: None, native_only: None };
             let mut b = FileBrowser::new(req, AfterPick::Export { ext: "pdf".into() }, dir.clone(), false);
             b.filter = b.filters.iter().position(|(l, _)| l == label).unwrap();
             b.type_changed();

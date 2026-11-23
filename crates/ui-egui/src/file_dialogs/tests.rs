@@ -58,7 +58,10 @@ fn imported_word_save_asks_for_xmath_and_preserves_the_original() {
         assert_eq!(result["pending"], "saveAs");
         // A Word 97-2003 template (.dot) becomes a Strix template.
         let proposed = if ext.eq_ignore_ascii_case("dot") { "contract.xmathm" } else { "contract.xmath" };
-        assert_eq!(shown.borrow()[0].0, FileDialogRequest::Save { name: proposed.into(), dir: Some(dir.to_string_lossy().into_owned()), native_only: None });
+        assert_eq!(
+            shown.borrow()[0].0,
+            FileDialogRequest::Save { name: proposed.into(), dir: Some(dir.to_string_lossy().into_owned()), native_only: None }
+        );
         answer(&shown, None);
         assert_eq!(a.poll_file_dialog().unwrap().unwrap()["saved"], false);
         assert_eq!(a.session.doc, draft);
@@ -208,7 +211,10 @@ fn imported_word_save_controls_ask_for_xmath() {
     h.get_by_label("Save").click();
     h.run_steps(3);
     assert!(h.state().file_dialog_open(), "the Save button asks for a supported target");
-    assert_eq!(shown.borrow()[0].0, FileDialogRequest::Save { name: "contract.xmath".into(), dir: Some(dir.to_string_lossy().into_owned()), native_only: None });
+    assert_eq!(
+        shown.borrow()[0].0,
+        FileDialogRequest::Save { name: "contract.xmath".into(), dir: Some(dir.to_string_lossy().into_owned()), native_only: None }
+    );
     answer(&shown, None);
     h.run_steps(3);
 
@@ -219,7 +225,10 @@ fn imported_word_save_controls_ask_for_xmath() {
     h.event(egui::Event::Key { key: egui::Key::S, physical_key: None, pressed: true, repeat: false, modifiers: egui::Modifiers::COMMAND });
     h.run_steps(3);
     assert!(h.state().file_dialog_open(), "the focused editor's Mod+S asks too");
-    assert_eq!(shown.borrow()[0].0, FileDialogRequest::Save { name: "contract.xmath".into(), dir: Some(dir.to_string_lossy().into_owned()), native_only: None });
+    assert_eq!(
+        shown.borrow()[0].0,
+        FileDialogRequest::Save { name: "contract.xmath".into(), dir: Some(dir.to_string_lossy().into_owned()), native_only: None }
+    );
     answer(&shown, None);
     h.run_steps(3);
     assert!(h.state().session.dirty);
@@ -368,7 +377,7 @@ fn giving_up_a_file_dialog_cancels_the_host_request() {
     let (tx, rx) = channel();
     a.file_dialog = Some(PendingDialog {
         rx,
-        req: FileDialogRequest::Save { name: "Document1.docx".into(), dir: None },
+        req: FileDialogRequest::Save { name: "Document1.docx".into(), dir: None, native_only: None },
         after: AfterPick::Export { ext: "pdf".into() },
     });
     a.give_up_file_dialog();
@@ -449,13 +458,16 @@ fn save_as_starts_in_the_folder_of_the_open_file() {
     a.services.templates_dir = Some(dir.join("Templates"));
     a.run("file.open", json!({"path": opened.to_string_lossy()})).unwrap();
     a.save_as_dialog();
-    assert_eq!(shown.borrow()[0].0, FileDialogRequest::Save { name: "one.docx".into(), dir: Some(dir.to_string_lossy().into_owned()) });
+    assert_eq!(
+        shown.borrow()[0].0,
+        FileDialogRequest::Save { name: "one.docx".into(), dir: Some(dir.to_string_lossy().into_owned()), native_only: None }
+    );
     answer(&shown, None);
 
     let (mut fresh, shown) = async_app();
     typed(&mut fresh);
     fresh.save_as_dialog();
-    assert_eq!(shown.borrow()[0].0, FileDialogRequest::Save { name: format!("{UNSAVED}.docx"), dir: None });
+    assert_eq!(shown.borrow()[0].0, FileDialogRequest::Save { name: format!("{UNSAVED}.xmath"), dir: None, native_only: None });
     answer(&shown, None);
     let _ = std::fs::remove_dir_all(&dir);
 }
@@ -469,7 +481,7 @@ fn save_as_starts_in_the_working_folder_for_a_relative_path() {
     a.session.path = Some(std::path::PathBuf::from("one.docx"));
     a.save_as_dialog();
     let cwd = std::env::current_dir().unwrap().to_string_lossy().into_owned();
-    assert_eq!(shown.borrow()[0].0, FileDialogRequest::Save { name: "one.docx".into(), dir: Some(cwd) });
+    assert_eq!(shown.borrow()[0].0, FileDialogRequest::Save { name: "one.docx".into(), dir: Some(cwd), native_only: None });
     answer(&shown, None);
 }
 
@@ -521,7 +533,10 @@ fn save_as_with_a_new_filename_saves_under_it() {
     let r = a.run("file.saveAs", json!({})).unwrap();
     assert_eq!(r, json!({"saved": false}));
     assert!(a.file_dialog_open(), "F12's saveAs request opens the dialog");
-    assert_eq!(shown.borrow()[0].0, FileDialogRequest::Save { name: "two.xmath".into(), dir: Some(dir.join("sub").to_string_lossy().into_owned()), native_only: None });
+    assert_eq!(
+        shown.borrow()[0].0,
+        FileDialogRequest::Save { name: "two.xmath".into(), dir: Some(dir.join("sub").to_string_lossy().into_owned()), native_only: None }
+    );
     let _ = std::fs::remove_dir_all(&dir);
 }
 

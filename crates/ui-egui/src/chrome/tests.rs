@@ -588,7 +588,6 @@ fn title_bar_controls_never_overlap_in_a_narrow_window() {
     for scale in [1.0, 1.5] {
         for width in [crate::window_geometry::MIN_SIZE.x, 640.0, 680.0, 760.0, 1440.0] {
             let mut a = WordApp::new(wordcraft_engine::Session::new(wordcraft_doc::Document::new()), crate::Services::default());
-            a.ui.show_discord = true;
             let nodes = labelled_scaled(&mut a, width, scale, title_bar);
             assert!(nodes.iter().any(|(l, ..)| l == "Search commands and help"), "{scale}x {width}: {nodes:?}");
             for (i, (la, a0, a1)) in nodes.iter().enumerate() {
@@ -611,7 +610,6 @@ fn title_bar_controls_never_overlap_when_search_is_active_in_a_narrow_window() {
         // as the 600 pt split minimum and wider split widths.
         for width in [400.0, 450.0, crate::window_geometry::MIN_SIZE.x, 640.0, 680.0, 760.0, 1440.0] {
             let mut a = WordApp::new(wordcraft_engine::Session::new(wordcraft_doc::Document::new()), crate::Services::default());
-            a.ui.show_discord = true;
             let ctx = ctx();
             if (scale - 1.0).abs() > 0.001 {
                 ctx.set_zoom_factor(scale);

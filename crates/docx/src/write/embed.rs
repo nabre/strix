@@ -996,10 +996,12 @@ mod tests {
             let spec = ChartSpec {
                 kind: ChartType::Column,
                 categories: vec!["a".into(), "b".into()],
-                series: (0..series).map(|i| ChartSeries { name: format!("S{i}"), values: vec![Some(1.0); 2] }).collect(),
+                series: (0..series).map(|i| ChartSeries { name: format!("S{i}"), values: vec![Some(1.0); 2], ..Default::default() }).collect(),
                 title: None,
                 legend: None,
                 data_labels: false,
+                cat_axis: Default::default(),
+                val_axis: wordcraft_doc::chart::value_axis(),
             };
             let graphic = Graphic { kind: GraphicKind::Chart, w: 100.0, h: 100.0, chart: Some(Arc::new(spec)), ..Default::default() };
             InlineObject::Graphic { w: 100.0, h: 100.0, alt: String::new(), float: Default::default(), graphic: Arc::new(graphic) }

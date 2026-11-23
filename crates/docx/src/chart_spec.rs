@@ -102,11 +102,24 @@ fn bounded(spec: &ChartSpec) -> ChartSpec {
             .series
             .iter()
             .take(MAX_SERIES)
-            .map(|s| ChartSeries { name: s.name.clone(), values: s.values.iter().take(MAX_POINTS).copied().collect() })
+            .map(|s| ChartSeries {
+                name: s.name.clone(),
+                values: s.values.iter().take(MAX_POINTS).copied().collect(),
+                fill: s.fill,
+                no_fill: s.no_fill,
+                line_w: s.line_w,
+                no_line: s.no_line,
+                markers: s.markers,
+                smooth: s.smooth,
+                labels: s.labels,
+                fmt: s.fmt.clone(),
+            })
             .collect(),
         title: spec.title.clone(),
         legend: spec.legend,
         data_labels: spec.data_labels,
+        cat_axis: spec.cat_axis.clone(),
+        val_axis: spec.val_axis.clone(),
     }
     .sanitized()
 }
@@ -374,6 +387,7 @@ pub(crate) fn spec_of(space: &El) -> Option<ChartSpec> {
                 .iter()
                 .map(|v| v.parse::<f64>().ok().filter(|v| v.is_finite()))
                 .collect(),
+            ..Default::default()
         })
         .collect();
     let title = chart.child("c:title").and_then(|t| t.find("a:t")).map(|t| t.text());
@@ -384,7 +398,17 @@ pub(crate) fn spec_of(space: &El) -> Option<ChartSpec> {
         _ => LegendPos::Right,
     });
     let data_labels = ty.child("c:dLbls").and_then(|d| d.child("c:showVal")).and_then(|v| v.attr("val")) == Some("1");
-    let spec = ChartSpec { kind, categories, series, title, legend, data_labels }.sanitized();
+    let spec = ChartSpec {
+        kind,
+        categories,
+        series,
+        title,
+        legend,
+        data_labels,
+        cat_axis: Default::default(),
+        val_axis: wordcraft_doc::chart::value_axis(),
+    }
+    .sanitized();
     // Editable only when nothing would be lost: writing the model again gives the same part.
     let again = xml::parse(chart_xml(&spec).as_bytes()).ok()?;
     same(space, &again, 0).then_some(spec)
@@ -461,10 +485,12 @@ mod tests {
         let spec = ChartSpec {
             kind: ChartType::Column,
             categories: (0..4500).map(|i| i.to_string()).collect(),
-            series: (0..300).map(|i| ChartSeries { name: format!("S{i}"), values: vec![Some(1.0); 4500] }).collect(),
+            series: (0..300).map(|i| ChartSeries { name: format!("S{i}"), values: vec![Some(1.0); 4500], ..Default::default() }).collect(),
             title: None,
             legend: None,
             data_labels: false,
+            cat_axis: Default::default(),
+            val_axis: wordcraft_doc::chart::value_axis(),
         };
         let x = chart_xml(&spec);
         let series = x.matches("<c:ser>").count();

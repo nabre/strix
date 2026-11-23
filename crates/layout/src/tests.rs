@@ -8466,22 +8466,25 @@ fn graphic_text_in_a_degenerate_rectangle_is_not_drawn() {
     assert!(!draws.iter().any(|x| matches!(x, display::Draw::Glyphs { text, .. } if text == "Q1")));
 }
 
-/// A chart's vertical axis title (text turned -90°) is laid out along its tall box and drawn
-/// turned about the box's center.
+/// A chart's vertical axis title is laid out level in its box and drawn turned about the box's
+/// center. Strix's angle turns counter-clockwise about the level box (a CAD drawing's rotated
+/// text); upstream's turns clockwise about the turned box (docs/upstream.md), so this is
+/// upstream's test with Strix's convention: 90° counter-clockwise reads bottom to top.
 #[test]
 fn turned_graphic_text_is_drawn_turned_about_its_box() {
     crate::test_fonts();
     use wordcraft_doc::graphic::{Graphic, GraphicItem, GraphicKind, TextAlign};
     use wordcraft_doc::props::Rgb;
     let items = vec![GraphicItem::Text {
-        rect: [0.0, 20.0, 20.0, 100.0],
+        rect: [-40.0, 60.0, 100.0, 20.0],
         text: "Sales".into(),
         size: 10.0,
         color: Rgb::BLACK,
         bold: false,
+        italic: false,
         align: TextAlign::Center,
         font: None,
-        angle: -90.0,
+        angle: 90.0,
     }];
     let graphic = Graphic { kind: GraphicKind::Chart, items, ..Default::default() };
     let obj = InlineObject::Graphic { w: 216.0, h: 144.0, alt: String::new(), float: Default::default(), graphic: Arc::new(graphic) };

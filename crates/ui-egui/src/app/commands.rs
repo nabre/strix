@@ -151,26 +151,8 @@ impl WordApp {
             return r;
         }
         // Web: Assessment Pack export downloads a `.zip` archive.
-        if self.services.download.is_some() && id == "file.exportPack" && params.get("returnBytes").and_then(Value::as_bool) != Some(true) {
-            let mut p = params.clone();
-            p["returnBytes"] = json!(true);
-            let res = self.session.run("file.exportPack", &p).map_err(|e| e.to_string())?;
-            let b64 = res["zipBase64"].as_str().ok_or_else(|| "missing zipBase64".to_string())?;
-            let bytes = wordcraft_engine::cmd::insert::base64_decode(b64).ok_or_else(|| "bad zipBase64".to_string())?;
-            let raw_name =
-                params.get("path").and_then(Value::as_str).map(str::to_string).unwrap_or_else(|| format!("{}_pack.zip", self.title_stem()));
-            let name = if raw_name.to_ascii_lowercase().ends_with(".zip") { raw_name } else { format!("{raw_name}.zip") };
-            let delivered = match (&self.services.host_save, &self.services.download) {
-                (Some(host), _) => host(&name, &bytes, false),
-                (None, Some(download)) => download(&name, &bytes),
-                (None, None) => Ok(()),
-            };
-            if let Err(e) = delivered {
-                let msg = i18n::fmt(tl!("Couldn't download {name}: {error}"), &[("name", &name), ("error", &e)]);
-                self.status(msg.clone());
-                return Err(msg);
-            }
-            return Ok(json!({"downloaded": name, "bytes": bytes.len(), "files": res["files"]}));
+        if let Some(downloaded) = crate::strix_save::download_pack(self, id, &params) {
+            return downloaded;
         }
         // Web: saving and exporting become downloads.
         if self.services.download.is_some() && matches!(id, "file.save" | "file.saveAs" | "file.exportPdf" | "file.exportPng") {
@@ -189,8 +171,7 @@ impl WordApp {
             }
             // Strix: refused before anything is stamped (a format Strix can't write, or one that
             // would lose the document's Strix objects).
-            wordcraft_engine::io::check_writable(&name)?;
-            wordcraft_engine::strix_objects::check_save(&name, &self.session.doc)?;
+            crate::strix_save::check_save(&name, &self.session.doc)?;
             // Like a failed native save, a failed serialization or delivery keeps the save stamps.
             let before_stamp = (
                 self.session.doc.settings.zoom,

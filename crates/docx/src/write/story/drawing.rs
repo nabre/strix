@@ -102,6 +102,7 @@ impl Writer<'_> {
         let prst = match kind {
             ShapeKind::Rectangle | ShapeKind::TextBox | ShapeKind::Freeform => "rect",
             ShapeKind::RoundedRectangle => "roundRect",
+            ShapeKind::Frame => "frame",
             ShapeKind::Ellipse => "ellipse",
             ShapeKind::FlowchartOr => "flowChartOr",
             ShapeKind::Triangle => "triangle",
