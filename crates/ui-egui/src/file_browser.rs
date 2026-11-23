@@ -521,9 +521,12 @@ fn body(ui: &mut Ui, b: &mut FileBrowser, t: &Tokens) -> Option<Option<PathBuf>>
         }
         let before = b.filter;
         let current = b.filters.get(b.filter).map(|(l, _)| tl!(l.as_str()).to_string()).unwrap_or_default();
+        // A long type ("Strix documents (*.xmath, *.xmathm)") is cut short with its name as the
+        // tooltip, instead of widening the row past the window and pushing a button out of it.
         craft_ui::ComboBox::from_id_salt("builtin_file_browser_type")
             .selected_text(current)
             .width(150.0)
+            .truncate()
             .show_ui(ui, |ui| {
                 for (i, (l, _)) in b.filters.iter().enumerate() {
                     ui.selectable_value(&mut b.filter, i, tl!(l.as_str()));
@@ -906,6 +909,12 @@ mod tests {
         assert_eq!(h.state().0.name, "chapter.xmath");
         assert_eq!(h.get_by_role_and_label(Role::Button, "Drafts").accesskit_node().toggled(), Some(Toggled::False));
         assert_eq!(h.get_by_role_and_label(Role::Button, "chapter.xmath").accesskit_node().toggled(), Some(Toggled::True));
+        // The long Strix type must not widen the rows: both buttons stay in the window, whichever
+        // side each is on (macOS puts Open last, on the far side).
+        for name in ["Open", "Cancel"] {
+            let r = h.get_by_role_and_label(Role::Button, name).rect();
+            assert!(r.max.x <= 760.0, "{name} at {r:?} is outside the window");
+        }
         h.get_by_role_and_label(Role::Button, "Open").click();
         h.run_steps(2);
         assert_eq!(h.state().1, Some(Some(file)));
