@@ -95,6 +95,17 @@ fn lighter(c: Rgb, t: f64) -> Rgb {
     [mix(c[0]), mix(c[1]), mix(c[2])]
 }
 
+/// The largest distributed-load intensity on `st` (`0.0` when it has none).
+fn max_spread(st: &Structure) -> f64 {
+    st.loads
+        .iter()
+        .filter_map(|l| match l {
+            Load::Distributed { q1, q2, .. } => Some(q1.value.abs().max(q2.as_ref().map_or(0.0, |q| q.value.abs()))),
+            _ => None,
+        })
+        .fold(0.0_f64, f64::max)
+}
+
 #[derive(Default)]
 struct Pen {
     prims: Vec<PlotPrim>,
@@ -266,16 +277,33 @@ impl Ctx<'_> {
 
     /// [`Ctx::node_names`] of the nodes `at` picks, in `color` and weight `bold`.
     fn node_names_styled(&mut self, f: &Frame, color: Rgb, bold: bool, at: &dyn Fn(&str) -> bool) {
+        self.node_names_avoiding(f, color, bold, at, &|_| Vec::new());
+    }
+
+    /// [`Ctx::node_names_styled`], each name clear of the paper directions `taken` gives for its
+    /// node too (the reactions' arrows).
+    fn node_names_avoiding(&mut self, f: &Frame, color: Rgb, bold: bool, at: &dyn Fn(&str) -> bool, taken: &dyn Fn(&str) -> Vec<P>) {
         let st = self.st;
         for n in &st.nodes {
             if n.id.is_empty() || !at(&n.id) || !st.members.iter().any(|m| m.a == n.id || m.b == n.id) {
                 continue;
             }
             let p = f.p(n.x.value, n.y.value);
-            // Away from the node's members.
-            let away = self.free_side(&n.id);
+            // Away from the node's members; off the side an arrow took only when it lies along it.
+            let arrows = taken(&n.id);
+            let mut away = self.free_side(&n.id);
+            if arrows.iter().any(|a| a.0 * away.0 + a.1 * away.1 > 0.9) {
+                away = self.free_side_avoiding(&n.id, &arrows);
+            }
             let supported = st.supports.iter().any(|s| s.node == n.id);
-            let at = add(p, mul(away, if supported { 5.0 } else { 3.6 }));
+            // Clear of a fixed end's couple, drawn round the node.
+            let fixed = st.supports.iter().any(|s| s.node == n.id && matches!(s.kind, SupportKind::Fixed | SupportKind::Slider));
+            let reach = match (fixed && !arrows.is_empty(), supported) {
+                (true, _) => 8.5,
+                (false, true) => 5.0,
+                (false, false) => 3.6,
+            };
+            let at = add(p, mul(away, reach));
             self.pen.text((at.0, at.1 + 1.4), n.id.clone(), 2.8, bold, PlotAnchor::Center, color);
         }
     }
@@ -430,15 +458,13 @@ impl Ctx<'_> {
 
     /// The loads `which` picks, in colour `col`, with their names and values when `labelled`.
     fn loads_as(&mut self, f: &Frame, col: Rgb, labelled: bool, which: &dyn Fn(usize, &Load) -> bool) {
+        self.loads_with_max(f, col, labelled, max_spread(self.st), which);
+    }
+
+    /// [`Ctx::loads_as`] scaled against `qmax` (so a distributed load split across a section cut
+    /// keeps one scale on both sides).
+    fn loads_with_max(&mut self, f: &Frame, col: Rgb, labelled: bool, qmax: f64, which: &dyn Fn(usize, &Load) -> bool) {
         let st = self.st;
-        let qmax = st
-            .loads
-            .iter()
-            .filter_map(|l| match l {
-                Load::Distributed { q1, q2, .. } => Some(q1.value.abs().max(q2.as_ref().map_or(0.0, |q| q.value.abs()))),
-                _ => None,
-            })
-            .fold(0.0_f64, f64::max);
         let names = crate::names::load_names(st);
         // `F₁ = 20 kN`: the load's name before its value.
         let named = |k: usize, end: u8, value: String| match names.get(k).copied().flatten() {
@@ -546,7 +572,10 @@ impl Ctx<'_> {
         self.node_p(f, node?)
     }
 
-    fn reactions(&mut self, f: &Frame) {
+    /// The reactions with their values; returns, for each support's node, the paper directions
+    /// its arrows and its couple's value took.
+    fn reactions(&mut self, f: &Frame) -> Vec<(String, Vec<P>)> {
+        let mut sides = Vec::new();
         let an = self.an;
         let pos = self.st.positive;
         let (sx, sy, sr) = (pos.sx(), pos.sy(), pos.sr());
@@ -613,8 +642,11 @@ impl Ctx<'_> {
                 let label = self.moment(r.m.abs());
                 let free = self.free_side_avoiding(&r.node, &taken);
                 self.pen.beside(add(p, mul(free, reach)), free, label, REACTION);
+                taken.push(free);
             }
+            sides.push((r.node.clone(), taken));
         }
+        sides
     }
 
     /// One diagram of `action` on every member.
@@ -1246,8 +1278,20 @@ impl Ctx<'_> {
             Panel::Reactions => {
                 self.members(f, if show { GREY } else { BLACK }, MEMBER_W, true);
                 self.supports(f, if show { GREY } else { BLACK });
-                if show {
-                    self.reactions(f);
+                // On its own (an exercise's question) it carries the schema's indications: the
+                // loads with their names and values, the dimensions (after the reactions, so they
+                // keep clear of them) and the nodes' names (clear of the reactions' arrows).
+                let alone = self.st.view == View::Reactions;
+                if alone {
+                    self.loads(f);
+                    self.force_angles(f);
+                    self.slopes(f);
+                }
+                let taken = if show { self.reactions(f) } else { Vec::new() };
+                if alone {
+                    self.dimensions(f);
+                    let sides = |id: &str| taken.iter().filter(|(n, _)| n == id).flat_map(|(_, s)| s.iter().copied()).collect();
+                    self.node_names_avoiding(f, BLACK, true, &|_| true, &sides);
                 }
             }
             // Names only, no answers: the same in the student's copy.
@@ -1430,6 +1474,40 @@ mod layout_tests {
     }
 
     #[test]
+    fn the_reactions_on_their_own_keep_the_names_and_dimensions_clear_of_their_arrows() {
+        let mut st = Structure { view: View::Reactions, ..frame() };
+        st.loads.push(Load::Distributed {
+            member: "2".into(),
+            q1: 10.0.into(),
+            q2: None,
+            from: Num::default(),
+            to: None,
+            angle: Num::new(-90.0),
+            axes: LoadAxes::Global,
+            per: LoadPer::Length,
+        });
+        let prims = st.render(None).plot.prims;
+        let reaction = [0x1B, 0x4F, 0x72];
+        let arrows: Vec<[f64; 4]> = prims
+            .iter()
+            .filter(|p| matches!(p, strix_plot::PlotPrim::Path { stroke: Some((c, _)), .. } if *c == reaction))
+            .filter_map(prim_box)
+            .collect();
+        let values: Vec<[f64; 4]> = prims
+            .iter()
+            .filter(|p| matches!(p, strix_plot::PlotPrim::Text { text, color, .. } if *color == reaction && text.ends_with("kN")))
+            .filter_map(prim_box)
+            .collect();
+        let hits = |a: &[f64; 4], b: &[f64; 4]| a[0] < b[2] && b[0] < a[2] && a[1] < b[3] && b[1] < a[3];
+        let a = prims.iter().find(|p| matches!(p, strix_plot::PlotPrim::Text { text, .. } if text == "A")).and_then(prim_box).expect("A is named");
+        assert!(!arrows.iter().any(|b| hits(&a, b)), "A clear of its reactions' arrows");
+        // The dimensions below the reactions' values: the span's text under them.
+        let span =
+            prims.iter().find(|p| matches!(p, strix_plot::PlotPrim::TextAt { text, .. } if text == "6 m")).and_then(prim_box).expect("the span");
+        assert!(values.len() >= 3 && values.iter().all(|v| v[3] < span[1]), "{values:?} {span:?}");
+    }
+
+    #[test]
     fn a_view_draws_only_its_panels() {
         let all = beam().render(None).plot;
         let schema = Structure { view: View::Structure, ..beam() }.render(None).plot;
@@ -1446,7 +1524,9 @@ mod layout_tests {
         };
         let has = |p: &strix_plot::PlotRendered, t: &str| texts(p).iter().any(|x| x.contains(t));
         assert!(has(&schema, "8 m") && !has(&schema, "N [") && !has(&schema, "31.768"));
-        assert!(has(&reactions, "31.768 kN") && !has(&reactions, "8 m") && !has(&reactions, "M ["));
+        // On its own, the reactions' panel carries the schema's dimensions, loads and names.
+        assert!(has(&reactions, "31.768 kN") && has(&reactions, "8 m") && has(&reactions, "10 kN/m") && !has(&reactions, "M ["));
+        assert!(texts(&reactions).iter().any(|t| t == "A") && texts(&reactions).iter().any(|t| t == "B"));
         assert!(has(&diagrams, "M [") && has(&diagrams, "50.46") && !has(&diagrams, "31.768 kN"));
         for p in [&schema, &reactions, &diagrams] {
             assert!(p.size.1 < all.size.1);

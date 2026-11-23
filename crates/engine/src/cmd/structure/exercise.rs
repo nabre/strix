@@ -401,26 +401,26 @@ mod tests {
                 })
                 .unwrap()
         };
-        // Axial part: one joined stretch `1` with `Action::Axial` and "and N on the cut".
+        // Axial part: one joined stretch `1` with `Action::Axial`, its boxed law right under it.
         let n_cut = &found[3];
         assert_eq!(n_cut.2.cut.as_ref().map(|c| (c.tag.as_str(), c.action)), Some(("1", Some(Action::Axial))));
         let Block::Para(n_next) = &*s.doc.body[n_cut.0 + 1] else { panic!() };
-        assert!(n_next.text.contains("and N on the cut") && !n_next.text.contains("N, T, M"), "{}", n_next.text);
+        assert!(n_next.props.borders.is_some() && !n_next.text.contains("on the cut"), "{}", n_next.text);
         assert!(law_after(n_cut.0).starts_with("N_1(x)="), "{}", law_after(n_cut.0));
 
-        // Shear part: stretches `1a`, `1b` with `Action::Shear` and "and T on the cut".
+        // Shear part: stretches `1a`, `1b` with `Action::Shear`, its boxed law right under it.
         for (f, tag) in found[5..7].iter().zip(["1a", "1b"]) {
             assert_eq!(f.2.cut.as_ref().map(|c| (c.tag.as_str(), c.action)), Some((tag, Some(Action::Shear))));
             let Block::Para(next) = &*s.doc.body[f.0 + 1] else { panic!() };
-            assert!(next.text.contains("and T on the cut") && !next.text.contains("N, T, M"), "{}", next.text);
+            assert!(next.props.borders.is_some() && !next.text.contains("on the cut"), "{}", next.text);
             assert!(law_after(f.0).starts_with(&format!("T_{tag}(x)=")), "{}", law_after(f.0));
         }
 
-        // Moment part: stretches `1a`, `1b` with `Action::Moment` and "and M on the cut".
+        // Moment part: stretches `1a`, `1b` with `Action::Moment`, its boxed law right under it.
         for (f, tag) in found[8..10].iter().zip(["1a", "1b"]) {
             assert_eq!(f.2.cut.as_ref().map(|c| (c.tag.as_str(), c.action)), Some((tag, Some(Action::Moment))));
             let Block::Para(next) = &*s.doc.body[f.0 + 1] else { panic!() };
-            assert!(next.text.contains("and M on the cut") && !next.text.contains("N, T, M"), "{}", next.text);
+            assert!(next.props.borders.is_some() && !next.text.contains("on the cut"), "{}", next.text);
             assert!(law_after(f.0).starts_with(&format!("M_{tag}(x)=")), "{}", law_after(f.0));
         }
     }

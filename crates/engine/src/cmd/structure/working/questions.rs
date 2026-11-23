@@ -272,8 +272,7 @@ impl Writer<'_> {
                 tag: tag.clone(),
                 action: Some(action),
             })));
-            out.push(Line::heading(self.labels.cut_one.replace("{a}", &src.a).replace("{F}", self.letter(action))));
-            out.push(Line::eqs(vec![self.law(m, &tag, s, action)], true));
+            out.push(Line::law(self.law(m, &tag, s, action)));
             let c = match action {
                 Action::Axial => &s.n,
                 Action::Shear => &s.v,

@@ -930,6 +930,49 @@ impl Worksheet {
     /// working is what comes between it and the result: values and units only, no parameter.
     /// `None` when there is no such working.
     fn without_working(&self, text: &str, tokens: &[Token]) -> Option<String> {
+        self.without_working_as(text, tokens).or_else(|| self.call_without_working(text, tokens))
+    }
+
+    /// A call opened with its working, as the document holds it once worked out
+    /// (`M(x_1) = V·x_1 − q·x_1²/2 = (30 kN)·(3 m) − … = 45 kN·m`): the call with its result
+    /// (`M(x_1) = 45 kN·m`), which is opened again. `f(a) = f(0) = -4` is
+    /// [`Self::without_working_as`]'s.
+    fn call_without_working(&self, text: &str, tokens: &[Token]) -> Option<String> {
+        let equals = positions(tokens, |t| matches!(t, Tok::Equals));
+        let first = *equals.first()?;
+        if equals.len() < 2
+            || !positions(tokens, |t| matches!(t, Tok::Cmp(_) | Tok::Define)).is_empty()
+            || !is_call(tokens.get(..first).unwrap_or_default())
+        {
+            return None;
+        }
+        let len = text.chars().count();
+        // A call that works out (its function defined, its arguments known): `f(x) = x = 3`,
+        // with `x` unknown, stays a definition (and its error).
+        let head = tokens.get(..first).unwrap_or_default();
+        if !self.parse_expr(head, len).is_ok_and(|e| eval(&e, &self.scope, Names::Worksheet).is_ok()) {
+            return None;
+        }
+        let mut parts: Vec<&[Token]> = Vec::new();
+        let mut start = first + 1;
+        for &e in equals.iter().skip(1) {
+            parts.push(tokens.get(start..e)?);
+            start = e + 1;
+        }
+        parts.push(tokens.get(start..)?);
+        // The formula, then the working, then the result.
+        let (last, between) = parts.split_last()?;
+        let (formula, working) = between.split_first()?;
+        let result = units_only(last) || self.is_working(last, len);
+        if formula.is_empty() || last.is_empty() || !result || !working.iter().all(|p| self.is_working(p, len)) {
+            return None;
+        }
+        let end = tokens.get(first)?.byte + 1;
+        Some(format!("{} {}", text.get(..end)?, text.get(last.first()?.byte..)?))
+    }
+
+    /// [`Self::without_working`] for a name or an expression before the first `=`.
+    fn without_working_as(&self, text: &str, tokens: &[Token]) -> Option<String> {
         if !positions(tokens, |t| matches!(t, Tok::Cmp(_))).is_empty() {
             return None;
         }
@@ -2212,6 +2255,28 @@ pub(crate) fn with_unit(number: &str, unit: &str) -> String {
         "‰" => format!("{number} ‰"),
         _ => format!("{number} {unit}"),
     }
+}
+
+/// True when `tokens` are one call and nothing else: a name and its brackets (`M_1a(x_1a)`,
+/// `f(2, b)`).
+fn is_call(tokens: &[Token]) -> bool {
+    let [Token { tok: Tok::Ident(name), .. }, Token { tok: Tok::LParen, .. }, inner @ .., Token { tok: Tok::RParen, .. }] = tokens else {
+        return false;
+    };
+    if !name.chars().next().is_some_and(char::is_alphabetic) {
+        return false;
+    }
+    // The bracket after the name is the one closing at the end (not `f(a)·(b)`).
+    let mut depth = 0_usize;
+    for t in inner {
+        match t.tok {
+            Tok::LParen => depth = depth.saturating_add(1),
+            Tok::RParen if depth == 0 => return false,
+            Tok::RParen => depth -= 1,
+            _ => {}
+        }
+    }
+    depth == 0
 }
 
 /// True when the text after `=` can be a number and a unit: every name in it is a unit. A
