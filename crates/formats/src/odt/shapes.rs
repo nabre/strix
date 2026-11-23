@@ -114,6 +114,7 @@ pub(super) fn element_of(kind: ShapeKind) -> (&'static str, Option<&'static str>
         ShapeKind::Line => ("draw:line", None),
         ShapeKind::StraightConnector | ShapeKind::ElbowConnector | ShapeKind::CurvedConnector => ("draw:connector", None),
         ShapeKind::RoundedRectangle => custom("round-rectangle"),
+        ShapeKind::Frame => custom("frame"),
         ShapeKind::FlowchartOr => custom("flowchart-or"),
         ShapeKind::Triangle => custom("isosceles-triangle"),
         ShapeKind::RightTriangle => custom("right-triangle"),

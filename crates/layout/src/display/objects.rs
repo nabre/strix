@@ -36,6 +36,8 @@ pub(super) fn graphic_draws(doc: &Document, g: &Graphic, rect: Rect, alpha: f32)
                     cap: Default::default(),
                 })
             }
+            // Strix: a turned text is turned by `text_glyphs` itself (its angle counter-clockwise
+            // about its level box, docs/upstream.md), not here as well.
             GraphicItem::Text { rect: r, .. } => out.extend(text_glyphs(doc, inside(r), it, alpha, k)),
             GraphicItem::Image { rect: r, media } => out.push(Draw::Image {
                 rect: inside(r),

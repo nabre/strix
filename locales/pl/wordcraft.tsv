@@ -2765,3 +2765,6 @@ paper	Envelope DL	Koperta DL
 	Calculated\nTable	Tabela\nobliczeniowa
 	Graph\nPaper	Papier\nmilimetrowy
 	New\nCalculation	Nowe\nobliczenie
+	Dictionary file:	Plik słownika:
+	Not set: custom-dictionary.txt in the settings folder	Nie ustawiono: custom-dictionary.txt w folderze ustawień
+	A custom-word dictionary file (.dic or plain text) used with the main dictionary.	Plik słów niestandardowych (.dic lub zwykły tekst) używany razem ze słownikiem głównym.

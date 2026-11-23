@@ -2752,3 +2752,6 @@ paper	Envelope DL	Плик DL
 	Calculated\nTable	Изчислителна\nтаблица
 	Graph\nPaper	Милиметрова\nхартия
 	New\nCalculation	Ново\nизчисление
+	Dictionary file:	Файл на речника:
+	Not set: custom-dictionary.txt in the settings folder	Не е зададен: custom-dictionary.txt в папката с настройки
+	A custom-word dictionary file (.dic or plain text) used with the main dictionary.	Файл с потребителски думи (.dic или обикновен текст), използван заедно с основния речник.

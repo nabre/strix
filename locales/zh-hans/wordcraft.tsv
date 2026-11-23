@@ -2770,3 +2770,6 @@ paper	Envelope DL	DL 信封
 	Calculated\nTable	计算\n表格
 	Graph\nPaper	方格纸
 	New\nCalculation	新建\n计算
+	Dictionary file:	词典文件:
+	Not set: custom-dictionary.txt in the settings folder	未设置：设置文件夹中的 custom-dictionary.txt
+	A custom-word dictionary file (.dic or plain text) used with the main dictionary.	与主词典一起使用的自定义单词词典文件（.dic 或纯文本）。

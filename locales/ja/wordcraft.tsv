@@ -2804,3 +2804,6 @@ paper	Envelope DL	封筒 DL
 	Calculated\nTable	計算\nテーブル
 	Graph\nPaper	方眼紙
 	New\nCalculation	新しい\n計算
+	Dictionary file:	辞書ファイル:
+	Not set: custom-dictionary.txt in the settings folder	未設定: 設定フォルダーの custom-dictionary.txt
+	A custom-word dictionary file (.dic or plain text) used with the main dictionary.	メイン辞書と併用するユーザー単語の辞書ファイル (.dic またはプレーン テキスト)。

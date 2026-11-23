@@ -4706,7 +4706,7 @@ fn units_group(app: &mut WordApp, ui: &mut Ui) {
 pub(crate) fn scale_fields(ui: &mut Ui, app: &mut WordApp, id: &str, (d, drawn): (&Drawing, &Drawing), space: Option<strix_cad::Fit>, command: &str) {
     let fitted = d.fit.is_some_and(|f| !f.fixed);
     field_grid(ui, &format!("{id}_scale_grid"), |ui| {
-        ui.label(tl!("Scale"));
+        let scale_label = ui.label(tl!("Scale"));
         // A scale typed (1:75, 2:1, 75), or one of the list: Fitted to Frame and the standard
         // scales at which the drawing fits.
         ui.horizontal(|ui| {
@@ -4715,7 +4715,7 @@ pub(crate) fn scale_fields(ui: &mut Ui, app: &mut WordApp, id: &str, (d, drawn):
             let field = ui
                 .scope(|ui| {
                     ui.set_width(FIELD_W);
-                    crate::a11y_pane::draft_box(ui, (id, "scale_typed", shown.as_str()), &shown, true, false)
+                    crate::a11y_pane::draft_box(ui, (id, "scale_typed", shown.as_str()), scale_label.id, &shown, true, false)
                 })
                 .inner;
             if let Some(typed) = field {

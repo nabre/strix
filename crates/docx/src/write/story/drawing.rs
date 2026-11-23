@@ -102,6 +102,7 @@ impl Writer<'_> {
         let prst = match kind {
             ShapeKind::Rectangle | ShapeKind::TextBox | ShapeKind::Freeform => "rect",
             ShapeKind::RoundedRectangle => "roundRect",
+            ShapeKind::Frame => "frame",
             ShapeKind::Ellipse => "ellipse",
             ShapeKind::FlowchartOr => "flowChartOr",
             ShapeKind::Triangle => "triangle",
@@ -122,11 +123,17 @@ impl Writer<'_> {
             Some(f) => cust_geom(w, f, *sw, *sh),
             None => {
                 w.open("a:prstGeom", &[("prst", prst)]);
-                match extra.corner.filter(|_| *kind == ShapeKind::RoundedRectangle) {
-                    Some(c) => {
+                // A rounded rectangle's corner (`adj`) and a picture frame's border width (`adj1`).
+                let adj = match kind {
+                    ShapeKind::RoundedRectangle => Some("adj"),
+                    ShapeKind::Frame => Some("adj1"),
+                    _ => None,
+                };
+                match extra.corner.zip(adj) {
+                    Some((c, adj)) => {
                         w.open("a:avLst", &[]);
                         let fmla = format!("val {}", c.min(wordcraft_doc::connector::MAX_CORNER));
-                        w.empty("a:gd", &[("name", "adj"), ("fmla", &fmla)]);
+                        w.empty("a:gd", &[("name", adj), ("fmla", &fmla)]);
                         w.close("a:avLst");
                     }
                     None => w.empty("a:avLst", &[]),

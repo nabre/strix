@@ -45,6 +45,13 @@ pub(crate) fn loses_objects(ext_or_name: &str) -> bool {
     wordcraft_engine::io::is_foreign_save(ext_or_name) && !wordcraft_engine::strix_objects::keeps_objects(ext_or_name)
 }
 
+/// Whether a save or export to `name` may go ahead: a format Strix writes, and one that keeps
+/// the document's Strix objects (the error says what to do instead).
+pub(crate) fn check_save(name: &str, doc: &wordcraft_doc::Document) -> Result<(), String> {
+    wordcraft_engine::io::check_writable(name)?;
+    wordcraft_engine::strix_objects::check_save(name, doc)
+}
+
 /// Why `doc` saves only as a Strix document, a Word document (or a static export), or `None` when
 /// it has no Strix objects and every format is open to it.
 pub(crate) fn native_only_reason(doc: &wordcraft_doc::Document) -> Option<String> {
@@ -66,6 +73,39 @@ pub(crate) fn save_as_note(doc: &wordcraft_doc::Document, ui: &mut egui::Ui) {
         ui.label(egui::RichText::new(reason).color(t.text_dim));
         ui.add_space(8.0);
     }
+}
+
+/// File › Export › Assessment Pack in the browser (`file.exportPack` without `returnBytes`):
+/// the `.zip` archive is downloaded. `None` for any other command, or on the desktop.
+pub(crate) fn download_pack(app: &mut crate::WordApp, id: &str, params: &serde_json::Value) -> Option<Result<serde_json::Value, String>> {
+    use serde_json::Value;
+    if app.services.download.is_none() || id != "file.exportPack" || params.get("returnBytes").and_then(Value::as_bool) == Some(true) {
+        return None;
+    }
+    Some(deliver_pack(app, params))
+}
+
+/// [`download_pack`]: builds the archive and hands it to the page.
+fn deliver_pack(app: &mut crate::WordApp, params: &serde_json::Value) -> Result<serde_json::Value, String> {
+    use serde_json::{Value, json};
+    let mut p = params.clone();
+    p["returnBytes"] = json!(true);
+    let res = app.session.run("file.exportPack", &p).map_err(|e| e.to_string())?;
+    let b64 = res["zipBase64"].as_str().ok_or_else(|| "missing zipBase64".to_string())?;
+    let bytes = wordcraft_engine::cmd::insert::base64_decode(b64).ok_or_else(|| "bad zipBase64".to_string())?;
+    let raw_name = params.get("path").and_then(Value::as_str).map(str::to_string).unwrap_or_else(|| format!("{}_pack.zip", app.title_stem()));
+    let name = if raw_name.to_ascii_lowercase().ends_with(".zip") { raw_name } else { format!("{raw_name}.zip") };
+    let delivered = match (&app.services.host_save, &app.services.download) {
+        (Some(host), _) => host(&name, &bytes, false),
+        (None, Some(download)) => download(&name, &bytes),
+        (None, None) => Ok(()),
+    };
+    if let Err(e) = delivered {
+        let msg = i18n::fmt(tl!("Couldn't download {name}: {error}"), &[("name", &name), ("error", &e)]);
+        app.status(msg.clone());
+        return Err(msg);
+    }
+    Ok(json!({"downloaded": name, "bytes": bytes.len(), "files": res["files"]}))
 }
 
 #[cfg(test)]

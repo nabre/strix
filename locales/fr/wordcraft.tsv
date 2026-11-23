@@ -4086,3 +4086,6 @@ structure	Clockwise	Horaire
 structure	Stretch	Tronçon
 structure	Values at the ends of the stretch:	Valeurs aux extrémités du tronçon :
 structure	Values at the ends of the stretch and at M's extremes:	Valeurs aux extrémités du tronçon et aux extremums de M :
+	Dictionary file:	Fichier de dictionnaire :
+	Not set: custom-dictionary.txt in the settings folder	Non défini : custom-dictionary.txt dans le dossier des paramètres
+	A custom-word dictionary file (.dic or plain text) used with the main dictionary.	Un fichier de mots personnels (.dic ou texte brut) utilisé avec le dictionnaire principal.

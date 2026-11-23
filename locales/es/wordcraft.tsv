@@ -2716,3 +2716,6 @@ paper	Envelope DL	Sobre DL
 	Calculated\nTable	Tabla\ncalculada
 	Graph\nPaper	Papel\ncuadriculado
 	New\nCalculation	Nuevo\ncálculo
+	Dictionary file:	Archivo de diccionario:
+	Not set: custom-dictionary.txt in the settings folder	Sin definir: custom-dictionary.txt en la carpeta de configuración
+	A custom-word dictionary file (.dic or plain text) used with the main dictionary.	Un archivo de palabras personalizadas (.dic o texto sin formato) que se usa junto con el diccionario principal.

@@ -2712,3 +2712,6 @@ paper	Envelope DL	Коверта DL
 	Calculated\nTable	Израчуната\nтабела
 	Graph\nPaper	Милиметарски\nпапир
 	New\nCalculation	Нови\nпрорачун
+	Dictionary file:	Датотека речника:
+	Not set: custom-dictionary.txt in the settings folder	Није подешено: custom-dictionary.txt у фасцикли подешавања
+	A custom-word dictionary file (.dic or plain text) used with the main dictionary.	Датотека прилагођених речи (.dic или обичан текст) која се користи уз главни речник.

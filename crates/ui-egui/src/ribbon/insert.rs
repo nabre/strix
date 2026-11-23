@@ -110,7 +110,7 @@ Drawing",
         });
         stack(ui, |ui| {
             small(ui, app, "icons", Some("Icons"), "Icons", crate::widgets::ButtonAction::new("insert.icon", json!({}), false));
-            small(ui, app, "smartArt", Some("SmartArt"), "SmartArt", crate::widgets::ButtonAction::new("insert.smartArt", json!({}), false));
+            small(ui, app, "smartArt", Some("Diagram"), "Diagram", crate::widgets::ButtonAction::new("insert.smartArt", json!({}), false));
             small(ui, app, "chart", Some("Chart"), "Chart", crate::widgets::ButtonAction::new("insert.chart", json!({}), false));
         });
     });
@@ -190,9 +190,12 @@ Drawing",
                     mi(ui, app, "Field…", "ui.dialog", json!({"name": "field"}));
                 },
             );
-            menu_button(ui, app, crate::widgets::MenuButtonOptions::new("wordArt", Some("WordArt"), "WordArt", false, ""), |ui, app| {
-                crate::wordart_menus::style_gallery(ui, app, "insert.wordArt")
-            });
+            menu_button(
+                ui,
+                app,
+                crate::widgets::MenuButtonOptions::new("wordArt", Some("Decorative Text"), "Decorative Text", false, ""),
+                |ui, app| crate::wordart_menus::style_gallery(ui, app, "insert.wordArt"),
+            );
             menu_button(
                 ui,
                 app,

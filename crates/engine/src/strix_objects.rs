@@ -210,7 +210,11 @@ pub fn keeps_objects(ext_or_name: &str) -> bool {
 /// asks where (Save As, `.xmath`).
 pub fn saves_in_place(path: &Path, doc: &Document) -> bool {
     let name = path.to_string_lossy();
-    keeps_objects(&name) || (crate::io::is_foreign_save(&name) && !has_strix_objects(doc))
+    // A Markdown file is written back as Markdown too while the document has no Strix objects: its
+    // source view edits the file's own text (View › Markdown Source). With Strix objects Markdown
+    // stays a static export.
+    let markdown = crate::cmd::md_source::is_markdown_file(path);
+    keeps_objects(&name) || ((crate::io::is_foreign_save(&name) || markdown) && !has_strix_objects(doc))
 }
 
 /// Whether a user-facing save may write `doc` to `ext_or_name` (a bare extension or a file

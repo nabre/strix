@@ -85,11 +85,11 @@ pub(crate) fn pane(app: &mut WordApp, ui: &mut Ui) {
                 .as_str()
                 .map(str::to_string)
                 .unwrap_or_else(|| if props[field].is_null() { String::new() } else { props[field].to_string() });
-            ui.label(label);
+            let field_label = ui.label(label);
             // Stored when editing ends: the command trims what it stores, so storing at every
             // key would take away the space just typed between two words, and a value it
             // refuses is said in the status bar.
-            if let Some(text) = crate::a11y_pane::draft_box(ui, ("archive_prop", field), &current, true, false) {
+            if let Some(text) = crate::a11y_pane::draft_box(ui, ("archive_prop", field), field_label.id, &current, true, false) {
                 let mut update = json!({});
                 update[field] = if text.trim().is_empty() { Value::Null } else { json!(text.trim()) };
                 if let Err(e) = app.run("archive.properties", update) {

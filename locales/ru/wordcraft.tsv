@@ -2734,3 +2734,6 @@ paper	Envelope DL	Конверт DL
 	Calculated\nTable	Расчётная\nтаблица
 	Graph\nPaper	Миллиметровая\nбумага
 	New\nCalculation	Новый\nрасчёт
+	Dictionary file:	Файл словаря:
+	Not set: custom-dictionary.txt in the settings folder	Не задан: custom-dictionary.txt в папке настроек
+	A custom-word dictionary file (.dic or plain text) used with the main dictionary.	Файл пользовательских слов (.dic или обычный текст), используемый вместе с основным словарём.
