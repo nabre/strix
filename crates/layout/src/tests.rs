@@ -10599,6 +10599,45 @@ fn keep_with_next_carries_the_heading_when_widow_control_moves_the_next_paragrap
     assert_eq!(pages(fit - 1, false), [0, 0, 0, 1]);
 }
 
+/// A kept heading's own space after counts in the room it needs with the paragraph after it:
+/// a heading that fits with a whole keep-lines-together block only without that space would
+/// stay at the foot of the page while the block, pushed down by the space, went over alone.
+#[test]
+fn keep_with_next_counts_the_headings_space_after() {
+    crate::test_fonts();
+    // Pages of the heading and of the block after it.
+    let pages = |fillers: usize, before: f32| -> (usize, usize) {
+        let mut d = Document::new();
+        let plain = ParaProps {
+            space_before: Some(0.0),
+            space_after: Some(0.0),
+            line_spacing: Some(wordcraft_doc::props::LineSpacing::Multiple(1.0)),
+            ..Default::default()
+        };
+        let para = |text: &str, p: &ParaProps| {
+            let mut x = wordcraft_doc::Paragraph::with_text(text, Default::default());
+            x.props = p.clone();
+            wordcraft_doc::para_block(x)
+        };
+        d.body = (0..fillers).map(|i| para(&format!("F{i}"), &plain)).collect();
+        // A space after wider than a line, so some filler count leaves the page's foot inside it.
+        d.body.push(para("HEADING", &ParaProps { keep_next: Some(true), space_after: Some(40.0), ..plain.clone() }));
+        d.body.push(para("Ba\nBb\nBc\nBd\nBe", &ParaProps { keep_lines: Some(true), space_before: Some(before), ..plain.clone() }));
+        let l = lay(&d);
+        (l.caret(&Pos::body(fillers, 0)).unwrap().page, l.caret(&Pos::body(fillers + 1, 0)).unwrap().page)
+    };
+    let mut moved = false;
+    // The block's own space before is merged with the heading's space after, not added to it.
+    for before in [0.0, 12.0, 60.0] {
+        for fillers in 20..80 {
+            let (heading, block) = pages(fillers, before);
+            assert_eq!(heading, block, "the heading stays with the block ({fillers} fillers, {before} pt before)");
+            moved |= heading == 1 && pages(fillers - 1, before).0 == 0;
+        }
+    }
+    assert!(moved, "some filler count carries the heading over");
+}
+
 /// A three-line paragraph under widow/orphan control can start on a page only whole: two lines
 /// and a widow, or an orphan and two, are both refused. So two lines of room below a kept
 /// heading do not hold it there; Word moves the heading over with the paragraph.

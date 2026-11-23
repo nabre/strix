@@ -715,7 +715,8 @@ fn each_value_at_a_station_has_its_own_line() {
 #[test]
 fn page_breaks_never_split_a_block_of_the_working() {
     use wordcraft_doc::Pos;
-    for filler in [0usize, 10, 20, 25, 30, 35, 40] {
+    // Every number of lines above, so no band near a page's foot is missed.
+    for filler in 0usize..=40 {
         let mut s = Session::new(Document::new());
         for _ in 0..filler {
             s.run("text.insert", &json!({"text": "Filler line of text."})).unwrap();

@@ -353,7 +353,10 @@ impl<'a> Flow<'a> {
         if self.pl.gone || !(rp.keep_lines || (rp.keep_next && pb.y + height <= pb.bottom + 0.01)) {
             return before;
         }
-        let need = height + if rp.keep_next { next_first_line(ctx, self.block, self.width, 0, &mut ctx.counters.clone()) } else { 0.0 };
+        // With the next paragraph: its start, past this one's space after.
+        let next =
+            if rp.keep_next { self.space_after_kept(ctx) + next_first_line(ctx, self.block, self.width, 0, &mut ctx.counters.clone()) } else { 0.0 };
+        let need = height + next;
         // (Against the whole column: balanced columns grow to hold it.)
         // With the 0.01 pt of slack the other fit checks take.
         if pb.y + need > pb.bottom + 0.01 && !pb.fresh() && need <= pb.next_room(self.body_top) {
@@ -362,6 +365,21 @@ impl<'a> Flow<'a> {
             return rp.space_before.min(0.0);
         }
         before
+    }
+
+    /// The room this paragraph's space after takes before the next one on the page, beyond the
+    /// next one's space before (which [`next_first_line`] counts): the larger of the two is the
+    /// gap between them, or their sum when the document adds them up.
+    fn space_after_kept(&self, ctx: &Ctx) -> f32 {
+        let after = space_after_kept(ctx, self.block, &self.pl.rp, self.label.is_some());
+        if ctx.doc.settings.sum_paragraph_spacing {
+            return after;
+        }
+        let next_before = match ctx.doc.body.get(self.block + 1).map(|b| &**b) {
+            Some(Block::Para(next)) => ctx.doc.styles.resolve_para(&next.props).space_before.max(0.0),
+            _ => 0.0,
+        };
+        (after - next_before).max(0.0)
     }
 
     /// The lines going into a new column (or page) were broken around the wrap areas where the
