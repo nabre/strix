@@ -383,15 +383,7 @@ impl<'a> Flow<'a> {
     /// next one's space before (which [`next_first_line`] counts): the larger of the two is the
     /// gap between them, or their sum when the document adds them up.
     fn space_after_kept(&self, ctx: &Ctx) -> f32 {
-        let after = space_after_kept(ctx, self.block, &self.pl.rp, self.label.is_some());
-        if ctx.doc.settings.sum_paragraph_spacing {
-            return after;
-        }
-        let next_before = match ctx.doc.body.get(self.block + 1).map(|b| &**b) {
-            Some(Block::Para(next)) => ctx.doc.styles.resolve_para(&next.props).space_before.max(0.0),
-            _ => 0.0,
-        };
-        (after - next_before).max(0.0)
+        space_after_merged(ctx, self.block, &self.pl.rp, self.label.is_some())
     }
 
     /// Balancing from Word 2013's layout, a paragraph that was moved to the top of a column by
@@ -1100,6 +1092,25 @@ fn space_after_kept(ctx: &Ctx, block: usize, rp: &wordcraft_doc::resolve::Resolv
     after
 }
 
+/// The room body paragraph `block`'s space after takes before the next one on the page, beyond
+/// the next one's space before ([`next_first_line`] counts that): the larger of the two is the gap
+/// between them, or their sum when the document adds them up.
+fn space_after_merged(ctx: &Ctx, block: usize, rp: &wordcraft_doc::resolve::ResolvedPara, listed: bool) -> f32 {
+    let after = space_after_kept(ctx, block, rp, listed);
+    if ctx.doc.settings.sum_paragraph_spacing {
+        return after;
+    }
+    let next_before = match ctx.doc.body.get(block + 1).map(|b| &**b) {
+        Some(Block::Para(next)) => ctx.doc.styles.resolve_para(&next.props).space_before.max(0.0),
+        _ => 0.0,
+    };
+    (after - next_before).max(0.0)
+}
+
+/// How many kept paragraphs after a paragraph [`next_first_line`] follows; at this depth it
+/// measures only the start of the next one.
+const MAX_KEEP_CHAIN: usize = 8;
+
 /// The room the paragraphs after `block` need on the page for keep with next: enough of the
 /// next one to start there — its first line, two of its lines with widow/orphan control (it
 /// doesn't leave a single line at the bottom of a page; it moves over whole instead), all three
@@ -1115,6 +1126,7 @@ fn next_first_line(ctx: &mut Ctx, block: usize, width: f32, depth: usize, new_pa
             let rp = ctx.doc.styles.resolve_para(&p.props);
             let label =
                 p.props.numbering.or(rp.numbering).filter(|n| n.num != 0).and_then(|n| counters.next_label(&ctx.doc.numbering, n.num, n.level));
+            let listed = label.is_some();
             let pl = match ctx.para_ahead(p, width, label.clone()) {
                 Some(pl) => pl,
                 None => {
@@ -1145,13 +1157,15 @@ fn next_first_line(ctx: &mut Ctx, block: usize, width: f32, depth: usize, new_pa
             let top = if joined(ctx.doc, &ctx.doc.body, block + 1, Some(block), None) { 0.0 } else { own.top };
             // The paragraph closing the section, when the next section starts a new page, keeps
             // with nothing on this page (Word ignores its Keep with next).
-            if pl.rp.keep_next && depth < 8 && !(new_page && p.section.is_some()) {
+            if pl.rp.keep_next && depth < MAX_KEEP_CHAIN && !(new_page && p.section.is_some()) {
                 let bottom = if joined(ctx.doc, &ctx.doc.body, block + 1, Some(block + 2), None) { 0.0 } else { own.bottom };
+                // Its space after merged with the space before of the one after it, as on the page.
+                let after = space_after_merged(ctx, block + 1, &pl.rp, listed);
                 pl.rp.space_before
                     + top
                     + pl.height
                     + bottom
-                    + pl.rp.space_after
+                    + after
                     + next_first_line(ctx, block + 1, width, depth + 1, new_page, counters)
             } else {
                 // The room this one needs to start on the page with the kept paragraph before
