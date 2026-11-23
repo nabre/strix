@@ -10638,6 +10638,45 @@ fn keep_with_next_counts_the_headings_space_after() {
     assert!(moved, "some filler count carries the heading over");
 }
 
+/// A kept heading in multiple line spacing fits at the page's foot as its last line does, down
+/// to its text's descent (`fit_height`): one that fits so goes over with the paragraph after it
+/// when that one cannot start there, instead of staying alone at the foot of the page.
+#[test]
+fn keep_with_next_carries_a_heading_that_fits_only_down_to_its_descent() {
+    crate::test_fonts();
+    const FILLERS: usize = 22;
+    // Pages of the heading and of the block after it, the heading `drop` points lower down.
+    let pages = |drop: f32| -> (usize, usize) {
+        let mut d = Document::new();
+        let plain = ParaProps {
+            space_before: Some(0.0),
+            space_after: Some(0.0),
+            line_spacing: Some(wordcraft_doc::props::LineSpacing::Multiple(1.5)),
+            ..Default::default()
+        };
+        let para = |text: &str, p: &ParaProps| {
+            let mut x = wordcraft_doc::Paragraph::with_text(text, Default::default());
+            x.props = p.clone();
+            wordcraft_doc::para_block(x)
+        };
+        d.body = (0..FILLERS).map(|i| para(&format!("F{i}"), &plain)).collect();
+        d.body.push(para("PUSH", &ParaProps { space_after: Some(drop), ..plain.clone() }));
+        d.body.push(para("HEADING", &ParaProps { keep_next: Some(true), ..plain.clone() }));
+        d.body.push(para("Ba\nBb\nBc", &ParaProps { keep_lines: Some(true), ..plain.clone() }));
+        let l = lay(&d);
+        (l.caret(&Pos::body(FILLERS + 1, 0)).unwrap().page, l.caret(&Pos::body(FILLERS + 2, 0)).unwrap().page)
+    };
+    let mut moved = false;
+    // A quarter of a point at a time across two lines, so the band at the foot isn't missed.
+    for k in 0..480 {
+        let drop = k as f32 * 0.25;
+        let (heading, block) = pages(drop);
+        assert_eq!(heading, block, "the heading stays with the block ({drop} pt lower)");
+        moved |= heading == 1;
+    }
+    assert!(moved, "some drop carries the heading over");
+}
+
 /// A three-line paragraph under widow/orphan control can start on a page only whole: two lines
 /// and a widow, or an orphan and two, are both refused. So two lines of room below a kept
 /// heading do not hold it there; Word moves the heading over with the paragraph.
