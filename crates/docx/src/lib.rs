@@ -14,6 +14,7 @@ pub use archive_metadata::read_archive_metadata;
 mod chart_spec;
 mod crypt;
 mod custom;
+mod fit;
 mod flat;
 mod font_embed;
 mod fonts;

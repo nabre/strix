@@ -8,12 +8,17 @@ description = "WordCraft import/export: plain text, Markdown, HTML, RTF, OpenDoc
 [lints]
 workspace = true
 
+[features]
+# Kept for the crates whose tests ask for it (upstream gates its xls fixture with it); Strix's
+# `sheet::xls_fixture` is always built.
+test-support = []
+
 [dependencies]
 wordcraft-doc = { workspace = true }
 wordcraft-geom = { workspace = true, features = ["image"] }
-wordcraft-metafile = { workspace = true }
+craft-metafile = { workspace = true }
 base64 = { workspace = true }
-image = { workspace = true }
+image = { workspace = true, features = ["png", "jpeg", "webp", "gif", "bmp", "tiff"] }
 quick-xml = { workspace = true }
 zip = { workspace = true }
 cfb = { workspace = true }

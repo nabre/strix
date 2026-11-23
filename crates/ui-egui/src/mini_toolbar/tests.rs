@@ -158,6 +158,33 @@ fn every_control_fits_inside_the_bar() {
     assert!(used.min.x - inner.min.x < 0.5, "the font box starts at the bar's left edge");
 }
 
+/// #7447: the mini toolbar anchors to the start of the selection rather than its center,
+/// so its position does not shift with the length of the selection.
+#[test]
+fn the_bar_anchors_to_the_selection_start_rather_than_its_center() {
+    let bar_from = |pick: &str| {
+        let h = bar_over(pick);
+        let [bar, _] = h.ctx.data(|d| d.get_temp::<[Rect; 2]>(shown_id())).expect("the bar is shown over a selection");
+        bar
+    };
+    let bar_short = bar_from("brown");
+    let bar_long = bar_from("brown fox jumps over the lazy dog");
+    assert!(
+        (bar_short.min.x - bar_long.min.x).abs() < 1e-3,
+        "the toolbar's horizontal position must anchor to the selection start and not shift with selection length: short x={}, long x={}",
+        bar_short.min.x,
+        bar_long.min.x,
+    );
+    // A selection starting at a later word on the same line tracks that word's start.
+    let bar_later = bar_from("jumps");
+    assert!(
+        bar_later.min.x > bar_short.min.x + 20.0,
+        "a selection starting later on the line must place the toolbar further to the right: brown x={}, jumps x={}",
+        bar_short.min.x,
+        bar_later.min.x,
+    );
+}
+
 /// The whole window over a document with `pick` selected, run until the bar is up.
 fn bar_over(pick: &str) -> egui_kittest::Harness<'static, WordApp> {
     let mut a = WordApp::new(wordcraft_engine::Session::new(wordcraft_doc::Document::new()), Default::default());

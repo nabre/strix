@@ -124,8 +124,9 @@ fn with_page_map<T>(ctx: &mut Ctx, map: &mut Vec<(usize, u32)>, f: impl FnOnce(&
 /// drawn by its first and last paragraph.
 #[derive(Clone, Copy)]
 struct Rooms {
-    /// Joined to the paragraph above.
+    /// Joined to the paragraph above, and to the one below.
     above: bool,
+    below: bool,
     top: f32,
     bottom: f32,
 }
@@ -135,7 +136,7 @@ impl Rooms {
         let above = joined(ctx.doc, &ctx.doc.body, block, block.checked_sub(1), None);
         let below = joined(ctx.doc, &ctx.doc.body, block, Some(block + 1), None);
         let own = Edges::own(pl, 0, pl.lines.len());
-        Rooms { above, top: if above { 0.0 } else { own.top }, bottom: if below { 0.0 } else { own.bottom } }
+        Rooms { above, below, top: if above { 0.0 } else { own.top }, bottom: if below { 0.0 } else { own.bottom } }
     }
 }
 
@@ -350,7 +351,10 @@ impl<'a> Flow<'a> {
                 line.end == LineEnd::PageBreak && self.pl.lines.last().is_some_and(|mark| only_markers(self.p, mark.start..mark.stop))
             });
         let height = self.pl.height + rooms.top + if break_mark { 0.0 } else { rooms.bottom };
-        if self.pl.gone || !(rp.keep_lines || (rp.keep_next && pb.y + height <= pb.bottom + 0.01)) {
+        // Whether it fits here by itself, measured as `fit_lines` places it: a last line's extra
+        // spacing may hang past the bottom margin.
+        let hang = self.pl.lines.last().map_or(0.0, |l| l.height - fit_height(pb, l, rp, pb.notes.is_empty()));
+        if self.pl.gone || !(rp.keep_lines || (rp.keep_next && pb.y + height - hang <= pb.bottom + 0.01)) {
             return before;
         }
         // With the next paragraph: its start, past this one's space after.
@@ -556,7 +560,12 @@ impl<'a> Flow<'a> {
             pb.bottom = pb.body_floor().max(placed_bottom).min(pb.orig_bottom);
         }
         let mut items = Vec::new();
-        let mut edges = Edges { top: if l0 == 0 { rooms.top } else { 0.0 }, bottom: if l1 >= n { rooms.bottom } else { 0.0 }, up: 0.0 };
+        let mut edges = Edges {
+            top: if l0 == 0 { rooms.top } else { 0.0 },
+            bottom: if l1 >= n { rooms.bottom } else { 0.0 },
+            up: 0.0,
+            joined: [l0 == 0 && rooms.above, l1 >= n && rooms.below],
+        };
         if l0 == 0
             && rooms.above
             && let Some((page, col, end)) = pb.para_end

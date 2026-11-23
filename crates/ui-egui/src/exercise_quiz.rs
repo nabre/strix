@@ -270,7 +270,7 @@ fn details(app: &mut WordApp, ui: &mut Ui, ex: u64, k: usize, q: &Value) {
     match q_type.as_str() {
         "choice" => choice_settings(app, ui, ex, k, q, &set),
         "matching" => {
-            sub(ui, tl!("Pairs"));
+            let pairs_label = sub(ui, tl!("Pairs"));
             crate::pane_kit::note(ui, tl!("One pair per line: left = right"));
             let current = q["pairs"]
                 .as_array()
@@ -282,7 +282,7 @@ fn details(app: &mut WordApp, ui: &mut Ui, ex: u64, k: usize, q: &Value) {
                         .join("\n")
                 })
                 .unwrap_or_default();
-            if let Some(text) = draft_box(ui, ("exercise_matching", ex, k), &current, true, true) {
+            if let Some(text) = draft_box(ui, ("exercise_matching", ex, k), pairs_label, &current, true, true) {
                 let pairs: Vec<_> = text.lines().take(26).filter_map(|line| pair_of(line).map(|(a, b)| json!([a, b]))).collect();
                 set(app, json!({"pairs": pairs}));
             }
@@ -299,11 +299,12 @@ fn details(app: &mut WordApp, ui: &mut Ui, ex: u64, k: usize, q: &Value) {
 }
 
 /// A small heading inside the settings card.
-fn sub(ui: &mut Ui, text: &str) {
+fn sub(ui: &mut Ui, text: &str) -> egui::Id {
     let t = crate::theme::Tokens::get(ui.ctx());
     ui.add_space(8.0);
-    ui.label(RichText::new(text.to_uppercase()).font(crate::pane_kit::mono(10.0)).color(t.text_dim));
+    let id = ui.label(RichText::new(text.to_uppercase()).font(crate::pane_kit::mono(10.0)).color(t.text_dim)).id;
     ui.add_space(2.0);
+    id
 }
 
 /// The answer space: its height, squared or blank, the side of a square.
@@ -370,11 +371,11 @@ fn calc_settings(app: &mut WordApp, ui: &mut Ui, ex: u64, k: usize, q: &Value, s
         app.canvas.want_focus = true;
     }
     ui.horizontal(|ui| {
-        ui.label(tl!("Tolerance"));
+        let tol_label = ui.label(tl!("Tolerance"));
         let cur = q["tolerance"].as_str().unwrap_or_default().to_string();
         ui.scope(|ui| {
             ui.set_width(90.0);
-            if let Some(t) = draft_box(ui, ("exercise_quiz_tol", ex, k), &cur, true, false) {
+            if let Some(t) = draft_box(ui, ("exercise_quiz_tol", ex, k), tol_label.id, &cur, true, false) {
                 let val = if t.trim().is_empty() { Value::Null } else { json!(t.trim()) };
                 set(app, json!({"tolerance": val}));
             }
@@ -445,8 +446,8 @@ fn choice_settings(app: &mut WordApp, ui: &mut Ui, ex: u64, k: usize, q: &Value,
             let letter = char::from(b'A' + j as u8).to_string();
             let cur = rats.get(j).and_then(Option::as_deref).unwrap_or_default().to_string();
             ui.horizontal(|ui| {
-                ui.label(RichText::new(format!("{letter}:")).monospace());
-                if let Some(t) = draft_box(ui, ("quiz_rat_box", ex, k, j), &cur, true, false) {
+                let letter_label = ui.label(RichText::new(format!("{letter}:")).monospace());
+                if let Some(t) = draft_box(ui, ("quiz_rat_box", ex, k, j), letter_label.id, &cur, true, false) {
                     let mut next: Vec<Value> = (0..n).map(|idx| rats.get(idx).and_then(Option::as_deref).map_or(Value::Null, |s| json!(s))).collect();
                     if let Some(slot) = next.get_mut(j) {
                         *slot = if t.trim().is_empty() { Value::Null } else { json!(t.trim()) };

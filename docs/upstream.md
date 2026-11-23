@@ -42,6 +42,13 @@ those few rules, so a merge only conflicts where both sides really changed a lin
 > text). Upstream's version bump (0.18.0), Strix-owned files (workflows' Harden-Runner steps,
 > parity docs) were left out; the Linux package recommendations were ported by hand. So `sync`
 > `a8db235e` and merge it with `git merge -s ours` too when `vendor/wordcraft` is re-created.
+>
+> **`c369c3a2` checked (2026-11-23).** Upstream's latest commit (mini toolbar anchored to the
+> selection's start, #7447) fixes a regression of its craft-framework UI port (#7101, not merged
+> yet); Strix's `anchor_rect` already centres the bar on the selection's start, so only its
+> regression test came in, adapted to Strix's bar (`the_bar_anchors_to_the_selection_start_…` in
+> `crates/ui-egui/src/mini_toolbar/tests.rs`). Upstream is 378 commits past `a8db235e`; the real
+> merge is still to do.
 
 ## How it works
 

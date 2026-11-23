@@ -91,7 +91,7 @@ pub fn specs() -> Vec<CommandSpec> {
         CommandSpec::new("file.new", "New", "File", new).key("Mod+N").params(r#"{"template"?: "blank|calc|sample|letter|resume|report"} (calc: live formulas and a worked exercise with a CAD drawing)"#).pure(),
         CommandSpec::new("file.open", "Open", "File", open)
             .key("Mod+O / Mod+F12 / Mod+Alt+F2")
-            .params(r#"{"path": string, "data"?: base64 (the file's bytes; `path` then only names it), "password"?: string (for a password-protected Word document)}"#)
+            .params(r#"{"path": string, "data"?: base64 (the file's bytes; `path` then only names it), "password"?: string (for a password-protected Word or OpenDocument text file)}"#)
             .pure(),
         CommandSpec::new("file.save", "Save", "File", save)
             .key("Mod+S / Shift+F12 / Alt+Shift+F2")
@@ -101,7 +101,7 @@ pub fn specs() -> Vec<CommandSpec> {
         // Pure: the password must not land in Repeat or a recorded macro, and it isn't an edit
         // to undo; it marks the document as changed itself.
         CommandSpec::new("file.encrypt", "Encrypt with Password", "File › Info › Protect Document", encrypt)
-            .params(r#"{"password": string (Strix and Word documents are saved encrypted with it) | null or "" (saved unencrypted)}"#)
+            .params(r#"{"password": string (Strix documents, Word packages and OpenDocument text files (.odt, .ott) are saved encrypted with it) | null or "" (saved unencrypted)}"#)
             .pure(),
         CommandSpec::new("file.exportPdf", "Export PDF", "File › Export", |s, v| {
             // No path (the command search, say): the app asks where to save, as File › Export
@@ -273,6 +273,10 @@ fn open(s: &mut Session, v: &Value) -> CmdResult {
         super::view::restore_zoom(s, z);
     }
     s.path = Some(path.into());
+    // A Markdown file's own text, for the view to show and Save to write back as it is.
+    if super::md_source::is_markdown_file(std::path::Path::new(path)) {
+        s.md_file = markdown_file_text(path, v);
+    }
     // Like Word, a document opened with a password is saved with it again.
     if encrypted {
         s.password = password.map(crate::io::Password::new);
@@ -286,6 +290,28 @@ fn open(s: &mut Session, v: &Value) -> CmdResult {
         r["externalEdits"] = json!(external);
     }
     Ok(r)
+}
+
+/// A Markdown file's own text as `file.open` finds it: the bytes the caller hands over (base64 in
+/// `data`, the same ones `read_document` decodes), else the head of the file at `path`.
+/// `FileText::from_bytes` keeps it only when it can be written back as it is.
+fn markdown_file_text(path: &str, v: &Value) -> super::md_source::FileText {
+    if let Some(data) = p::str(v, "data") {
+        // `read_document` has already refused a text it cannot decode.
+        return super::insert::base64_decode(data).map(|bytes| super::md_source::FileText::from_bytes(&bytes)).unwrap_or_default();
+    }
+    // Without `data`, the file's own bytes; not reachable on the web, where a file only arrives
+    // as `data`.
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let max = u64::try_from(super::md_source::MAX_SOURCE_BYTES).unwrap_or(u64::MAX).saturating_add(1);
+        crate::io::read_file_head(path, max).map(|bytes| super::md_source::FileText::from_bytes(&bytes)).unwrap_or_default()
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        let _ = path;
+        super::md_source::FileText::default()
+    }
 }
 
 /// The document the file at `path` holds (or its bytes, base64 in `data`, with `path` only
@@ -352,8 +378,8 @@ fn close_document(s: &mut Session, v: &Value) -> CmdResult {
     Ok(json!({"closed": id, "active": s.document_id(), "documents": s.documents()}))
 }
 
-/// File › Info › Protect Document › Encrypt with Password: the password Word documents are saved
-/// with from now on, or none.
+/// File › Info › Protect Document › Encrypt with Password: the password Word packages and
+/// OpenDocument text files (.odt, .ott) are saved with from now on, or none.
 fn encrypt(s: &mut Session, v: &Value) -> CmdResult {
     let password = match v.get("password") {
         Some(Value::Null) => None,
@@ -397,6 +423,8 @@ pub(crate) fn with_native_default(path: &str) -> std::path::PathBuf {
 /// that would lose them: the error names them and proposes `.xmath`. Without a path, a new
 /// document asks where (Save As), and one opened from a format Strix only reads is refused with
 /// what to do instead: the user interface turns both refusals into Save As with a `.xmath` name.
+/// A Markdown file's own text goes back exactly as it was read while it still says what the
+/// document holds (`rewritten`: false).
 fn save(s: &mut Session, v: &Value) -> CmdResult {
     let explicit = p::str(v, "path");
     let path = match explicit.map(with_native_default).or_else(|| s.path.clone()) {
@@ -458,7 +486,15 @@ fn save(s: &mut Session, v: &Value) -> CmdResult {
     let password = s.password.as_ref().map(crate::io::Password::as_str);
     // A header/footer just made and left empty isn't saved (#960).
     let copy = super::insert::saved_copy(s);
-    if let Err(e) = crate::io::save_path_with(&path, copy.as_ref().unwrap_or(&s.doc), password, &opts) {
+    // A Markdown file's own text goes back as it is while it still says what the document holds;
+    // once it doesn't (an edit in the formatted view), the document is written out again.
+    let exact = super::md_source::text_to_save(s, &path, opts.markup);
+    let rewritten = exact.is_none() && !s.md_file.is_empty() && super::md_source::is_markdown_file(&path);
+    let written = match &exact {
+        Some(text) => crate::io::save_text_path(&path, text),
+        None => crate::io::save_path_with(&path, copy.as_ref().unwrap_or(&s.doc), password, &opts),
+    };
+    if let Err(e) = written {
         (s.doc.settings.zoom, s.doc.core.last_modified_by, s.doc.core.created, s.doc.core.modified, s.doc.core.revision) = before_stamp;
         return Err(CmdError::Failed(e));
     }
@@ -473,8 +509,10 @@ fn save(s: &mut Session, v: &Value) -> CmdResult {
         s.path = Some(path.clone());
         s.dirty = false;
         s.relayout();
+        // What the file holds now.
+        s.md_file = super::md_source::FileText::saved(exact.filter(|_| super::md_source::is_markdown_file(&path)));
     }
-    let mut r = json!({"saved": true, "path": path.to_string_lossy(), "encrypted": encrypted});
+    let mut r = json!({"saved": true, "path": path.to_string_lossy(), "encrypted": encrypted, "rewritten": rewritten});
     if subdocuments && let Some(o) = r.as_object_mut() {
         o.insert("subdocuments".into(), super::master::after_save(s));
     }
@@ -669,6 +707,77 @@ fn info(s: &mut Session, _: &Value) -> CmdResult {
     }))
 }
 
+/// Most fields [`story_fields`] lists for one story, and how deep it goes into nested tables.
+const MAX_STORY_FIELDS: usize = 200;
+const MAX_STORY_DEPTH: usize = 8;
+
+/// The fields of a story's paragraphs, tables included: the code, the result stored with it, and
+/// whether the page shows a value of its own (#4467). A header or footer's text carries the
+/// stored result of a page field (`1` for a PAGE, the page count when it was inserted for a
+/// NUMPAGES); each page shows its own, as the layout draws it. A STYLEREF counts too: the layout
+/// looks its text up from the page it lands on. False when a limit cut the list short.
+fn story_fields(blocks: &wordcraft_doc::Blocks, depth: usize, out: &mut Vec<Value>) -> bool {
+    if depth > MAX_STORY_DEPTH {
+        return false;
+    }
+    for b in blocks {
+        match &**b {
+            Block::Para(p) => {
+                for o in &p.objects {
+                    if let wordcraft_doc::para::InlineObject::Field { instr, result, .. } = o {
+                        if out.len() >= MAX_STORY_FIELDS {
+                            return false;
+                        }
+                        out.push(field_json(instr, result));
+                    }
+                }
+            }
+            Block::Table(t) => {
+                for cell in t.rows.iter().flat_map(|r| &r.cells) {
+                    if !story_fields(&cell.blocks, depth + 1, out) {
+                        return false;
+                    }
+                }
+            }
+        }
+    }
+    true
+}
+
+/// The range fields of `story` (a `FieldStart` … `FieldEnd` pair: what the DOCX reader makes of a
+/// field whose result has tracked changes of its own or spans paragraphs, and of every TOC),
+/// listed as [`story_fields`] lists inline ones, after them; the result is the text between the
+/// markers as it is, at most [`MAX_RANGE_RESULT`] characters of it (`resultTruncated` when it is
+/// cut: a bibliography or a long TOC). False when a limit cut the list short.
+fn range_fields(doc: &Document, story: StoryRef, out: &mut Vec<Value>) -> bool {
+    for r in doc.field_ranges(story) {
+        if out.len() >= MAX_STORY_FIELDS {
+            return false;
+        }
+        let from = wordcraft_doc::Pos { off: r.start.off.saturating_add(wordcraft_doc::para::OBJ.len_utf8()), ..r.start.clone() };
+        let text = doc.copy_range(&from, &r.end).plain_text();
+        let mut chars = text.chars().filter(|c| *c != wordcraft_doc::para::OBJ);
+        let result: String = chars.by_ref().take(MAX_RANGE_RESULT).collect();
+        let mut field = field_json(&r.instr, &result);
+        if chars.next().is_some() {
+            field["resultTruncated"] = json!(true);
+        }
+        out.push(field);
+    }
+    true
+}
+
+/// Longest result `document.inspect` gives a range field, in characters.
+const MAX_RANGE_RESULT: usize = 2000;
+
+/// A field as `document.inspect` lists it: its code, its stored result, and whether each page
+/// shows a value of its own.
+fn field_json(instr: &str, result: &str) -> Value {
+    let name = wordcraft_layout::fields::field_name(instr);
+    let per_page = matches!(name.as_str(), "PAGE" | "NUMPAGES" | "SECTIONPAGES" | "SECTION" | "PAGEREF" | "STYLEREF");
+    json!({"code": instr.trim(), "result": result, "perPage": per_page})
+}
+
 /// Structure for agents: blocks with text and formatting summary, selection, stats.
 fn inspect(s: &mut Session, v: &Value) -> CmdResult {
     let with_text = p::bool(v, "text").unwrap_or(true);
@@ -720,8 +829,23 @@ fn inspect(s: &mut Session, v: &Value) -> CmdResult {
         }
     }
     let l = s.layout();
-    let parts: Vec<Value> =
-        s.doc.parts.iter().map(|(id, p)| json!({"id": id, "kind": p.kind, "text": s.doc.plain_text(StoryRef::Part(*id))})).collect();
+    let parts: Vec<Value> = s
+        .doc
+        .parts
+        .iter()
+        .map(|(id, p)| {
+            let mut o = json!({"id": id, "kind": p.kind, "text": s.doc.plain_text(StoryRef::Part(*id))});
+            let mut fields = Vec::new();
+            let complete = story_fields(&p.blocks, 0, &mut fields) && range_fields(&s.doc, StoryRef::Part(*id), &mut fields);
+            if !fields.is_empty() {
+                o["fields"] = json!(fields);
+            }
+            if !complete {
+                o["fieldsTruncated"] = json!(true);
+            }
+            o
+        })
+        .collect();
     Ok(json!({
         "blocks": blocks,
         "parts": parts,

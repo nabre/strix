@@ -171,11 +171,11 @@ fn style_list(app: &mut WordApp, ui: &mut Ui, kind: StyleKind) {
             run(app, "ui.cadStyles", json!({"kind": k, "current": name}));
         }
         ui.end_row();
-        ui.label(tl!("Name"));
+        let name_label = ui.label(tl!("Name"));
         let standard = current == strix_cad::STANDARD;
         ui.scope(|ui| {
             ui.set_width(FIELD_W + 80.0);
-            if let Some(to) = crate::a11y_pane::draft_box(ui, ("cad_style_name", k, current.as_str()), &current, !standard, false) {
+            if let Some(to) = crate::a11y_pane::draft_box(ui, ("cad_style_name", k, current.as_str()), name_label.id, &current, !standard, false) {
                 run(app, "ui.cadStyles", json!({"kind": k, "rename": current, "to": to}));
             }
         });
