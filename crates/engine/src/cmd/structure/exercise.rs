@@ -231,6 +231,7 @@ mod tests {
             [
                 View::Structure,
                 View::Equilibrium,
+                View::Arms,
                 View::Reactions,
                 View::Section,
                 View::Axial,
@@ -272,7 +273,7 @@ mod tests {
         s.sel = Selection { anchor: at.clone(), focus: Pos { off: off + OBJ.len_utf8(), ..at } };
         s.run("structure.node", &json!({"id": "B", "x": 8})).unwrap();
         let found = structures(&s);
-        assert_eq!(found.len(), 9);
+        assert_eq!(found.len(), 10);
         for (_, _, st) in &found {
             assert_eq!(st.node("B").map(|n| n.x.value), Some(8.0), "{:?}", st.view);
         }
@@ -282,6 +283,7 @@ mod tests {
             [
                 View::Structure,
                 View::Equilibrium,
+                View::Arms,
                 View::Reactions,
                 View::Section,
                 View::Axial,
@@ -379,6 +381,7 @@ mod tests {
             [
                 View::Structure,
                 View::Equilibrium,
+                View::Arms,
                 View::Reactions,
                 View::Section,
                 View::Axial,
@@ -402,14 +405,14 @@ mod tests {
                 .unwrap()
         };
         // Axial part: one joined stretch `1` with `Action::Axial`, its boxed law right under it.
-        let n_cut = &found[3];
+        let n_cut = &found[4];
         assert_eq!(n_cut.2.cut.as_ref().map(|c| (c.tag.as_str(), c.action)), Some(("1", Some(Action::Axial))));
         let Block::Para(n_next) = &*s.doc.body[n_cut.0 + 1] else { panic!() };
         assert!(n_next.props.borders.is_some() && !n_next.text.contains("on the cut"), "{}", n_next.text);
         assert!(law_after(n_cut.0).starts_with("N_1(x)="), "{}", law_after(n_cut.0));
 
         // Shear part: stretches `1a`, `1b` with `Action::Shear`, its boxed law right under it.
-        for (f, tag) in found[5..7].iter().zip(["1a", "1b"]) {
+        for (f, tag) in found[6..8].iter().zip(["1a", "1b"]) {
             assert_eq!(f.2.cut.as_ref().map(|c| (c.tag.as_str(), c.action)), Some((tag, Some(Action::Shear))));
             let Block::Para(next) = &*s.doc.body[f.0 + 1] else { panic!() };
             assert!(next.props.borders.is_some() && !next.text.contains("on the cut"), "{}", next.text);
@@ -417,7 +420,7 @@ mod tests {
         }
 
         // Moment part: stretches `1a`, `1b` with `Action::Moment`, its boxed law right under it.
-        for (f, tag) in found[8..10].iter().zip(["1a", "1b"]) {
+        for (f, tag) in found[9..11].iter().zip(["1a", "1b"]) {
             assert_eq!(f.2.cut.as_ref().map(|c| (c.tag.as_str(), c.action)), Some((tag, Some(Action::Moment))));
             let Block::Para(next) = &*s.doc.body[f.0 + 1] else { panic!() };
             assert!(next.props.borders.is_some() && !next.text.contains("on the cut"), "{}", next.text);
@@ -430,7 +433,7 @@ mod tests {
         let mut s = Session::new(Document::new());
         s.run("structure.exercise", &json!({"template": "truss"})).unwrap();
         let views: Vec<View> = structures(&s).iter().map(|f| f.2.view).collect();
-        assert_eq!(views, [View::Structure, View::Equilibrium, View::Reactions, View::Axial]);
+        assert_eq!(views, [View::Structure, View::Equilibrium, View::Arms, View::Reactions, View::Axial]);
         assert!(text(&s).contains("axial force in every member"), "{}", text(&s));
     }
 }

@@ -2,12 +2,12 @@
 //! Working): `T_1(x) = V_A - q_1·x`, `M_1(x) = V_A·x - q_1·x^2/2`, from the equilibrium of the
 //! part of the structure before the section (the member's `a` end side). Each law is checked
 //! against the solution's; a member in a closed ring, a varying load across the section or a law
-//! that disagrees keeps its numbers ([`super::law`]). A reaction that came out negative enters
-//! by its size the way it really acts (`N_1(x) = (5 kN)`), as the stretch's drawing shows it.
+//! that disagrees keeps its numbers ([`super::law`]). A reaction that came out negative keeps its
+//! name too (`N_1(x) = -H_A`), as the stretch's drawing shows it: its value enters when substituted.
 
 use strix_structure::{Action, Load, LoadAxes, LoadPer, MemberResult, Resultant, ResultantKind, Stretch, Structure, resultants};
 
-use super::{Acts, Units, Unknown, arg, qty};
+use super::{Acts, Units, Unknown, arg};
 
 const TOL: f64 = 1e-9;
 
@@ -40,16 +40,12 @@ pub(super) fn laws(st: &Structure, us: &[Unknown], m: &MemberResult, s: &Stretch
     let mut agents: Vec<Agent> = Vec::new();
     // The laws (N, T, M) a load across the section keeps from being named.
     let mut blocked = [false; 3];
-    // A reaction by its name, taken positive; one that came out negative the way it really acts
-    // by its size (`(5 kN)`), as the stretch's drawing shows it.
-    let fm = format!("{}·{}", u.f, u.l);
+    // A reaction by its name, taken positive (one that came out negative too), as the stretch's
+    // drawing shows it.
     for k in us.iter().filter(|k| in_left(&k.node)) {
-        let flip = strix_structure::negative_reaction(k.value);
-        let s = if flip { -1.0 } else { 1.0 };
-        let named = |unit: &str| if flip { qty(k.value.abs(), unit, u.comma) } else { k.name.clone() };
         match k.acts {
-            Acts::Along(d) => agents.push(Agent::Point { name: named(&u.f), mag: s * k.value, at: k.at, dir: (s * d.0, s * d.1) }),
-            Acts::Turns(sense) => agents.push(Agent::Couple { name: named(&fm), mag: s * k.value, sign: s * sense }),
+            Acts::Along(d) => agents.push(Agent::Point { name: k.name.clone(), mag: k.value, at: k.at, dir: d }),
+            Acts::Turns(sense) => agents.push(Agent::Couple { name: k.name.clone(), mag: k.value, sign: sense }),
         }
     }
     let rs = resultants(st);

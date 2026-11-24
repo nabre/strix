@@ -11,6 +11,7 @@ use crate::model::{Diagram, Layout, Load, LoadAxes, Side, Structure, SupportKind
 use crate::solve::{Analysis, MemberResult, Status, analyse};
 
 mod annotate;
+mod arms;
 mod conventions;
 mod equilibrium;
 mod section;
@@ -35,6 +36,9 @@ const MEMBER_W: f64 = 0.6;
 const AXIS_W: f64 = 0.35;
 const TEXT: f64 = 2.3;
 const ARROW: f64 = 11.0;
+/// How far along a reaction's arrow from its near end its crossed-out positive way starts
+/// (paper mm): the node's name stands by the node.
+const CROSSED_FROM: f64 = 4.5;
 const SPREAD: f64 = 8.0;
 /// The room between a text and the line it names (paper mm).
 const GAP: f64 = 1.0;
@@ -621,10 +625,11 @@ impl Ctx<'_> {
                 }
                 if v < 0.0 {
                     // Taken positive along the axis, it came out negative: that way crossed out
-                    // beside it, on the side away from the structure.
+                    // beside it, on the side away from the structure; along the arrow's outer
+                    // part only, clear of the node's name next to the node.
                     let across = self.outwards(&r.node, (-side.1, side.0));
                     let (a, b) = (add(near, mul(across, 4.0)), add(far, mul(across, 4.0)));
-                    let a = add(a, mul(side, 1.0));
+                    let a = add(a, mul(side, CROSSED_FROM));
                     if toward_node { self.pen.crossed_arrow(a, b, REACTION) } else { self.pen.crossed_arrow(b, a, REACTION) }
                 }
                 let label = self.force(v.abs());
@@ -1132,7 +1137,7 @@ impl Structure {
             }
             first = false;
             // The free body's row shows the senses its equations count positive.
-            let titled = row.iter().any(|(p, _, _)| cx.panel_title(*p).is_some() || matches!(p, Panel::Equilibrium));
+            let titled = row.iter().any(|(p, _, _)| cx.panel_title(*p).is_some() || matches!(p, Panel::Equilibrium | Panel::Arms));
             let top = y + if titled { TITLE_ROW } else { 0.0 };
             let height = row.iter().filter_map(|(_, _, b)| b.map(|b| b[3] - b[1])).fold(0.0_f64, f64::max);
             for (c, (panel, prims, bbox)) in row.iter().enumerate() {
@@ -1149,7 +1154,7 @@ impl Structure {
                         pen.convention((after, y + 3.0), a, color);
                     }
                 }
-                if matches!(panel, Panel::Equilibrium) {
+                if matches!(panel, Panel::Equilibrium | Panel::Arms) {
                     pen.positive((cell * c as f64 + 2.0, y), st.positive);
                 }
                 let Some(b) = bbox else { continue };
@@ -1189,7 +1194,9 @@ fn union(a: [f64; 4], b: [f64; 4]) -> [f64; 4] {
     [a[0].min(b[0]), a[1].min(b[1]), a[2].max(b[2]), a[3].max(b[3])]
 }
 
-/// The box round what a primitive draws (texts estimated: glyphs ~0.55 of the height wide).
+/// The box round what a primitive draws (texts estimated: glyphs ~0.6 of the height wide, a
+/// little wider than most fonts' so a value at the drawing's edge, `7.071 kN` beside a horizontal
+/// reaction, stays inside it whatever font draws it).
 fn prim_box(p: &PlotPrim) -> Option<[f64; 4]> {
     let b = match p {
         PlotPrim::Rect { rect, .. } => [rect[0], rect[1], rect[0] + rect[2], rect[1] + rect[3]],
@@ -1200,7 +1207,7 @@ fn prim_box(p: &PlotPrim) -> Option<[f64; 4]> {
         }
         PlotPrim::Dot { at, r, .. } => [at.0 - r, at.1 - r, at.0 + r, at.1 + r],
         PlotPrim::Text { at, text, height, bold, anchor, .. } => {
-            let w = text.chars().count() as f64 * height * if *bold { 0.6 } else { 0.55 };
+            let w = text.chars().count() as f64 * height * if *bold { 0.65 } else { 0.6 };
             let (x0, y0) = match anchor {
                 PlotAnchor::Left => (at.0, at.1 - height * 0.85),
                 PlotAnchor::Center => (at.0 - w / 2.0, at.1 - height * 0.85),
@@ -1254,7 +1261,7 @@ impl Ctx<'_> {
         let fu = st.force_unit.symbol();
         let lu = st.length_unit.symbol();
         match panel {
-            Panel::Schema | Panel::Reactions | Panel::Equilibrium | Panel::Section => None,
+            Panel::Schema | Panel::Reactions | Panel::Equilibrium | Panel::Section | Panel::Arms => None,
             // The name given to the diagram (`Sforzo normale`), else its symbol (`N`).
             Panel::Truss | Panel::Diagram(Action::Axial) => Some((format!("{} [{fu}]", named(&st.names.n, &st.titles.n)), COLOR_N)),
             Panel::Diagram(Action::Shear) => Some((format!("{} [{fu}]", named(&st.names.v, &st.titles.v)), COLOR_V)),
@@ -1297,6 +1304,7 @@ impl Ctx<'_> {
             // Names only, no answers: the same in the student's copy.
             Panel::Equilibrium => self.equilibrium(f),
             Panel::Section => self.section(f),
+            Panel::Arms => self.arms(f),
             Panel::Truss => {
                 if show {
                     self.truss(f);
@@ -1335,6 +1343,9 @@ fn plan(st: &Structure, an: &Analysis) -> Vec<Panel> {
     }
     if st.view == View::Section {
         panels.push(Panel::Section);
+    }
+    if st.view == View::Arms {
+        panels.push(Panel::Arms);
     }
     if (d.reactions && st.view == View::All) || st.view == View::Reactions {
         panels.push(Panel::Reactions);
@@ -1390,6 +1401,8 @@ enum Panel {
     Equilibrium,
     /// One stretch of a written working, cut ([`View::Section`]).
     Section,
+    /// The lever arms of one moment equation of the reactions' working ([`View::Arms`]).
+    Arms,
     Truss,
     Diagram(Action),
 }

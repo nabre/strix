@@ -598,6 +598,11 @@ pub enum View {
     /// the diagram's own force alone), and the rest of the member faintly dashed so the whole
     /// member can be seen.
     Section,
+    /// The lever arms of one moment equation of the reactions' working ([`Structure::pivot`]):
+    /// the free body with the point marked and, for each force of the part balanced about it that
+    /// turns about it, its arm measured from the point to the force's line of action, named as
+    /// the working names it (`d_(1,A)`; a reaction's by its length).
+    Arms,
 }
 
 fn is_all(v: &View) -> bool {
@@ -667,6 +672,9 @@ pub struct Structure {
     /// The stretch a [`View::Section`] drawing shows.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cut: Option<crate::cut::Cut>,
+    /// The point (and part) an [`View::Arms`] drawing measures the lever arms about.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pivot: Option<crate::pivot::Pivot>,
     /// The drawing's width on paper (mm).
     #[serde(default = "default_width")]
     pub width: f64,
@@ -702,6 +710,7 @@ impl Default for Structure {
             view: View::default(),
             group: String::new(),
             cut: None,
+            pivot: None,
             width: default_width(),
             answer: true,
             working_labels: std::collections::BTreeMap::new(),
@@ -796,6 +805,7 @@ impl Structure {
         self.group = self.group.chars().filter(|c| c.is_ascii_alphanumeric() || *c == '-').take(40).collect();
         self.working_key = self.working_key.chars().filter(char::is_ascii_hexdigit).take(16).collect();
         self.cut = self.cut.take().map(crate::cut::Cut::sanitized);
+        self.pivot = self.pivot.take().map(crate::pivot::Pivot::sanitized);
         self.working_labels = std::mem::take(&mut self.working_labels)
             .into_iter()
             .take(MAX_WORKING_LABELS)
