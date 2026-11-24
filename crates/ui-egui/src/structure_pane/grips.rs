@@ -339,7 +339,7 @@ pub(super) fn readout(st: &Structure, v: View, state: &State, g: &Grip, p: Pos2,
         }
         Target::Turn(rt, _, vis, sref) => rotate::readout_for(st, &rt, vis, sref.as_ref()),
         Target::Spread(f, t) => match g {
-            Grip::From(k) | Grip::To(k) | Grip::Body(k, _) => spread_readout(st, *k, f, t, &unit),
+            Grip::From(k) | Grip::To(k) | Grip::Body(k, _) => spread_readout(st, *k, f, t, unit),
             _ => String::new(),
         },
         Target::Stay => String::new(),
