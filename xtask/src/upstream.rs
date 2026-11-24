@@ -95,12 +95,21 @@ const PRODUCT_NAME: &[(&str, &str, &str)] = &[
     ),
     ("crates/formats/src/odt/package.rs", "<meta:generator>WordCraft<", "<meta:generator>Strix Writer<"),
     ("crates/formats/src/rtf/export.rs", "\\\\generator WordCraft;", "\\\\generator Strix Writer;"),
+    // The MCP server's identity: the shared core's `Info` and `Options`, and the pre-cutover
+    // server kept as the differential tests' oracle.
+    ("crates/mcp/src/server.rs", "Info { name: \"wordcraft\", title: \"WordCraft\",", "Info { name: \"strix\", title: \"Strix Writer\","),
     (
         "crates/mcp/src/server.rs",
+        "website_url: Some(\"https://getartcraft.com/apps/wordcraft\".into()),",
+        "website_url: Some(\"https://github.com/nabre/strix\".into()),",
+    ),
+    (
+        "crates/mcp/src/tests/oracle.rs",
         "\"serverInfo\": {\"name\": \"wordcraft\", \"title\": \"WordCraft\", \"version\": env!(\"CARGO_PKG_VERSION\"), \"websiteUrl\": \"https://getartcraft.com/apps/wordcraft\"}",
         "\"serverInfo\": {\"name\": \"strix\", \"title\": \"Strix Writer\", \"version\": env!(\"CARGO_PKG_VERSION\"), \"websiteUrl\": \"https://github.com/nabre/strix\"}",
     ),
     ("crates/mcp/src/server.rs", "\"WordCraft is a word processor", "\"Strix Writer is a word processor"),
+    ("crates/mcp/src/tests/oracle.rs", "\"WordCraft is a word processor", "\"Strix Writer is a word processor"),
     (
         "crates/pdf/src/metadata.rs",
         "creator: \"WordCraft\".into(), producer: \"WordCraft\"",
@@ -166,6 +175,11 @@ const STRIX_NAMES: &[(&str, &str, &str)] = &[
     // Links to WordCraft's site point to Strix's repository (U8).
     (
         "crates/mcp/src/server.rs",
+        "Community: https://discord.gg/artcraft · https://getartcraft.com/apps/wordcraft · https://github.com/storytold/wordcraft\"",
+        "Community: https://github.com/nabre/strix/discussions · https://github.com/nabre/strix\"",
+    ),
+    (
+        "crates/mcp/src/tests/oracle.rs",
         "Community: https://discord.gg/artcraft · https://getartcraft.com/apps/wordcraft · https://github.com/storytold/wordcraft\"",
         "Community: https://github.com/nabre/strix/discussions · https://github.com/nabre/strix\"",
     ),

@@ -6,31 +6,34 @@
 > [Atollo](https://github.com/nabre/atollo/blob/main/docs/brand/MARKETING.md), di cui Strix
 > condivide tavolozza e regole di tono.
 >
-> **Ultimo aggiornamento:** 2026-11-17 · **Modifica:** allineato al codice: la griglia dei voti
-> (scala di valutazione) è fatta, non più «pianificata»; grafici e strutture piane tra le
-> funzioni; i file Word conservano gli oggetti Strix; controllo prima della stampa ed esportazione
-> del pacchetto; quattro lingue dell'interfaccia; il controllo degli aggiornamenti nella privacy;
-> elenco del pianificato rifatto. Prima (2026-11-12): in italiano «momenti di valutazione», mai «verifica» (decisione del proprietario: sito, README, tagline); prima: riposizionamento sul docente (esercizi di
-> calcolo, risposta multipla, verifiche, punteggi, griglia dei voti pianificata): direttive,
-> categoria, definizione canonica, pilastri, «Come funziona», persone, tagline, descrizione del
-> repository, pitch, video e canali.
+> **Ultimo aggiornamento:** 2026-11-22 · **Modifica:** restyling della landing page (`site/landing.html`,
+> `site/strings/{en,it,fr,de}.json`) attorno al paradigma del «documento vivo»: Hero centrata su
+> scrittura, calcolo e valutazione nello stesso foglio con badge tecnici; nuova sezione a tre
+> pilastri («Tre strumenti in un solo documento vivo»: impaginazione editoriale e DSA, calcolo
+> simbolico/numerico con controllo dimensionale, svolgimento guidato passo-passo); flusso in 4 passi;
+> approfondimento sui 5 moduli integrati (inclusa la nuova vetrina Grafici e tabelle calcolate con
+> `shot-plot`); divieto rigoroso di citare software o marchi commerciali nei testi descrittivi e
+> promozionali (i formati `OOXML`, `DOCX`, `ODT`, `RTF` restano confinati alle specifiche tecniche
+> della sezione Fiducia e alle note legali). Prima (2026-11-17): allineato al codice (scala di
+> valutazione, grafici, strutture piane, pacchetto esame, quattro lingue); prima (2026-11-12): in
+> italiano «momenti di valutazione», mai «verifica».
 
 ---
 
 ## 1. Direttive per chi scrive
 
-1. **Pubblico e categoria fissi.** Strix si rivolge al **docente**: è l'**editor dei momenti di valutazione e
-   degli esercizi** (EN: *test and exercise editor for teachers*). Il racconto segue sempre la
-   giornata del docente, in quest'ordine: **esercizi di calcolo**, **domande a risposta multipla**,
-   **momenti di valutazione** (compiti in classe, prove), **punteggi** e **griglia per l'assegnazione dei
-   voti**. La matematica viva, il CAD, i grafici, le strutture, gli agenti e Rust sono i mezzi che lo rendono possibile, non
-   il titolo. Non ridurre Strix a "calcolatrice", "generatore di quiz", "plugin", "clone di" o
-   "alternativa a" un altro prodotto.
-2. **Nessun confronto con altri prodotti.** Niente tabelle "noi contro loro", niente "meglio di…",
-   niente "come X ma…", niente "stile <prodotto>". Si dice cosa fa Strix, come lo fa e cosa
-   garantisce. I nomi dei **formati** (DOCX, ODT, RTF, LaTeX, PDF…) si citano: sono formati, non
-   concorrenti. L'unico nome di progetto terzo obbligatorio è **WordCraft**, nella sezione licenza
-   (Strix ne è un fork e la nota è richiesta).
+1. **Pubblico e posizionamento.** Strix Writer si rivolge a **docenti STEM e progettisti**: unisce in un
+   solo **documento vivo** videoscrittura strutturata e didattica, calcolo parametrico con controllo
+   dimensionale delle unità e generazione su richiesta dello svolgimento guidato passo-passo. Non
+   ridurre Strix a "calcolatrice", "generatore di quiz", "plugin", "clone di" o "alternativa a" un
+   altro prodotto.
+2. **Divieto assoluto di citazione marchi commerciali.** Nei testi promozionali o descrittivi non
+   nominare mai software commerciali o concorrenti, né fare tabelle "noi contro loro" o formule
+   "come X ma…". Si esprime sempre il valore tramite paradigmi funzionali universali. I riferimenti
+   ai **formati di interscambio** (`OOXML`, `DOCX`, `ODT`, `RTF`) restano confinati alle specifiche
+   tecniche di interoperabilità o al footer legale (`PDF` e `LaTeX` sono ammessi come destinazioni
+   di stampa/esportazione). L'unico nome di progetto terzo ammesso nel footer licenza è
+   **WordCraft** (obbligo di attribuzione del fork in `NOTICE`).
 3. **Mai materiale di altri vendor.** Nessuna icona, schermata, modello, font o immagine di
    Microsoft, Adobe, Avid, Autodesk (regola del repository, `CLAUDE.md`). Le schermate sono **solo
    di Strix**, fatte con `ui_shot` su documenti scritti da noi.
@@ -305,8 +308,8 @@ Gli stessi valori di `crates/ui-egui/src/theme.rs` (`theme::Tokens`) e di
 
 * **Dolore:** gli agenti producono numeri in chat, non documenti verificabili.
 * **Hook:** *"Ogni azione è un comando. Anche per il tuo agente."*
-* **Da mostrare:** `claude mcp add strix -- strix-cli mcp`, `exercise.insert`, `exercise.scores`,
-  `batch`, `render_page`: l'agente che prepara un momento di valutazione con varianti e la salva come `.xmath`;
+* **Da mostrare:** `strix-cli mcp`, `exercise.insert`, `exercise.scores`,
+  `batch`, `render_page`: l'agente che prepara un momento di valutazione con varianti e lo salva come `.xmath`;
   cartelle confinate (`--automation-read-root`, `--automation-write-root`).
 
 ---
@@ -317,10 +320,10 @@ Gli stessi valori di `crates/ui-egui/src/theme.rs` (`theme::Tokens`) e di
 
 | Formato | EN | IT | FR | DE |
 | :--- | :--- | :--- | :--- | :--- |
-| **Categoria** | Tests and exercises for teachers | Momenti di valutazione ed esercizi per il docente | Évaluations et exercices pour l'enseignant | Klassenarbeiten und Übungen für Lehrkräfte |
-| **Hero** | Write the test. Strix keeps the solutions and the scores. | Prepara i momenti di valutazione. Soluzioni e punteggi li tiene Strix. | Écrivez l'évaluation. Strix tient le corrigé et les points. | Schreib die Klassenarbeit. Lösungen und Punkte führt Strix. |
-| **Contenuto** | Calculation exercises, multiple choice, tests and scores, live in the page. | Esercizi di calcolo, risposta multipla, momenti di valutazione e punteggi, vivi nella pagina. | Exercices de calcul, QCM, évaluations et points, vivants dans la page. | Rechenaufgaben, Multiple Choice, Klassenarbeiten und Punkte, live auf der Seite. |
-| **Fiducia** | Open source. No account. No telemetry. Never crashes by design. | Open source. Nessun account. Nessuna telemetria. Progettato per non andare in crash. | Open source. Sans compte. Sans télémétrie. Conçu pour ne jamais planter. | Open Source. Kein Konto. Keine Telemetrie. Absturzfrei konstruiert. |
+| **Categoria** | STEM assessments, unit-aware math, and engineering reports | Momenti di valutazione, calcolo con unità e relazioni tecniche | Évaluations scientifiques, calcul avec unités et notes de calcul | Leistungsnachweise, Berechnungen mit Einheitenprüfung und technische Berichte |
+| **Hero** | Write, calculate, and grade on a single sheet. | Scrivi, calcola e valuta in un unico foglio di lavoro. | Rédigez, calculez et évaluez sur une seule feuille. | Schreiben, berechnen und bewerten auf einem einzigen Arbeitsblatt. |
+| **Pilastri** | Three tools in one living document: editor layout, unit-checked math, step-by-step worked solutions. | Tre strumenti in un solo documento vivo: impaginazione editoriale, calcolo con unità, svolgimento guidato. | Trois outils dans un seul document vivant : mise en page, calcul avec unités, résolution étape par étape. | Drei Werkzeuge in einem einzigen lebendigen Dokument: Layout, Einheitenprüfung, Schritt-für-Schritt-Lösungsweg. |
+| **Fiducia** | Open source. No account. Zero telemetry. Never crashes by design. | Open source. Zero account. Zero telemetria. Progettato per non andare in crash. | Open source. Sans compte. Zéro télémétrie. Conçu pour ne jamais planter. | Open Source. Kein Konto. Null Telemetrie. Absturzsicher konstruiert. |
 
 ### 9.2 Descrizione del repository GitHub (≤ 350 caratteri)
 

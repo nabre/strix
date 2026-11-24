@@ -1,6 +1,6 @@
 # Tracking WordCraft upstream
 
-Status: in use since 2026-10-28; targeted rename rules and WordCraft's internal names on `main` since 2026-11-09 (`docs/naming.md`); WordCraft v0.17.0 merged by hand on 2026-11-10, upstream main up to `a42c9eaa` the same day; up to v0.18.0 (`a8db235e`) on 2026-11-11.
+Status: in use since 2026-10-28; targeted rename rules and WordCraft's internal names on `main` since 2026-11-09 (`docs/naming.md`); WordCraft v0.17.0 merged by hand on 2026-11-10, upstream main up to `a42c9eaa` the same day; up to v0.18.0 (`a8db235e`) on 2026-11-11; toward `c369c3a2` on 2026-11-23 (up to `09faec42`, the non-UI fixes after it).
 
 Strix is a fork of [WordCraft](https://github.com/storytold/wordcraft). It keeps WordCraft's
 internal names (crates, Rust paths, types, environment variables) and is Strix only where users
@@ -42,6 +42,61 @@ those few rules, so a merge only conflicts where both sides really changed a lin
 > text). Upstream's version bump (0.18.0), Strix-owned files (workflows' Harden-Runner steps,
 > parity docs) were left out; the Linux package recommendations were ported by hand. So `sync`
 > `a8db235e` and merge it with `git merge -s ours` too when `vendor/wordcraft` is re-created.
+>
+> **Toward `c369c3a2` (2026-11-23).** Upstream's first-parent history from `a8db235e` to
+> `c369c3a2` is 186 commits; they went in as follows, checked file by file against both snapshots
+> passed through `cargo xtask upstream rebrand` and commit by commit.
+>
+> - **In, up to `09faec42`** (the commit before the craft framework UI port): every commit,
+>   including the shared crates from craft-libs at `93dac78c` (craft-metafile in place of
+>   `crates/metafile`, craft-codepage, craft-ssip, craft-image-codecs, craft-tiff, craft-zip,
+>   craft-mime's detection, craft-mcp-server and the format crates as dependencies), the Markdown
+>   source view, Fit One Page, the portal Save As (#6180), the preferences merge (#3773), the
+>   Linux GPU choice, Get the Missing Fonts and the bullet dialog. **Except** the cutovers of the
+>   readers and writers Strix extends: `crates/docx`, `crates/formats` (ODT, RTF, HTML, LaTeX,
+>   Markdown, sheets) and `crates/docbin` stay Strix's own, where upstream moved them into
+>   craft-libs behind `model_bridge` (#6565, #6603 and their follow-ups #6612, #6617, #6618);
+>   Strix's charts, frames and Strix objects are written there. Their upstream fixes after the
+>   cutover land in craft-libs and have to be ported into Strix's crates by hand; so far: the
+>   `frame` preset read and written as a picture frame with its border width (#6162), built-in
+>   styles' `w:bCs`/`w:iCs` and Start at 0 in page number formats (their tests, which Strix's
+>   writer already passes), and plain-text detection from craft-mime (#6950, with its oracle
+>   test). Also left out: Bosnian as an interface language (#4804): Strix's catalogs would need
+>   its ~1 460 own strings in Bosnian first (`docs/localization-bs.md` is upstream's page).
+> - **In, after the UI port, by hand** (the non-UI fixes, adapted where Strix's code differs):
+>   DOCX `w:cs` bold and italic (#4852), typing after Backspace keeps the deleted character's
+>   formatting (#6518), PDF export and print preview in the Track Changes Options colours
+>   (#5232), freestanding `custom.dic` dictionaries with a Dictionary file field in Options ›
+>   Proofing (#5840, #5899), TIFF in the picture choosers (#6704), and the layout fixes: Keep with
+>   next before a new-page section (#6835), a split table row past the page bottom (#6827), a
+>   page-break-only paragraph (#3198), rows of hyphens (#6856), a legacy header with a logo
+>   (#6829), newspaper columns' last lines (#6828).
+> - **Left out:** the UI port itself (`b5e0be78`, #7101: `crates/ui-egui` and the apps rebuilt on
+>   craft-libs' framework, with file dialogs, clipboard, printing, portal save and GPU choice
+>   moved into craft-libs) and every UI commit after it (ribbon, backstage, dialogs, title bar,
+>   status bar, mini toolbar, test harness); the craft-libs pin `750a9bdd` that goes with them
+>   (#7179); the shared `AGENTS.md` (#7102); and #7124/#7186, which make `strix-cli mcp` refuse to
+>   start without both automation roots and refuse `--connect`: Strix's README and site offer
+>   both, so that is the owner's call; likewise the Flatpak's `--talk-name=org.freedesktop.Flatpak`
+>   (#6339), which lets the shared updater run `flatpak-spawn --host` outside the sandbox.
+>
+> Made coherent with Strix after the port: charts are read, written and drawn by craft-libs'
+> `chart_spec.rs` and `read/chart/*` (series fill, line, markers, smoothing, labels, number
+> formats and axis settings), merged three-way into `crates/docx` with Strix's angle convention
+> kept (`canvas::text_angle` turns upstream's clockwise angle about the turned box into Strix's
+> counter-clockwise one about the level box); pie and doughnut charts read with a plain axis and
+> scatter series without a line, as the model makes them; a Markdown file without Strix objects
+> saves back to itself, as its source view needs (`strix_objects::saves_in_place`), while with
+> Strix objects Markdown stays a static export; the MCP server is `strix` / "Strix Writer" again
+> (new `STRIX_NAMES` rows for the shared core's `Info` and the oracle); the Flatpak manifest's
+> craft-i18n commit follows `craft-i18n.rev`; upstream tests that assume WordCraft's defaults
+> (`.docx` first, `.xmath` in Strix; Strix's palette and wordmark rail) assert Strix's.
+>
+> Strix differs from upstream on purpose in one place here: Save As through the portal saves in
+> the type the dialog opened on when the portal doesn't report the picked type, where WordCraft
+> gives the save up (`portal_save::chosen_path`). `vendor/wordcraft` is still at `9724f15c`
+> (the old rules); when it is re-created, `sync` `09faec42` and merge it with `-s ours`, and port
+> the commits listed above as left out (and the UI port) as a separate, real merge.
 
 ## How it works
 

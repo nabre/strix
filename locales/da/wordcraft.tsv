@@ -2906,3 +2906,6 @@ paper	Envelope DL	Kuvert DL
 	Calculated\nTable	Beregnet\ntabel
 	Graph\nPaper	Millimeter-\npapir
 	New\nCalculation	Ny\nberegning
+	Dictionary file:	Ordbogsfil:
+	Not set: custom-dictionary.txt in the settings folder	Ikke angivet: custom-dictionary.txt i indstillingsmappen
+	A custom-word dictionary file (.dic or plain text) used with the main dictionary.	En fil med egne ord (.dic eller almindelig tekst), der bruges sammen med hovedordbogen.

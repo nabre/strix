@@ -2822,3 +2822,6 @@ paper	Envelope DL	Phong bì DL
 	Calculated\nTable	Bảng\ntính toán
 	Graph\nPaper	Giấy\nkẻ ô
 	New\nCalculation	Phép tính\nmới
+	Dictionary file:	Tệp từ điển:
+	Not set: custom-dictionary.txt in the settings folder	Chưa đặt: custom-dictionary.txt trong thư mục cài đặt
+	A custom-word dictionary file (.dic or plain text) used with the main dictionary.	Tệp từ tùy chỉnh (.dic hoặc văn bản thuần) được dùng cùng từ điển chính.

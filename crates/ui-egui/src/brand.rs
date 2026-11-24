@@ -109,14 +109,17 @@ pub fn empty_window(ui: &mut Ui) {
     }
 }
 
+/// The room [`rail`] takes: the wordmark and the air around it.
+pub const RAIL_H: f32 = 36.0;
+
 /// The wordmark at the foot of the File page's side menu (Deep Forest, so the light-on-dark one),
 /// when the menu has room for it.
 pub fn rail(ui: &mut Ui) {
     const HEIGHT: f32 = 20.0;
-    if ui.available_height() < HEIGHT + 28.0 {
+    if ui.available_height() < RAIL_H {
         return;
     }
-    let (r, _) = ui.allocate_exact_size(vec2(ui.available_width(), HEIGHT + 16.0), Sense::hover());
+    let (r, _) = ui.allocate_exact_size(vec2(ui.available_width(), RAIL_H), Sense::hover());
     paint(ui, Mark::WordmarkDark, r.min.x + 22.0, r.center().y, HEIGHT);
 }
 

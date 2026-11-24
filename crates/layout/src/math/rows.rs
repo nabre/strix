@@ -185,7 +185,8 @@ impl Ctx {
     /// `m:wrapRight`, or aligned at an operator of the first line (`m:alnAt`).
     pub(super) fn wrapped(&mut self, a: &[MNode], st: St, avail: f32, mp: &MathProps) -> Bx {
         let em = self.em(st);
-        let atoms: Vec<Bx> = self.row(a, st, 0, 0).into_iter().map(|(b, _)| b).collect();
+        // Strix: a calculation's fraction too wide for the line breaks inside (`frac_wrap.rs`).
+        let atoms: Vec<Bx> = self.wrapped_atoms(a, st, avail, mp);
         let gaps = gaps_between(&atoms, st, em);
         let total: f32 = atoms.iter().map(|b| b.w).sum::<f32>() + gaps.iter().sum::<f32>();
         let manual = atoms.iter().skip(1).any(|b| b.brk.is_some());
@@ -249,33 +250,32 @@ impl Ctx {
             })
             .collect();
         let indent = if mp.wrap_indent.is_finite() { mp.wrap_indent.clamp(0.0, 1584.0) } else { 0.0 }.min(avail * 0.5);
-        // Greedy fill: lines as lists of chunks (index into `bounds`).
-        let mut lines: Vec<(usize, usize)> = Vec::new();
-        let mut cur_w = 0.0f32;
-        let mut auto = false;
-        for c in 0..bounds.len().saturating_sub(1) {
-            let (s, e) = (bounds.get(c).copied().unwrap_or(0), bounds.get(c + 1).copied().unwrap_or(n));
-            let w = width_of(s, e);
-            let lead = gaps.get(s).copied().unwrap_or(0.0);
-            let info = starts.get(&s).copied();
-            let copy_w = info.and_then(|v| v.1).and_then(|i| repeats.get(&i)).map_or(0.0, |r| r.1.w + lead);
-            let line_avail = if lines.len() <= 1 || mp.wrap_right { avail } else { avail - indent };
-            match lines.last_mut() {
-                Some(l) if info.is_some_and(|v| v.0.is_none()) && cur_w + lead + w <= line_avail + 0.01 => {
-                    l.1 = c + 1;
-                    cur_w += lead + w;
+        // Strix: continuation lines of a calculation under its first relation; lines filled at
+        // the operators, breaking at a relation where it can (`breaks.rs`).
+        let indent = if self.align_relations && mp.brk_bin != BrkBin::After {
+            let first_rel = (1..n).find(|&i| is_op(i) && cls.get(i).is_some_and(|c| c.0 == Cls::Rel));
+            let rel_x = first_rel.map(|i| width_of(0, i) + gaps.get(i).copied().unwrap_or(0.0));
+            super::breaks::relation_indent(rel_x, avail, indent)
+        } else {
+            indent
+        };
+        let chunks: Vec<super::breaks::Chunk> = (0..bounds.len().saturating_sub(1))
+            .map(|c| {
+                let (s, e) = (bounds.get(c).copied().unwrap_or(0), bounds.get(c + 1).copied().unwrap_or(n));
+                let lead = gaps.get(s).copied().unwrap_or(0.0);
+                let info = starts.get(&s).copied();
+                let op_i = if mp.brk_bin != BrkBin::Before { s.wrapping_sub(1) } else { s };
+                super::breaks::Chunk {
+                    w: width_of(s, e),
+                    lead,
+                    copy_w: info.and_then(|v| v.1).and_then(|i| repeats.get(&i)).map_or(0.0, |r| r.1.w + lead),
+                    forced: info.is_some_and(|v| v.0.is_some()),
+                    rel: c > 0 && is_op(op_i) && cls.get(op_i).is_some_and(|k| k.0 == Cls::Rel),
+                    weak: self.align_relations && c > 0 && is_op(op_i) && atoms.get(op_i).and_then(op_char).is_some_and(super::breaks::is_product),
                 }
-                Some(_) if info.is_some_and(|v| v.0.is_none()) => {
-                    auto = true;
-                    lines.push((c, c + 1));
-                    cur_w = copy_w + w;
-                }
-                _ => {
-                    lines.push((c, c + 1));
-                    cur_w = copy_w + w;
-                }
-            }
-        }
+            })
+            .collect();
+        let (lines, auto) = super::breaks::fill_lines(&chunks, avail, if mp.wrap_right { avail } else { avail - indent });
         // Build each line's box.
         let ops: Vec<bool> = (0..n).map(is_op).collect();
         let path = self.path.clone();
@@ -326,7 +326,7 @@ impl Ctx {
             boxes.push((row, info.and_then(|v| v.0)));
         }
         let widest = boxes.iter().map(|(b, _)| b.w).fold(0.0f32, f32::max);
-        let right = if auto { avail.max(widest) } else { widest };
+        let right = if auto && st.display { avail.max(widest) } else { widest };
         let mut placed = Vec::with_capacity(boxes.len());
         for (li, (b, aln)) in boxes.into_iter().enumerate() {
             let x = if li == 0 {
@@ -341,7 +341,7 @@ impl Ctx {
             placed.push((b, x));
         }
         // Stack the lines down from the first one's baseline.
-        let (gap, skip) = (em * 0.3, em * 1.3);
+        let (gap, skip) = self.wrap_line_spacing(em);
         let mut out = Bx::default();
         let mut y = 0.0f32;
         let mut prev_d: Option<f32> = None;

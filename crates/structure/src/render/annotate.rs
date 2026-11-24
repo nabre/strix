@@ -20,6 +20,8 @@ pub(super) const DIM_RIGHT: f64 = 10.0;
 const DIM_CLEAR: f64 = 4.5;
 /// Between what is drawn and the start of an extension line.
 const EXT_GAP: f64 = 1.0;
+/// How far an extension line runs past its dimension line, clear of the oblique tick (paper mm).
+pub(super) const EXT_OVER: f64 = 2.0;
 /// Angles within this many degrees of 0°, 90° or 180° are not written (they are evident).
 const SQUARE_TOL: f64 = 0.5;
 
@@ -255,7 +257,7 @@ impl Ctx<'_> {
             for &x in row {
                 let px = f.p(x, 0.0).0;
                 let from = if r == 0 { (lowest(x) + 1.5).max(bottom_at(px) + EXT_GAP) } else { base + 1.0 };
-                self.pen.line((px, from.min(y - 0.5)), (px, y + 1.2), GREY, 0.15);
+                self.pen.line((px, from.min(y - 0.5)), (px, y + EXT_OVER), GREY, 0.15);
                 self.pen.line((px - 0.9, y + 0.9), (px + 0.9, y - 0.9), DIM, 0.3);
             }
             if let (Some(&a), Some(&b)) = (row.first(), row.last()) {
@@ -278,7 +280,7 @@ impl Ctx<'_> {
             for &yy in &ys {
                 let py = f.p(0.0, yy).1;
                 let from = (rightmost(yy) + 1.5).max(right_at(py) + EXT_GAP);
-                self.pen.line((from.min(x - 0.5), py), (x + 1.2, py), GREY, 0.15);
+                self.pen.line((from.min(x - 0.5), py), (x + EXT_OVER, py), GREY, 0.15);
                 self.pen.line((x - 0.9, py + 0.9), (x + 0.9, py - 0.9), DIM, 0.3);
             }
             if let (Some(&a), Some(&b)) = (ys.first(), ys.last()) {
@@ -309,7 +311,7 @@ impl Ctx<'_> {
             let on = |t: f64| f.p(na.x.value + c * t, na.y.value + s * t);
             let at = |t: f64, k: f64| add(on(t), mul(side, k));
             for &t in &stops {
-                self.pen.line(at(t, 1.0), at(t, off + 1.2), GREY, 0.15);
+                self.pen.line(at(t, 1.0), at(t, off + EXT_OVER), GREY, 0.15);
                 let tick = (u.0 * 0.64 - side.0 * 0.64, u.1 * 0.64 - side.1 * 0.64);
                 let mid = at(t, off);
                 self.pen.line(add(mid, mul(tick, -1.0)), add(mid, tick), DIM, 0.3);
@@ -469,7 +471,7 @@ impl Ctx<'_> {
     fn angle_dimension(&mut self, p: P, from: P, to: P, r: f64, text: String) {
         let (a0, a1) = (from.1.atan2(from.0), to.1.atan2(to.0));
         let a1 = if (a1 - a0).abs() > std::f64::consts::PI { a1 + std::f64::consts::TAU * (a0 - a1).signum() } else { a1 };
-        self.pen.line(add(p, mul(from, 1.0)), add(p, mul(from, r + 1.2)), GREY, 0.15);
+        self.pen.line(add(p, mul(from, 1.0)), add(p, mul(from, r + EXT_OVER)), GREY, 0.15);
         self.pen.arc(p, r, a0, a1, DIM, 0.2);
         for a in [a0, a1] {
             self.pen.dot(add(p, mul((a.cos(), a.sin()), r)), 0.45, [255, 255, 255], Some((DIM, 0.2)));

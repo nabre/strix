@@ -2737,3 +2737,6 @@ paper	Envelope DL	Obálka DL
 	Calculated\nTable	Počítaná\ntabulka
 	Graph\nPaper	Milimetrový\npapír
 	New\nCalculation	Nový\nvýpočet
+	Dictionary file:	Soubor slovníku:
+	Not set: custom-dictionary.txt in the settings folder	Nenastaveno: custom-dictionary.txt ve složce nastavení
+	A custom-word dictionary file (.dic or plain text) used with the main dictionary.	Soubor vlastních slov (.dic nebo prostý text) používaný spolu s hlavním slovníkem.

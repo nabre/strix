@@ -168,10 +168,33 @@ fn text_of(s: &Session) -> String {
     String::from_utf8(crate::io::save_bytes("t.txt", &s.doc).unwrap()).unwrap().replace(['\u{202F}', '\u{2009}', '\u{00A0}'], " ").replace('∕', "/")
 }
 
+/// The linear text of paragraph `p`'s equations, spaces aside.
+fn linear_of(p: &wordcraft_doc::para::Paragraph) -> String {
+    p.objects
+        .iter()
+        .filter_map(|o| match o {
+            InlineObject::Equation { linear, .. } => Some(linear.to_string()),
+            _ => None,
+        })
+        .collect::<String>()
+        .chars()
+        .filter(|c| !c.is_whitespace())
+        .collect()
+}
+
 /// Does `t` hold `part`, spaces aside?
 fn has(t: &str, part: &str) -> bool {
     let squeeze = |x: &str| x.chars().filter(|c| !c.is_whitespace()).collect::<String>();
     squeeze(t).contains(&squeeze(part))
+}
+
+/// Does `t` hold the value `call = result` of a stretch with its working, one step a line
+/// between them (`█(M_1(3 m)@&=V_A·3 m − …@&=45 kN·m)`), spaces aside? A value written without
+/// its working doesn't count.
+fn has_value(t: &str, call: &str, result: &str) -> bool {
+    let squeeze = |x: &str| x.chars().filter(|c| !c.is_whitespace()).collect::<String>();
+    let (call, result) = (squeeze(call), squeeze(result));
+    t.lines().map(squeeze).any(|l| l.starts_with(&format!("█({call}@")) && l.ends_with(&format!("@&={result})")))
 }
 
 fn working_of(structure: serde_json::Value) -> Result<String, String> {
@@ -197,12 +220,12 @@ fn the_working_solves_the_reactions_and_writes_the_laws() {
     assert!(has(&t, "M_1(x)=V_A·x-q_1·(x^2)/2"), "{t}");
     // Equations start with their zero: `0 kN·m = V_B·6 m - …`.
     assert!(has(&t, "0 kN·m&=V_B·6 m"), "{t}");
-    assert!(has(&t, "M_1(3 m)=45 kN·m"), "{t}");
+    assert!(has_value(&t, "M_1(3 m)", "45 kN·m"), "{t}");
     // A frame: the roller's reaction from the rotation about the pin, exact fractions in the laws.
     let t = template_working("frame");
     assert!(!t.contains('⚠'), "{t}");
     assert!(has(&t, "V_D&=36.667 kN") && has(&t, "H_A&=-10 kN"), "{t}");
-    assert!(has(&t, "N_1(x)=-V_A") && has(&t, "M_2(6 m)=0 kN·m"), "{t}");
+    assert!(has(&t, "N_1(x)=-V_A") && has_value(&t, "M_2(6 m)", "0 kN·m"), "{t}");
     // A truss: each member's axial force.
     let t = template_working("truss");
     assert!(!t.contains('⚠'), "{t}");
@@ -229,8 +252,18 @@ fn the_working_follows_the_positive_senses() {
     // Clockwise: the load turns positive about A, V_B taken downwards comes out negative.
     assert!(has(&t, "0 kN·m&=V_B·6 m+F_1·d_(1,A)") && has(&t, "V_B&=-30 kN"), "{t}");
     assert!(has(&t, "V_A&=-30 kN"), "{t}");
-    assert!(has(&t, "M_1(3 m)=45 kN·m"), "{t}");
+    assert!(has_value(&t, "M_1(3 m)", "45 kN·m"), "{t}");
     assert!(has(&t, "taken positive the way their arrows point"), "{t}");
+    // Clockwise with y up: V_B, taken upwards, turns the other way about A and is written so (the
+    // equation not turned to make its first term positive); it still comes out positive.
+    let mut s = Session::new(Document::new());
+    s.run("structure.insert", &json!({"template": "beam"})).unwrap();
+    s.run("structure.set", &json!({"positive": {"rotation": "cw"}})).unwrap();
+    s.run("structure.working", &json!({})).unwrap();
+    let t = text_of(&s);
+    assert!(!t.contains('⚠'), "{t}");
+    assert!(has(&t, "0 kN·m&=-V_B·6 m+F_1·d_(1,A)") && has(&t, "V_B&=30 kN"), "{t}");
+    assert!(!t.contains("--"), "{t}");
     // A frame with x to the left: its horizontal reaction changes sign.
     let mut s = Session::new(Document::new());
     s.run("structure.insert", &json!({"template": "frame"})).unwrap();
@@ -239,7 +272,7 @@ fn the_working_follows_the_positive_senses() {
     let t = text_of(&s);
     assert!(!t.contains('⚠'), "{t}");
     assert!(has(&t, "H_A&=10 kN") && has(&t, "V_D&=36.667 kN"), "{t}");
-    assert!(has(&t, "M_2(6 m)=0 kN·m"), "{t}");
+    assert!(has_value(&t, "M_2(6 m)", "0 kN·m"), "{t}");
     // A cantilever's fixed end, clockwise: its couple too.
     let mut s = Session::new(Document::new());
     s.run("structure.insert", &json!({"template": "cantilever"})).unwrap();
@@ -255,6 +288,14 @@ fn the_working_follows_the_positive_senses() {
     let values = |t: &str| -> Vec<String> {
         t.lines()
             .map(|l| l.chars().filter(|c| !c.is_whitespace()).collect::<String>())
+            // A value with its working (`█(M_1(3m)@&=…@&=45kN·m)`): the call and the result.
+            .map(|l| match l.strip_prefix('█').and_then(|r| r.strip_prefix('(')).and_then(|r| r.strip_suffix(')')) {
+                Some(rows) => {
+                    let rows: Vec<&str> = rows.split("@&=").collect();
+                    format!("{}={}", rows.first().copied().unwrap_or_default(), rows.last().copied().unwrap_or_default())
+                }
+                None => l,
+            })
             .filter(|l| l.starts_with("M_") && l.contains(")=") && !l.contains("(x)="))
             .collect()
     };
@@ -291,7 +332,7 @@ fn the_working_uses_the_hinge_of_a_gerber_beam() {
     .unwrap();
     assert!(!t.contains('⚠'), "{t}");
     assert!(has(&t, "ΣM_B = 0 (part about the hinge B, Member 2):") && has(&t, "V_C·4 m") && has(&t, "V_C&=5 kN"), "{t}");
-    assert!(has(&t, "M_1(2 m)=0 kN·m") && has(&t, "M_1(0 m)=-18 kN·m"), "{t}");
+    assert!(has_value(&t, "M_1(2 m)", "0 kN·m") && has_value(&t, "M_1(0 m)", "-18 kN·m"), "{t}");
 }
 
 #[test]
@@ -328,6 +369,11 @@ fn moment_arms_are_written_from_the_dimensions() {
     assert!(has(&t, "d_(3,A)=6 m - (1.5 m)/3=5.5 m"), "{t}");
     let first = t.lines().find(|l| l.contains("0 kN·m") && l.contains("V_B")).unwrap_or_default();
     assert!(has(first, "F_1·d_(1,A)") && has(first, "F_2·d_(2,A)") && has(first, "F_3·d_(3,A)"), "{first}");
+    // Each arm worked out on its own line.
+    for d in ["d_(1,A)=", "d_(2,A)=", "d_(3,A)="] {
+        let line = t.lines().find(|l| has(l, d)).unwrap_or_default();
+        assert_eq!(line.matches("d_(").count(), 1, "{line}");
+    }
     // V_A from the vertical forces, not from the rotation about B: no arm about B.
     assert!(has(&t, "ΣF_y = 0:") && !t.contains("d_(1,B)"), "{t}");
     // q·3·1.5 + q·1·4 + 3·1.5/2·(4.5+1) = 45 + 40 + 24.75 = 109.75 → V_B = 18.2917.
@@ -467,7 +513,7 @@ fn an_exercise_working_follows_any_of_its_drawings() {
     s.run("structure.exercise", &json!({"labels": {"loads": "Carichi"}})).unwrap();
     assert!(has(&text_of(&s), "F_1=q_1·6 m"));
     // The diagram of M in the solution, changed: the statement and every part follow.
-    select_structure(&mut s, 7);
+    select_structure(&mut s, 9);
     s.run("structure.load", &shortened(4.0)).unwrap();
     let t = text_of(&s);
     assert!(has(&t, "F_1=q_1·4 m") && !has(&t, "F_1=q_1·6 m"), "{t}");
@@ -516,10 +562,10 @@ fn the_laws_use_the_names_of_the_reactions_and_the_loads() {
     ] {
         assert!(has(&t, law), "{law}: {t}");
     }
-    assert!(has(&t, "T_1a(4 m)=-10 kN") && has(&t, "M_1c(5 m)=30 kN·m"), "{t}");
+    assert!(has_value(&t, "T_1a(4 m)", "-10 kN") && has_value(&t, "M_1c(5 m)", "30 kN·m"), "{t}");
     // A cantilever: the fixed end's couple.
     let t = template_working("cantilever");
-    assert!(has(&t, "M_1(x)=V_A·x-M_A") && has(&t, "M_1(0 m)=-30 kN·m"), "{t}");
+    assert!(has(&t, "M_1(x)=V_A·x-M_A") && has_value(&t, "M_1(0 m)", "-30 kN·m"), "{t}");
     // A closed frame: no part lies before a section alone, the numbers stay.
     let t = working_of(json!({
         "nodes": [{"id": "A", "x": 0, "y": 0}, {"id": "B", "x": 0, "y": 3}, {"id": "C", "x": 4, "y": 3}, {"id": "D", "x": 4, "y": 0}],
@@ -601,7 +647,7 @@ fn the_laws_are_worked_out_at_decimal_points() {
     }))
     .unwrap();
     assert!(!t.contains('⚠'), "{t}");
-    assert!(has(&t, "T_1b(3.2 m) =") && has(&t, "M_1b(3.2 m) ="), "{t}");
+    assert!(has(&t, "█(T_1b(3.2 m)@&=") && has(&t, "█(M_1b(3.2 m)@&="), "{t}");
     assert!(has(&t, "F_1·(x - 3.2 m)"), "{t}");
     assert!(!has(&t, "16 m)/5"), "{t}");
 }
@@ -637,7 +683,7 @@ fn the_reactions_working_draws_the_free_body() {
     let mut s = Session::new(Document::new());
     s.run("structure.insert", &json!({"template": "beam"})).unwrap();
     s.run("structure.working", &json!({})).unwrap();
-    assert_eq!(views(&s), [View::All, View::Equilibrium, View::Section]);
+    assert_eq!(views(&s), [View::All, View::Equilibrium, View::Arms, View::Section]);
     let t = text_of(&s);
     let (reactions, first) = (t.find("Reactions:").unwrap(), t.find("ΣM").unwrap());
     let figure = s
@@ -652,7 +698,46 @@ fn the_reactions_working_draws_the_free_body() {
     assert!(figure < loads);
     assert!(reactions < first);
     s.run("structure.working", &json!({})).unwrap();
-    assert_eq!(views(&s), [View::All, View::Equilibrium, View::Section]);
+    assert_eq!(views(&s), [View::All, View::Equilibrium, View::Arms, View::Section]);
+}
+
+/// Before each moment equation the working draws its lever arms about the point, in the
+/// structure's group: the paragraph right before the equation's heading.
+#[test]
+fn the_working_draws_the_lever_arms_before_each_moment_equation() {
+    let mut s = Session::new(Document::new());
+    s.run("structure.insert", &json!({"template": "beam"})).unwrap();
+    s.run("structure.working", &json!({})).unwrap();
+    let arms: Vec<(usize, strix_structure::Structure)> = s
+        .doc
+        .body
+        .iter()
+        .enumerate()
+        .filter_map(|(i, b)| {
+            let Block::Para(p) = &**b else { return None };
+            p.objects.iter().find_map(|o| match o {
+                InlineObject::Graphic { graphic, .. } => {
+                    let st = strix_structure::Structure::from_json(graphic.structure.as_deref()?).ok()?;
+                    (st.view == strix_structure::View::Arms).then_some((i, st))
+                }
+                _ => None,
+            })
+        })
+        .collect();
+    let moments: Vec<usize> = s
+        .doc
+        .body
+        .iter()
+        .enumerate()
+        .filter(|(_, b)| matches!(&***b, Block::Para(p) if p.text.contains("ΣM") || linear_of(p).contains("ΣM")))
+        .map(|(i, _)| i)
+        .collect();
+    assert_eq!(arms.len(), 1, "one moment equation, one drawing");
+    assert_eq!(moments.len(), 1);
+    let (at, st) = &arms[0];
+    assert_eq!(*at + 1, moments[0]);
+    assert_eq!(st.pivot, Some(strix_structure::Pivot::whole("A")));
+    assert_eq!(st.group, "structure-1");
 }
 
 /// Each value at a station is a line of its own, in the working and in an exercise's parts.
@@ -670,7 +755,7 @@ fn each_value_at_a_station_has_its_own_line() {
         }
     };
     let t = template_working("beam");
-    assert!(has(&t, "M_1(3 m)=45 kN·m"), "{t}");
+    assert!(has_value(&t, "M_1(3 m)", "45 kN·m"), "{t}");
     one_each(&t);
     let mut s = Session::new(Document::new());
     s.run("structure.exercise", &json!({})).unwrap();
@@ -684,7 +769,8 @@ fn each_value_at_a_station_has_its_own_line() {
 #[test]
 fn page_breaks_never_split_a_block_of_the_working() {
     use wordcraft_doc::Pos;
-    for filler in [0usize, 10, 20, 25, 30, 35, 40] {
+    // Every number of lines above, so no band near a page's foot is missed.
+    for filler in 0usize..=40 {
         let mut s = Session::new(Document::new());
         for _ in 0..filler {
             s.run("text.insert", &json!({"text": "Filler line of text."})).unwrap();
@@ -699,8 +785,15 @@ fn page_breaks_never_split_a_block_of_the_working() {
         let l = s.layout();
         let page = |i: usize| l.caret(&Pos::body(i, 0)).map(|c| c.page);
         assert!(l.pages.len() > 1 || filler == 0, "the working runs over a page ({filler})");
-        for i in kept {
-            assert_eq!(page(i), page(i + 1), "paragraph {i} is kept with the next ({filler} lines above)");
+        let top = |i: usize| l.caret(&Pos::body(i, 0)).map(|c| c.top);
+        for &i in &kept {
+            if page(i) == page(i + 1) {
+                continue;
+            }
+            // Only a block taller than a page breaks: it starts at the top of its page.
+            let start = (0..=i).rev().find(|&j| j == 0 || !kept.contains(&(j - 1))).unwrap_or(i);
+            let first_on_page = (0..n).find(|&j| page(j) == page(start)).unwrap_or(start);
+            assert_eq!(top(start), top(first_on_page), "paragraph {i} is kept with the next ({filler} lines above)");
         }
     }
 }
@@ -737,6 +830,28 @@ fn the_axial_force_s_intervals_end_only_at_axial_loads() {
     s.run("structure.exercise", &json!({"structure": st})).unwrap();
     let t = text_of(&s);
     assert!(has(&t, "T_1c(x)") && has(&t, "N_1a(x)") && has(&t, "N_1b(x)") && !has(&t, "N_1c(x)"), "{t}");
+}
+
+/// N's intervals join across loads acting crosswise, a triangular load from inside the
+/// interval among them, and the joined interval's law follows the reactions' drawing.
+#[test]
+fn the_axial_force_joins_across_a_crosswise_varying_load() {
+    let st = json!({
+        "nodes": [{"id": "A", "x": 0, "y": 0}, {"id": "B", "x": 6.5, "y": 0}],
+        "members": [{"id": "1", "a": "A", "b": "B"}],
+        "supports": [{"node": "A", "kind": "pin"}, {"node": "B", "kind": "roller"}],
+        "loads": [
+            {"type": "distributed", "member": "1", "q1": 0, "q2": 4, "from": 1.75},
+            {"type": "force", "member": "1", "at": 2.5, "value": 15, "angle": -75}
+        ]
+    });
+    let mut s = Session::new(Document::new());
+    s.run("structure.exercise", &json!({"structure": st})).unwrap();
+    let t = text_of(&s);
+    assert!(has(&t, "N_1b(x)") && !has(&t, "N_1c(x)"), "{t}");
+    // H_A came out negative (−3.882 kN): the stretch draws it by name, the way it was taken
+    // positive, and its law follows the drawing (its value enters when substituted).
+    assert!(has(&t, "N_1a(x) = -H_A") && !has(&t, "N_1a(x) = (3.8822857 kN)"), "{t}");
 }
 
 /// The working and the reactions the stiffness solution gives (`structure.get`).
@@ -860,8 +975,8 @@ fn the_force_method_uses_the_sections_given() {
 }
 
 /// Each stretch of the internal forces' laws has its drawing right under its heading (the
-/// stretch, cut half way, in the structure's group, narrower than the structure), then the words
-/// saying how the laws come from it, the laws, and its values under their own heading.
+/// stretch, cut half way, in the structure's group, narrower than the structure), then straight
+/// away its laws (no words: the drawing says how they come), and its values under their own heading.
 #[test]
 fn each_stretch_is_drawn_cut_before_its_laws() {
     let mut s = Session::new(Document::new());
@@ -884,7 +999,8 @@ fn each_stretch_is_drawn_cut_before_its_laws() {
         let Some((cut, width, group)) = cut_of(p) else { continue };
         let header = paras[k - 1].text.clone();
         assert!(header.starts_with(&format!("Tratto {}: Member 1 (A–B)", cut.tag)), "{header}");
-        assert!(paras[k + 1].text.contains("Cut at x from A"), "{}", paras[k + 1].text);
+        // No words between the drawing and the laws: the drawing says how they come.
+        assert!(linear_of(paras[k + 1]).starts_with(&format!("N_{}(x)", cut.tag)), "{}", linear_of(paras[k + 1]));
         assert!(width < 160.0 && group == "structure-1", "{width} {group}");
         seen.push((cut.tag, cut.from, cut.to));
     }
@@ -893,4 +1009,237 @@ fn each_stretch_is_drawn_cut_before_its_laws() {
     // Under the uniform load and the force the moment is greatest inside the second stretch.
     let (first, second) = (t.find("Valori:").unwrap(), t.find("Valori e massimo:").unwrap());
     assert!(t.find("M_1a(x)").unwrap() < first && first < t.find("Tratto 1b").unwrap() && t.find("M_1b(x)").unwrap() < second, "{t}");
+}
+
+/// A stretch's general laws are boxed (a line, no shading), all three in one box (the same borders and indents, so
+/// Word joins them), set in from the margins; the values worked out of them are not.
+#[test]
+fn a_stretchs_laws_share_one_box() {
+    let mut s = Session::new(Document::new());
+    s.run("structure.insert", &json!({"template": "beam"})).unwrap();
+    s.run("structure.working", &json!({})).unwrap();
+    let paras: Vec<&wordcraft_doc::para::Paragraph> =
+        s.doc.body.iter().filter_map(|b| if let Block::Para(p) = &**b { Some(p) } else { None }).collect();
+    let laws: Vec<_> = paras.iter().filter(|p| linear_of(p).contains("(x)=")).collect();
+    assert!(laws.len() >= 3, "{}", text_of(&s));
+    let boxed = laws[0].props.borders.expect("a law is boxed");
+    assert!(boxed.top.is_some() && boxed.bottom.is_some() && boxed.left.is_some() && boxed.right.is_some() && boxed.between.is_none());
+    for p in &laws {
+        assert_eq!(p.props.borders, Some(boxed), "{}", p.text);
+        // Only the line: no shading behind the laws.
+        assert!(p.props.shading.is_none(), "{}", p.text);
+        assert!(p.props.indent_left.is_some_and(|i| i > 0.0) && p.props.indent_left == p.props.indent_right, "{}", p.text);
+    }
+    // The laws' box is kept together on its page.
+    assert!(laws[..2].iter().all(|p| p.props.keep_next == Some(true)));
+    let values: Vec<_> = paras.iter().filter(|p| !linear_of(p).contains("(x)=") && linear_of(p).contains("_1(")).collect();
+    assert!(!values.is_empty() && values.iter().all(|p| p.props.borders.is_none()), "{}", text_of(&s));
+}
+
+/// Every setting a working depends on, changed after the working is written, writes it again
+/// as a fresh one with those settings would be: in a report and in an exercise, step by step.
+#[test]
+fn the_working_follows_every_setting() {
+    let changes = [
+        json!({"positive": {"x": "left"}}),
+        json!({"positive": {"y": "down"}}),
+        json!({"positive": {"rotation": "cw"}}),
+        json!({"titles": {"v": "V"}}),
+        json!({"names": {"n": "Sforzo normale", "v": "Taglio", "m": "Momento flettente"}}),
+        json!({"forceUnit": "daN"}),
+        json!({"lengthUnit": "cm"}),
+        json!({"diagrams": {"m": {"positive": "up"}, "v": {"positive": "down"}}}),
+        json!({"convention": "italian"}),
+        json!({"title": "Trave"}),
+        json!({"positive": {"x": "right", "y": "up", "rotation": "ccw"}}),
+    ];
+    let fresh_structure = |s: &mut Session| {
+        let mut st = s.run("structure.get", &json!({})).unwrap()["structure"].clone();
+        if let Some(o) = st.as_object_mut() {
+            o.remove("group");
+            o.remove("workingKey");
+            o.remove("view");
+            o.remove("cut");
+        }
+        st
+    };
+    for template in ["beam", "cantilever", "frame"] {
+        // A report.
+        let mut s = Session::new(Document::new());
+        s.run("structure.insert", &json!({"template": template})).unwrap();
+        s.run("structure.working", &json!({})).unwrap();
+        for change in &changes {
+            s.run("structure.set", change).unwrap_or_else(|e| panic!("{template} {change}: {e}"));
+            let st = fresh_structure(&mut s);
+            let mut f = Session::new(Document::new());
+            f.run("structure.insert", &json!({"structure": st})).unwrap();
+            f.run("structure.working", &json!({})).unwrap();
+            assert_eq!(text_of(&s), text_of(&f), "report, {template}, after {change}");
+        }
+        // An exercise.
+        let mut s = Session::new(Document::new());
+        s.run("structure.exercise", &json!({"template": template})).unwrap();
+        for change in &changes {
+            select_structure(&mut s, 0);
+            s.run("structure.set", change).unwrap_or_else(|e| panic!("exercise {template} {change}: {e}"));
+            let st = fresh_structure(&mut s);
+            let mut f = Session::new(Document::new());
+            f.run("structure.exercise", &json!({"structure": st})).unwrap();
+            assert_eq!(text_of(&s), text_of(&f), "exercise, {template}, after {change}");
+        }
+    }
+}
+
+/// A stretch's value is worked out with its law, term by term, and a moment that balances at a
+/// roller reads 0, never the rounding left over in scientific notation (`1.819·10^-14 kN·m`).
+#[test]
+fn a_stretch_s_values_are_worked_out_and_rounded() {
+    let t = working_of(json!({
+        "nodes": [{"id": "A", "x": 0, "y": 0}, {"id": "B", "x": 6, "y": 0}],
+        "members": [{"id": "1", "a": "A", "b": "B"}],
+        "supports": [{"node": "A", "kind": "pin"}, {"node": "B", "kind": "roller"}],
+        "loads": [
+            {"type": "distributed", "member": "1", "q1": 15, "to": 2},
+            {"type": "force", "member": "1", "at": 4, "value": 10, "angle": -60}
+        ]
+    }))
+    .unwrap();
+    assert!(!t.contains('⚠') && !t.contains("10^"), "{t}");
+    assert!(has_value(&t, "M_1c(6 m)", "0 kN·m"), "{t}");
+    // The law with x substituted, then each term's weight.
+    let line = t.lines().find(|l| l.contains("M_1c(6")).unwrap_or_default().to_string();
+    assert!(has(&line, "@&=V_A·6 m") && has(&line, "kN·m-150 kN·m-"), "{line}");
+}
+
+/// A new shear symbol is written in the exercise's questions, and back; one undo step takes the
+/// structure, the questions and the working back together.
+#[test]
+fn the_questions_follow_the_shear_symbol() {
+    let mut s = Session::new(Document::new());
+    s.run("structure.exercise", &json!({"template": "beam"})).unwrap();
+    let before = text_of(&s);
+    assert!(has(&before, "shear force T."), "{before}");
+    select_structure(&mut s, 0);
+    s.run("structure.set", &json!({"titles": {"v": "V"}})).unwrap();
+    let t = text_of(&s);
+    assert!(has(&t, "shear force V.") && has(&t, "shear force V is zero") && !has(&t, "shear force T"), "{t}");
+    assert!(has(&t, "V_1(x)") && !has(&t, "T_1(x)"), "{t}");
+    s.undo();
+    assert_eq!(text_of(&s), before);
+    select_structure(&mut s, 0);
+    s.run("structure.set", &json!({"titles": {"v": "V"}})).unwrap();
+    select_structure(&mut s, 0);
+    s.run("structure.set", &json!({"titles": {"v": "T"}})).unwrap();
+    assert_eq!(text_of(&s), before);
+}
+
+/// The values rounded to the document's decimals never round a substituted parameter: a load
+/// of 0.0005 kN/mm is substituted as it is, not as `(0.001 kN/mm)`, so the step still gives
+/// what it should (`0.0005 kN/mm · 2000 mm = 1 kN`).
+#[test]
+fn a_small_load_is_substituted_whole() {
+    let t = working_of(json!({
+        "lengthUnit": "mm",
+        "nodes": [{"id": "A", "x": 0, "y": 0}, {"id": "B", "x": 6000, "y": 0}],
+        "members": [{"id": "1", "a": "A", "b": "B"}],
+        "supports": [{"node": "A", "kind": "pin"}, {"node": "B", "kind": "roller"}],
+        "loads": [{"type": "distributed", "member": "1", "q1": 0.0005}, {"type": "force", "member": "1", "at": 2000, "value": 0.3, "angle": -90}]
+    }))
+    .unwrap();
+    assert!(!t.contains('⚠') && !has(&t, "(0.001 kN/mm)"), "{t}");
+    assert!(has_value(&t, "T_1a(2000 mm)", "0.7 kN") && has(&t, "(5·10^(-4) kN/mm)·2000 mm@&=1.7 kN-1 kN"), "{t}");
+}
+
+/// The results summary quotes each question's result alike, its name and its value: the greatest
+/// moment (`M_1a(x_1a)`, worked out opened in the solution) as the zero of T before it, never an
+/// error from reading the working back.
+#[test]
+fn the_summary_quotes_the_greatest_moment_by_its_value() {
+    let mut s = Session::new(Document::new());
+    s.run(
+        "structure.exercise",
+        &json!({"structure": {
+            "nodes": [{"id": "A", "x": 0, "y": 0}, {"id": "B", "x": 6, "y": 0}],
+            "members": [{"id": "1", "a": "A", "b": "B"}],
+            "supports": [{"node": "A", "kind": "pin"}, {"node": "B", "kind": "roller"}],
+            "loads": [{"type": "distributed", "member": "1", "q1": 10, "to": 4}, {"type": "force", "member": "1", "at": 5, "value": 20}]
+        }}),
+    )
+    .unwrap();
+    let t = text_of(&s);
+    assert!(!t.contains('⚠'), "{t}");
+    // Opened in the solution, with its law and its working.
+    assert!(t.contains("M_1a(x_1a)=V_A·x_1a-q_1·(x_1a²)/2=(30 kN)·(3 m)"), "{t}");
+    let lines: Vec<&str> = t.lines().collect();
+    assert!(lines.contains(&"d) x_1a = 3 m") && lines.contains(&"e) M_1a(x_1a) = 45 kN·m"), "{t}");
+    // Worked out again (a recalculation reads the working back): the same.
+    s.run("calc.recalculate", &json!({})).unwrap();
+    assert_eq!(text_of(&s), t);
+}
+
+/// The structures of the body: (view, node B's x).
+fn drawings(s: &Session) -> Vec<(strix_structure::View, Option<f64>)> {
+    let mut out = Vec::new();
+    for b in &s.doc.body {
+        let Block::Para(p) = &**b else { continue };
+        for o in &p.objects {
+            if let InlineObject::Graphic { graphic, .. } = o
+                && let Some(st) = graphic.structure.as_deref().and_then(|j| strix_structure::Structure::from_json(j).ok())
+            {
+                out.push((st.view, st.node("B").map(|n| n.x.value)));
+            }
+        }
+    }
+    out
+}
+
+/// A change made through a drawing made from the structure (its working's free body, arms or
+/// stretch, which the change writes again) is made to the structure itself, which stays
+/// selected so the next change works too; and every drawing follows it.
+#[test]
+fn a_change_through_a_working_figure_is_made_to_the_structure() {
+    use strix_structure::View;
+    let fresh = || {
+        let mut s = Session::new(Document::new());
+        s.run("structure.insert", &json!({"template": "beam"})).unwrap();
+        s.run("structure.working", &json!({})).unwrap();
+        s
+    };
+    let count = drawings(&fresh()).len();
+    assert!(count >= 3, "{:?}", drawings(&fresh()));
+    for k in 1..count {
+        let mut s = fresh();
+        select_structure(&mut s, k);
+        assert_ne!(selected_view(&mut s), View::All);
+        s.run("structure.node", &json!({"id": "B", "x": 8})).unwrap();
+        assert_eq!(selected_view(&mut s), View::All, "figure {k}");
+        s.run("structure.node", &json!({"id": "B", "x": 9})).unwrap();
+        let found = drawings(&s);
+        assert_eq!(found.len(), count, "{found:?}");
+        assert!(found.iter().all(|d| d.1 == Some(9.0)), "figure {k}: {found:?}");
+        assert_eq!(found.first().map(|d| d.0), Some(View::All));
+    }
+}
+
+/// In an exercise, a change made through the free body of its solution's working is made to
+/// the structure in its statement, which stays selected.
+#[test]
+fn a_change_through_an_exercise_free_body_is_made_to_the_statement() {
+    use strix_structure::View;
+    let mut s = Session::new(Document::new());
+    s.run("structure.exercise", &json!({})).unwrap();
+    let count = drawings(&s).len();
+    let k = drawings(&s).iter().position(|d| d.0 == View::Equilibrium).unwrap();
+    select_structure(&mut s, k);
+    s.run("structure.node", &json!({"id": "B", "x": 8})).unwrap();
+    assert_eq!(selected_view(&mut s), View::Structure);
+    let found = drawings(&s);
+    assert_eq!(found.len(), count, "{found:?}");
+    assert!(found.iter().all(|d| d.1 == Some(8.0)), "{found:?}");
+}
+
+/// The view of the selected structure.
+fn selected_view(s: &mut Session) -> strix_structure::View {
+    let r = s.run("structure.get", &json!({})).unwrap();
+    serde_json::from_value::<strix_structure::Structure>(r["structure"].clone()).unwrap().view
 }

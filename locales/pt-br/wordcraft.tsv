@@ -2726,3 +2726,6 @@ paper	Envelope DL	Envelope DL
 	Calculated\nTable	Tabela\ncalculada
 	Graph\nPaper	Papel\nmilimetrado
 	New\nCalculation	Novo\ncálculo
+	Dictionary file:	Arquivo de dicionário:
+	Not set: custom-dictionary.txt in the settings folder	Não definido: custom-dictionary.txt na pasta de configurações
+	A custom-word dictionary file (.dic or plain text) used with the main dictionary.	Um arquivo de palavras personalizadas (.dic ou texto simples) usado junto com o dicionário principal.

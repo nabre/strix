@@ -3744,6 +3744,9 @@ mark	Grade	Note
 	Signs	Signes
 	Mark each area of the diagrams with its sign	Marquer chaque aire des diagrammes de son signe
 	Panel Layout	Disposition
+	Properties	Propriétés
+	Diagram Names	Noms des diagrammes
+	Positive Senses	Sens positifs
 	How the panels are laid out: one under the other, or two by two	Comment les cadres sont disposés : l’un sous l’autre, ou deux par deux
 	Automatic (Frames in Two Columns)	Automatique (portiques sur deux colonnes)
 	One Column	Une colonne
@@ -3779,7 +3782,7 @@ structure	Click a node to hold it with a slider (glifo)	Cliquez sur un nœud pou
 structure	Click a node to make it an internal hinge, or not	Cliquez sur un nœud pour en faire une rotule interne, ou l’en retirer
 structure	Click a node to pin it (cerniera)	Cliquez sur un nœud pour y placer un appui articulé
 structure	Click a node to put it on a roller (carrello)	Cliquez sur un nœud pour le poser sur un appui à rouleau
-structure	Click a node to put it on a roller drawn as a circle (carrello)	Cliquez sur un nœud pour le poser sur un appui à rouleau dessiné comme un cercle
+structure	Click a node to put it on a roller drawn on a triangle (carrello)	Cliquez sur un nœud pour le poser sur un appui à rouleau dessiné sur un triangle
 structure	Click to add a node	Cliquez pour ajouter un nœud
 structure	Click two points to draw a member; it goes on from its end (Esc or a right click stops)	Cliquez sur deux points pour dessiner une barre ; on continue depuis son extrémité (Échap ou un clic droit arrête)
 structure	Continuous Beam	Poutre continue
@@ -3824,7 +3827,7 @@ structure	Remove the node with its members, support and loads	Supprimer le nœud
 structure	Remove the member with its loads	Supprimer la barre avec ses charges
 structure	Remove the support	Supprimer l’appui
 structure	Roller	Appui à rouleau
-structure	Roller (circle)	Appui à rouleau (cercle)
+structure	Roller (triangle)	Appui à rouleau (triangle)
 structure	Select	Sélectionner
 structure	Select nodes, members and loads (Shift+click, a window); drag to move them, a load slides along its member	Sélectionner nœuds, barres et charges (Maj+clic, une fenêtre) ; faire glisser pour les déplacer, une charge glisse le long de sa barre
 structure	Select a structure in the document to draw and edit it, or insert one.	Sélectionnez une structure dans le document pour la dessiner et la modifier, ou insérez-en une.
@@ -3919,7 +3922,7 @@ structure	Click a node, a member or a load to see its properties; Shift+click or
 	Fixed	Encastrement
 	Pin	Appui articulé
 	Roller	Appui à rouleau
-	Roller (circle)	Appui à rouleau (cercle)
+	Roller (triangle)	Appui à rouleau (triangle)
 	Link	Bielle
 	Slider	Glissière
 	Internal hinge	Rotule interne
@@ -3931,7 +3934,7 @@ structure	Click a node, a member or a load to see its properties; Shift+click or
 	Click a node to fix it (incastro)	Cliquez sur un nœud pour l’encastrer
 	Click a node to pin it (cerniera)	Cliquez sur un nœud pour y placer un appui articulé
 	Click a node to put it on a roller (carrello)	Cliquez sur un nœud pour le poser sur un appui à rouleau
-	Click a node to put it on a roller drawn as a circle (carrello)	Cliquez sur un nœud pour le poser sur un appui à rouleau dessiné comme un cercle
+	Click a node to put it on a roller drawn on a triangle (carrello)	Cliquez sur un nœud pour le poser sur un appui à rouleau dessiné sur un triangle
 	Click a node to hold it with a link (pendolo)	Cliquez sur un nœud pour le retenir par une bielle
 	Click a node to hold it with a slider (glifo)	Cliquez sur un nœud pour le retenir par une glissière
 	Click a node to make it an internal hinge, or not	Cliquez sur un nœud pour en faire une rotule interne, ou l’en retirer
@@ -4064,7 +4067,6 @@ structure	Shear force	Effort tranchant
 structure	Bending moment	Moment fléchissant
 structure	Symbols	Symboles
 structure	Name the panels by their symbols	Nommer les panneaux par leurs symboles
-structure	Written over the diagrams' panels; the working keeps the symbols.	Écrits au-dessus des panneaux des diagrammes ; le développement garde les symboles.
 structure	Positive Senses	Sens positifs
 structure	Rotation	Rotation
 structure	Positive to the right	Positif vers la droite
@@ -4082,6 +4084,8 @@ structure	Down	Vers le bas
 structure	Counter-clockwise	Antihoraire
 structure	Clockwise	Horaire
 structure	Stretch	Tronçon
-structure	Cut at x from {a}: the part before the cut (drawn in full) balances its loads, its reactions and N, {T}, M on the cut (drawn positive):	Coupure à x de {a} : la partie avant la coupure (en plein) équilibre ses charges, ses réactions et N, {T}, M sur la coupure (dessinés positifs) :
 structure	Values at the ends of the stretch:	Valeurs aux extrémités du tronçon :
 structure	Values at the ends of the stretch and at M's extremes:	Valeurs aux extrémités du tronçon et aux extremums de M :
+	Dictionary file:	Fichier de dictionnaire :
+	Not set: custom-dictionary.txt in the settings folder	Non défini : custom-dictionary.txt dans le dossier des paramètres
+	A custom-word dictionary file (.dic or plain text) used with the main dictionary.	Un fichier de mots personnels (.dic ou texte brut) utilisé avec le dictionnaire principal.

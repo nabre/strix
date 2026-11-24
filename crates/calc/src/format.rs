@@ -357,15 +357,17 @@ pub(crate) fn render_nodes(expr: &Expr, sub: &dyn Fn(&Expr) -> Option<String>) -
             format!("{}{lower}{upper}▒({})", n.op, render(&n.body))
         }
         Expr::Bin(op, left, right) => match op {
-            BinOp::Add => format!("{} + {}", render(left), render(right)),
-            BinOp::Sub => format!("{} - {}", render(left), wrap(right, is_sum(right))),
+            // A negative operand on the right keeps its parentheses: `a + (-2 m)`, `a - (-2 m)`,
+            // never `a - -2 m` (a call opened with a negative argument writes them so).
+            BinOp::Add => format!("{} + {}", render(left), wrap(right, is_negative(right))),
+            BinOp::Sub => format!("{} - {}", render(left), wrap(right, is_sum(right) || is_negative(right))),
             // A written quantity reads as written: `30 cm`, `12 kN/m`.
             BinOp::Mul if is_quantity(expr) => format!("{} {}", render(left), render(right)),
             // Numbers and their units: `[4; 5; 6] m`, `10³ m` (read back as units).
             BinOp::Mul if is_numeric(left) && !matches!(**left, Expr::Neg(_)) && is_units(right) => {
                 format!("{} {}", render(left), render(right))
             }
-            BinOp::Mul => format!("{}·{}", wrap(left, is_sum(left)), wrap(right, is_sum(right) || is_div(right))),
+            BinOp::Mul => format!("{}·{}", wrap(left, is_sum(left)), wrap(right, is_sum(right) || is_div(right) || is_negative(right))),
             BinOp::Div => {
                 let den = wrap(right, is_sum(right) || is_product(right));
                 // A quantity divided by a number keeps its parentheses, also as the last factor of
@@ -444,6 +446,17 @@ pub(crate) fn is_numeric(expr: &Expr) -> bool {
 
 fn is_sum(expr: &Expr) -> bool {
     matches!(expr, Expr::Bin(BinOp::Add | BinOp::Sub, _, _))
+}
+
+/// A negated operand or a negative number (`-2 m`, `-3`): after `+`, `-` or `·` it takes
+/// parentheses.
+fn is_negative(expr: &Expr) -> bool {
+    match expr {
+        Expr::Neg(_) => true,
+        Expr::Num(v) => *v < 0.0,
+        Expr::Bin(BinOp::Mul | BinOp::Div, a, _) => is_negative(a),
+        _ => false,
+    }
 }
 
 fn is_div(expr: &Expr) -> bool {

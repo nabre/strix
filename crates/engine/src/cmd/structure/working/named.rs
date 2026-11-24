@@ -2,7 +2,8 @@
 //! Working): `T_1(x) = V_A - q_1·x`, `M_1(x) = V_A·x - q_1·x^2/2`, from the equilibrium of the
 //! part of the structure before the section (the member's `a` end side). Each law is checked
 //! against the solution's; a member in a closed ring, a varying load across the section or a law
-//! that disagrees keeps its numbers ([`super::law`]).
+//! that disagrees keeps its numbers ([`super::law`]). A reaction that came out negative keeps its
+//! name too (`N_1(x) = -H_A`), as the stretch's drawing shows it: its value enters when substituted.
 
 use strix_structure::{Action, Load, LoadAxes, LoadPer, MemberResult, Resultant, ResultantKind, Stretch, Structure, resultants};
 
@@ -37,6 +38,10 @@ pub(super) fn laws(st: &Structure, us: &[Unknown], m: &MemberResult, s: &Stretch
     let eps = 1e-9 * (1.0 + len);
 
     let mut agents: Vec<Agent> = Vec::new();
+    // The laws (N, T, M) a load across the section keeps from being named.
+    let mut blocked = [false; 3];
+    // A reaction by its name, taken positive (one that came out negative too), as the stretch's
+    // drawing shows it.
     for k in us.iter().filter(|k| in_left(&k.node)) {
         match k.acts {
             Acts::Along(d) => agents.push(Agent::Point { name: k.name.clone(), mag: k.value, at: k.at, dir: d }),
@@ -63,21 +68,27 @@ pub(super) fn laws(st: &Structure, us: &[Unknown], m: &MemberResult, s: &Stretch
                     } else if s1 <= s0 + eps || s1 <= s.x0 + eps {
                         true
                     } else {
-                        // Across the section: uniform only, covering the whole stretch.
+                        // Across the section: uniform only, covering the whole stretch; else
+                        // the laws it enters keep their numbers (a load across the member
+                        // leaves N's law named, one along it T's and M's).
                         let (qa, qb) = (q1.value, q2.as_ref().map_or(q1.value, |q| q.value));
-                        if qa != qb || s0 > s.x0 + eps || s1 < s.x1 - eps {
-                            return none;
-                        }
                         let th = angle.value.to_radians();
                         let dir = match axes {
                             LoadAxes::Global => (th.cos(), th.sin()),
                             LoadAxes::Local => (e.0 * th.cos() - e.1 * th.sin(), e.1 * th.cos() + e.0 * th.sin()),
                         };
+                        let name = u.names.get(li).copied().flatten();
+                        if qa != qb || s0 > s.x0 + eps || s1 < s.x1 - eps || name.is_none() {
+                            blocked[0] |= dot(dir, e).abs() > TOL;
+                            blocked[1] |= dot(dir, n).abs() > TOL;
+                            blocked[2] = blocked[1];
+                            continue;
+                        }
+                        let Some(name) = name else { continue };
                         let factor = match per {
                             LoadPer::Length => 1.0,
                             LoadPer::Projection => (e.0 * dir.1 - e.1 * dir.0).abs(),
                         };
-                        let Some(name) = u.names.get(li).copied().flatten() else { return none };
                         let sign = qa.signum();
                         agents.push(Agent::Spread {
                             name: name.linear_end(1),
@@ -110,7 +121,10 @@ pub(super) fn laws(st: &Structure, us: &[Unknown], m: &MemberResult, s: &Stretch
 
     let geo = Geometry { a, e, n, u };
     let mut out = [None, None, None];
-    for (slot, action) in out.iter_mut().zip([Action::Axial, Action::Shear, Action::Moment]) {
+    for ((slot, action), blocked) in out.iter_mut().zip([Action::Axial, Action::Shear, Action::Moment]).zip(blocked) {
+        if blocked {
+            continue;
+        }
         let terms: Vec<Term> = agents.iter().filter_map(|ag| geo.term(ag, action)).collect();
         let fit = match action {
             Action::Axial => &s.n,

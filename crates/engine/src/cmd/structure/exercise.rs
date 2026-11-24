@@ -16,6 +16,45 @@ use wordcraft_doc::{Block, InlineObject, Paragraph, Pos, StoryRef, para_block};
 
 use crate::{CmdError, CmdResult, Session, p};
 
+/// The questions of the exercise holding the structure at `pos` written with the shear's new
+/// symbol `new` where they had `old` (`… the shear force T.` becomes `… the shear force V.`),
+/// each word keeping its formatting; the solution repeats them. True when a question changed.
+pub(super) fn rename_shear(s: &mut Session, pos: &Pos, old: &str, new: &str) -> bool {
+    if pos.story != StoryRef::Body || old.is_empty() || old == new {
+        return false;
+    }
+    let Some(&top) = pos.path.0.first() else { return false };
+    let Some((first, last)) = super::super::exercise::question_blocks_at(s, top as usize) else { return false };
+    let mut changed = false;
+    for i in first..=last.min(s.doc.body.len().saturating_sub(1)) {
+        let Some(Block::Para(p)) = s.doc.body.get(i).map(|b| &**b) else { continue };
+        if super::working::renamed_symbol(&p.text, old, new) == p.text {
+            continue;
+        }
+        let Some(block) = s.doc.body.get_mut(i) else { continue };
+        let Block::Para(p) = std::sync::Arc::make_mut(block) else { continue };
+        // From the end, so the earlier offsets stay where they are.
+        let found: Vec<usize> = p.text.match_indices(old).map(|(off, _)| off).collect();
+        for off in found.into_iter().rev() {
+            let alone = |t: &str| super::working::renamed_symbol(t, old, new) != t;
+            let start = p.text.get(..off).and_then(|h| h.char_indices().next_back()).map_or(off, |(k, _)| k);
+            let end = p.text.get(off + old.len()..).and_then(|t| t.chars().next()).map_or(off + old.len(), |c| off + old.len() + c.len_utf8());
+            if !p.text.get(start..end).is_some_and(alone) {
+                continue;
+            }
+            let props = p.props_at(off).clone();
+            if p.delete(off, off + old.len()).is_ok() && p.insert_text(off, new, &props).is_ok() {
+                changed = true;
+            }
+        }
+        p.touch();
+    }
+    if changed {
+        s.touch();
+    }
+    changed
+}
+
 pub(super) fn run(s: &mut Session, v: &Value) -> CmdResult {
     let given = super::structure_param(v)?;
     let convert = given.is_none();
@@ -35,7 +74,7 @@ pub(super) fn run(s: &mut Session, v: &Value) -> CmdResult {
     let label = |k: &str, d: &str| -> String {
         v.get("labels").and_then(|l| l.get(k)).and_then(Value::as_str).map(|t| t.chars().take(400).collect()).unwrap_or_else(|| d.to_string())
     };
-    let shear = st.titles.v.clone();
+    let shear = super::working::shear_name(&st);
     let title = label("title", "Structure");
     let text = label("text", "For the structure in the figure, loaded as shown:");
     // The questions: their words from `questions` (the working's own words are in `labels`).
@@ -189,7 +228,18 @@ mod tests {
         let views: Vec<View> = found.iter().map(|f| f.2.view).collect();
         assert_eq!(
             views,
-            [View::Structure, View::Equilibrium, View::Reactions, View::Axial, View::Section, View::Shear, View::Section, View::Moment]
+            [
+                View::Structure,
+                View::Equilibrium,
+                View::Arms,
+                View::Reactions,
+                View::Section,
+                View::Axial,
+                View::Section,
+                View::Shear,
+                View::Section,
+                View::Moment
+            ]
         );
         assert!(found.iter().all(|f| f.2.group == "structure-1"));
         let t = text(&s);
@@ -223,14 +273,25 @@ mod tests {
         s.sel = Selection { anchor: at.clone(), focus: Pos { off: off + OBJ.len_utf8(), ..at } };
         s.run("structure.node", &json!({"id": "B", "x": 8})).unwrap();
         let found = structures(&s);
-        assert_eq!(found.len(), 8);
+        assert_eq!(found.len(), 10);
         for (_, _, st) in &found {
             assert_eq!(st.node("B").map(|n| n.x.value), Some(8.0), "{:?}", st.view);
         }
         let views: Vec<View> = found.iter().map(|f| f.2.view).collect();
         assert_eq!(
             views,
-            [View::Structure, View::Equilibrium, View::Reactions, View::Axial, View::Section, View::Shear, View::Section, View::Moment]
+            [
+                View::Structure,
+                View::Equilibrium,
+                View::Arms,
+                View::Reactions,
+                View::Section,
+                View::Axial,
+                View::Section,
+                View::Shear,
+                View::Section,
+                View::Moment
+            ]
         );
     }
 
@@ -302,9 +363,11 @@ mod tests {
         assert!(equations(&s).iter().any(|e| e.0.starts_with("M_") && e.1 == 5));
     }
 
-    /// The moment's part draws each stretch cut too, between its heading and its law of M.
+    /// Each diagram part draws its stretches cut with only that diagram's internal force (`N`, `T`
+    /// or `M`) on the section and names only that force in the sentence after it.
     #[test]
-    fn the_moments_part_draws_each_stretch_cut() {
+    fn each_diagram_part_draws_its_stretches_with_its_own_internal_force() {
+        use strix_structure::Action;
         let st = json!({"nodes": [{"id": "A", "x": 0, "y": 0}, {"id": "B", "x": 4, "y": 0}],
             "members": [{"id": "1", "a": "A", "b": "B"}],
             "supports": [{"node": "A", "kind": "pin"}, {"node": "B", "kind": "roller"}],
@@ -318,7 +381,9 @@ mod tests {
             [
                 View::Structure,
                 View::Equilibrium,
+                View::Arms,
                 View::Reactions,
+                View::Section,
                 View::Axial,
                 View::Section,
                 View::Section,
@@ -339,10 +404,26 @@ mod tests {
                 })
                 .unwrap()
         };
-        for (f, tag) in found[7..9].iter().zip(["1a", "1b"]) {
-            assert_eq!(f.2.cut.as_ref().map(|c| c.tag.as_str()), Some(tag));
+        // Axial part: one joined stretch `1` with `Action::Axial`, its boxed law right under it.
+        let n_cut = &found[4];
+        assert_eq!(n_cut.2.cut.as_ref().map(|c| (c.tag.as_str(), c.action)), Some(("1", Some(Action::Axial))));
+        let Block::Para(n_next) = &*s.doc.body[n_cut.0 + 1] else { panic!() };
+        assert!(n_next.props.borders.is_some() && !n_next.text.contains("on the cut"), "{}", n_next.text);
+        assert!(law_after(n_cut.0).starts_with("N_1(x)="), "{}", law_after(n_cut.0));
+
+        // Shear part: stretches `1a`, `1b` with `Action::Shear`, its boxed law right under it.
+        for (f, tag) in found[6..8].iter().zip(["1a", "1b"]) {
+            assert_eq!(f.2.cut.as_ref().map(|c| (c.tag.as_str(), c.action)), Some((tag, Some(Action::Shear))));
             let Block::Para(next) = &*s.doc.body[f.0 + 1] else { panic!() };
-            assert!(next.text.contains("Cut at x from A"), "{}", next.text);
+            assert!(next.props.borders.is_some() && !next.text.contains("on the cut"), "{}", next.text);
+            assert!(law_after(f.0).starts_with(&format!("T_{tag}(x)=")), "{}", law_after(f.0));
+        }
+
+        // Moment part: stretches `1a`, `1b` with `Action::Moment`, its boxed law right under it.
+        for (f, tag) in found[9..11].iter().zip(["1a", "1b"]) {
+            assert_eq!(f.2.cut.as_ref().map(|c| (c.tag.as_str(), c.action)), Some((tag, Some(Action::Moment))));
+            let Block::Para(next) = &*s.doc.body[f.0 + 1] else { panic!() };
+            assert!(next.props.borders.is_some() && !next.text.contains("on the cut"), "{}", next.text);
             assert!(law_after(f.0).starts_with(&format!("M_{tag}(x)=")), "{}", law_after(f.0));
         }
     }
@@ -352,7 +433,7 @@ mod tests {
         let mut s = Session::new(Document::new());
         s.run("structure.exercise", &json!({"template": "truss"})).unwrap();
         let views: Vec<View> = structures(&s).iter().map(|f| f.2.view).collect();
-        assert_eq!(views, [View::Structure, View::Equilibrium, View::Reactions, View::Axial]);
+        assert_eq!(views, [View::Structure, View::Equilibrium, View::Arms, View::Reactions, View::Axial]);
         assert!(text(&s).contains("axial force in every member"), "{}", text(&s));
     }
 }

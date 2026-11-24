@@ -76,6 +76,55 @@ fn selected_source(s: &Session) -> Option<(wordcraft_doc::Pos, Arc<str>)> {
     }
 }
 
+/// The drawing a change to the structure at `pos` is made to: `pos`, unless it is in one of its
+/// group's written workings (a free body, a stretch), which the change writes again; then the
+/// group's drawing outside them, the structure itself (a report's, an exercise's statement)
+/// before the others.
+fn base_of(s: &Session, pos: &wordcraft_doc::Pos, src: &str) -> wordcraft_doc::Pos {
+    let Ok(st) = Structure::from_json(src) else { return pos.clone() };
+    let block = |p: &wordcraft_doc::Pos| {
+        (p.story == wordcraft_doc::StoryRef::Body && p.path.0.len() == 1).then(|| p.path.0.first().map(|&t| t as usize)).flatten()
+    };
+    if !block(pos).is_some_and(|i| working::rewrites(s, &st.group, i)) {
+        return pos.clone();
+    }
+    let mut found: Option<(bool, wordcraft_doc::Pos)> = None;
+    for (i, b) in s.doc.body.iter().enumerate() {
+        let wordcraft_doc::Block::Para(p) = &**b else { continue };
+        if working::rewrites(s, &st.group, i) {
+            continue;
+        }
+        for (off, o) in p.objects_with_offsets() {
+            if let InlineObject::Graphic { graphic, .. } = o
+                && graphic.kind == GraphicKind::Structure
+                && let Some(other) = graphic.structure.as_deref().and_then(|j| Structure::from_json(j).ok())
+                && other.group == st.group
+            {
+                let itself = matches!(other.view, strix_structure::View::All | strix_structure::View::Structure);
+                if found.as_ref().is_none_or(|(was, _)| itself && !was) {
+                    let path = wordcraft_doc::Path(vec![u32::try_from(i).unwrap_or(u32::MAX)]);
+                    found = Some((itself, wordcraft_doc::Pos::new(wordcraft_doc::StoryRef::Body, path, off)));
+                }
+            }
+        }
+    }
+    found.map_or_else(|| pos.clone(), |(_, p)| p)
+}
+
+/// Selects the structure itself in place of the selected drawing of its written working (a free
+/// body, a stretch), which a change writes again, so its editor edits the structure; returns
+/// whether the selection moved.
+pub fn select_base(s: &mut Session) -> bool {
+    let Some((pos, src)) = selected_source(s) else { return false };
+    let base = base_of(s, &pos, &src);
+    if base == pos {
+        return false;
+    }
+    let end = wordcraft_doc::Pos { off: base.off.saturating_add(wordcraft_doc::para::OBJ.len_utf8()), ..base.clone() };
+    s.sel = Selection { anchor: base, focus: end };
+    true
+}
+
 /// User-authored strings of the selected structure (title, names, expressions), so interface
 /// localization audits treat them as document content.
 pub fn selected_structure_texts(s: &Session) -> Vec<String> {
@@ -124,7 +173,7 @@ fn template(name: &str) -> Result<Structure, CmdError> {
         "beam" => Structure {
             nodes: vec![n(0.0, 0.0, "A"), n(6.0, 0.0, "B")],
             members: vec![bar("1", "A", "B")],
-            supports: vec![sup("A", SupportKind::Pin, 0.0), sup("B", SupportKind::Roller, 0.0)],
+            supports: vec![sup("A", SupportKind::Pin, 0.0), sup("B", SupportKind::RollerCircle, 0.0)],
             loads: vec![uniform("1", 10.0)],
             ..Structure::default()
         },
@@ -138,14 +187,14 @@ fn template(name: &str) -> Result<Structure, CmdError> {
         "continuous" => Structure {
             nodes: vec![n(0.0, 0.0, "A"), n(5.0, 0.0, "B"), n(10.0, 0.0, "C")],
             members: vec![bar("1", "A", "B"), bar("2", "B", "C")],
-            supports: vec![sup("A", SupportKind::Pin, 0.0), sup("B", SupportKind::Roller, 0.0), sup("C", SupportKind::Roller, 0.0)],
+            supports: vec![sup("A", SupportKind::Pin, 0.0), sup("B", SupportKind::RollerCircle, 0.0), sup("C", SupportKind::RollerCircle, 0.0)],
             loads: vec![uniform("1", 10.0), uniform("2", 10.0)],
             ..Structure::default()
         },
         "frame" => Structure {
             nodes: vec![n(0.0, 0.0, "A"), n(0.0, 4.0, "B"), n(6.0, 4.0, "C"), n(6.0, 0.0, "D")],
             members: vec![bar("1", "A", "B"), bar("2", "B", "C"), bar("3", "C", "D")],
-            supports: vec![sup("A", SupportKind::Pin, 0.0), sup("D", SupportKind::Roller, 0.0)],
+            supports: vec![sup("A", SupportKind::Pin, 0.0), sup("D", SupportKind::RollerCircle, 0.0)],
             loads: vec![uniform("2", 10.0), force("B", 10.0, 0.0)],
             ..Structure::default()
         },
@@ -161,7 +210,7 @@ fn template(name: &str) -> Result<Structure, CmdError> {
                     bar("6", "E", "C"),
                     bar("7", "D", "E"),
                 ],
-                supports: vec![sup("A", SupportKind::Pin, 0.0), sup("C", SupportKind::Roller, 0.0)],
+                supports: vec![sup("A", SupportKind::Pin, 0.0), sup("C", SupportKind::RollerCircle, 0.0)],
                 loads: vec![force("D", 10.0, -90.0), force("E", 10.0, -90.0)],
                 ..Structure::default()
             };
@@ -337,7 +386,7 @@ fn sync_group(s: &mut Session, pos: &wordcraft_doc::Pos, st: &Structure) {
             if let Some(InlineObject::Graphic { graphic, .. }) = p.object_at_mut(off)
                 && let Some(other) = graphic.structure.as_deref().and_then(|src| Structure::from_json(src).ok())
             {
-                let mine = Structure { view: other.view, width: other.width, cut: other.cut.clone(), ..st.clone() };
+                let mine = Structure { view: other.view, width: other.width, cut: other.cut.clone(), pivot: other.pivot.clone(), ..st.clone() };
                 Arc::make_mut(graphic).structure = Some(mine.to_json().into());
             }
         }
@@ -391,8 +440,12 @@ fn get(s: &mut Session, _: &Value) -> CmdResult {
     }))
 }
 
-/// The selected structure, changed by `edit`, stored and redrawn; returns `structure.get`.
+/// The selected structure (the structure itself when a drawing of its working is selected),
+/// changed by `edit`, stored and redrawn; returns `structure.get`.
 fn edit(s: &mut Session, edit: impl FnOnce(&mut Structure) -> Result<(), CmdError>) -> CmdResult {
+    // A drawing of the structure's working is written again by the change: the structure takes
+    // it, and stays selected.
+    select_base(s);
     let (pos, src) = selected_source(s).ok_or_else(|| CmdError::Disabled("select a structure first".into()))?;
     let mut st = Structure::from_json(&src).map_err(|e| CmdError::Failed(format!("the structure can't be read: {e}")))?;
     edit(&mut st)?;
@@ -403,12 +456,31 @@ fn edit(s: &mut Session, edit: impl FnOnce(&mut Structure) -> Result<(), CmdErro
 fn set(s: &mut Session, v: &Value) -> CmdResult {
     let replacement = structure_param(v)?;
     let convert = replacement.is_none();
-    edit(s, |st| {
+    let mut shear = None;
+    let r = edit(s, |st| {
+        // The symbol the questions were written with: the laws' (`T`), or, in an exercise
+        // written before the questions took it, the diagram's title as it was (`T [kN]`).
+        let old = [working::shear_name(st), st.titles.v.trim().to_string()];
         if let Some(new) = replacement {
             *st = new;
         }
-        apply_settings(st, v, convert)
-    })
+        apply_settings(st, v, convert)?;
+        shear = Some((old, working::shear_name(st)));
+        Ok(())
+    })?;
+    // An exercise's questions name the shear by its symbol: they take the new one.
+    if let Some((old, new)) = shear.filter(|([old, _], new)| old != new)
+        && let Some((pos, _)) = selected_source(s)
+    {
+        let mut changed = exercise::rename_shear(s, &pos, &old[0], &new);
+        if !changed && old[1] != old[0] {
+            changed = exercise::rename_shear(s, &pos, &old[1], &new);
+        }
+        if changed {
+            super::calc::recalculate_now(s);
+        }
+    }
+    Ok(r)
 }
 
 fn node(s: &mut Session, v: &Value) -> CmdResult {

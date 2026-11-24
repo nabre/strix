@@ -3006,3 +3006,6 @@ paper	Envelope DL	Kuverta DL
 	Calculated\nTable	Izračunana\ntabela
 	Graph\nPaper	Milimetrski\npapir
 	New\nCalculation	Nov\nizračun
+	Dictionary file:	Datoteka slovarja:
+	Not set: custom-dictionary.txt in the settings folder	Ni nastavljeno: custom-dictionary.txt v mapi z nastavitvami
+	A custom-word dictionary file (.dic or plain text) used with the main dictionary.	Datoteka besed po meri (.dic ali navadno besedilo), ki se uporablja skupaj z glavnim slovarjem.

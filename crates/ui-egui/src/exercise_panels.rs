@@ -210,9 +210,8 @@ fn data_panel(app: &mut WordApp, ui: &mut Ui, info: &Value) {
     let rows = data["items"].as_array().map_or(0, Vec::len);
     let mut remove = None;
     crate::rtl::grid(ui, egui::Grid::new(("exercise_data", ex)).num_columns(3).spacing([4.0, 4.0]).striped(true), |ui| {
-        for head in ["Description", "Equation", ""] {
-            ui.label(egui::RichText::new(if head.is_empty() { String::new() } else { tl!(head).to_string() }).small().weak());
-        }
+        let description = ["Description", "Equation", ""]
+            .map(|head| ui.label(egui::RichText::new(if head.is_empty() { String::new() } else { tl!(head).to_string() }).small().weak()).id)[0];
         ui.end_row();
         for row in 0..rows {
             let item = &data["items"][row];
@@ -227,7 +226,7 @@ fn data_panel(app: &mut WordApp, ui: &mut Ui, info: &Value) {
             let mut changed: Option<(&str, String)> = None;
             ui.scope(|ui| {
                 ui.set_width(130.0);
-                if let Some(t) = draft_box(ui, ("exercise_data", ex, row, "description"), &text(&item["description"]), true, false) {
+                if let Some(t) = draft_box(ui, ("exercise_data", ex, row, "description"), description, &text(&item["description"]), true, false) {
                     changed = Some(("description", t));
                 }
             });
@@ -316,29 +315,29 @@ pub(crate) fn variant_generator_ui(app: &mut WordApp, ui: &mut Ui, ex: u64, data
         let state_id = egui::Id::unique(("gen_variants_cfg", ex));
         let mut cfg = ui.data(|d| d.get_temp::<GenConfig>(state_id)).unwrap_or_default();
         crate::rtl::grid(ui, egui::Grid::new(("gen_variants_grid", ex)).num_columns(2).spacing([6.0, 4.0]), |ui| {
-            ui.label(tl!("Variants to generate"));
+            let count_label = ui.label(tl!("Variants to generate")).id;
             ui.scope(|ui| {
                 ui.set_width(52.0);
                 let cur = cfg.count.to_string();
-                if let Some(t) = draft_box(ui, ("gen_v_cnt", ex), &cur, true, false)
+                if let Some(t) = draft_box(ui, ("gen_v_cnt", ex), count_label, &cur, true, false)
                     && let Ok(n) = t.trim().parse::<u64>()
                 {
                     cfg.count = n.clamp(1, MAX_VARIANTS as u64);
                 }
             });
             ui.end_row();
-            ui.label(tl!("Max result decimals"));
+            let decimals_label = ui.label(tl!("Max result decimals")).id;
             ui.scope(|ui| {
                 ui.set_width(52.0);
-                if let Some(t) = draft_box(ui, ("gen_v_dec", ex), &cfg.max_decimals, true, false) {
+                if let Some(t) = draft_box(ui, ("gen_v_dec", ex), decimals_label, &cfg.max_decimals, true, false) {
                     cfg.max_decimals = t;
                 }
             });
             ui.end_row();
-            ui.label(tl!("Extra constraints"));
+            let extra_label = ui.label(tl!("Extra constraints")).id;
             ui.scope(|ui| {
                 ui.set_width(140.0);
-                if let Some(t) = draft_box(ui, ("gen_v_ext", ex), &cfg.extra, true, false) {
+                if let Some(t) = draft_box(ui, ("gen_v_ext", ex), extra_label, &cfg.extra, true, false) {
                     cfg.extra = t;
                 }
             });
@@ -348,9 +347,8 @@ pub(crate) fn variant_generator_ui(app: &mut WordApp, ui: &mut Ui, ex: u64, data
         ui.checkbox(&mut cfg.distinct, tl!("Distinct results across variants"));
         ui.add_space(4.0);
         crate::rtl::grid(ui, egui::Grid::new(("gen_domains_grid", ex)).num_columns(4).spacing([4.0, 3.0]).striped(true), |ui| {
-            for head in ["Symbol", "Min", "Max", "Step"] {
-                ui.label(egui::RichText::new(tl!(head)).small().weak());
-            }
+            let [_, min_label, max_label, step_label] =
+                ["Symbol", "Min", "Max", "Step"].map(|head| ui.label(egui::RichText::new(tl!(head)).small().weak()).id);
             ui.end_row();
             for (idx, it) in items.iter().enumerate() {
                 let sym = it["symbol"].as_str().unwrap_or_default().trim().to_string();
@@ -362,19 +360,19 @@ pub(crate) fn variant_generator_ui(app: &mut WordApp, ui: &mut Ui, ex: u64, data
                 ui.label(egui::RichText::new(&sym).monospace());
                 ui.scope(|ui| {
                     ui.set_width(44.0);
-                    if let Some(t) = draft_box(ui, ("gen_dom_min", ex, idx), &mn, true, false) {
+                    if let Some(t) = draft_box(ui, ("gen_dom_min", ex, idx), min_label, &mn, true, false) {
                         mn = t;
                     }
                 });
                 ui.scope(|ui| {
                     ui.set_width(44.0);
-                    if let Some(t) = draft_box(ui, ("gen_dom_max", ex, idx), &mx, true, false) {
+                    if let Some(t) = draft_box(ui, ("gen_dom_max", ex, idx), max_label, &mx, true, false) {
                         mx = t;
                     }
                 });
                 ui.scope(|ui| {
                     ui.set_width(44.0);
-                    if let Some(t) = draft_box(ui, ("gen_dom_stp", ex, idx), &stp, true, false) {
+                    if let Some(t) = draft_box(ui, ("gen_dom_stp", ex, idx), step_label, &stp, true, false) {
                         stp = t;
                     }
                 });

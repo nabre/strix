@@ -570,6 +570,15 @@ or `calc.layout`.
   with, and only a well-formed one is taken out (`90`, `−9.81`, `2,5`; not `3-`); `1/s`, with no
   unit over the bar, stays a fraction.
 - Trailing zeros are dropped unless **Show Trailing Zeros** (`2.500`).
+- A sum or a difference smaller than 10⁻¹³ of its larger term is the rounding of binary numbers
+  and is 0: `0.1 m + 0.2 m − 0.3 m = 0 m`, a moment that balances is `0 kN·m`, never
+  `1.819·10^-14 kN·m` (`crates/calc/src/eval.rs`, `CANCELLED`). Each addition is measured
+  against its own two terms, so the rounding a large term leaves in a sum that goes on with small
+  ones can stay (`(10^6 + 0.1) − 10^6 − 0.1`): measured against the whole sum, a true small value
+  written after large terms that cancel exactly (`10^6 − 10^6 + 10^-8`) would be taken for one.
+- With **Decimal Places** a substituted value keeps the digits past them (`(5·10^-4 kN/mm)` with
+  3 decimals, never `(0.001 kN/mm)`), so a step never reads a value it doesn't compute with;
+  the results are rounded to the decimals.
 - Scientific notation `1.235·10^9` at or beyond 10⁷, and below 10⁻³ except with Decimal Places.
   Read back as a stale result it is skipped with its exponent in brackets too (`1.2·10^(-5)`,
   as an equation built up writes it).
@@ -583,11 +592,39 @@ or `calc.layout`.
 | a formula: `M = q·L²/8 =`, `M = q·L²/8`, `q·L²/8 =`, `A := …  =` | the values substituted (with their units, one unit per kind), the result |
 | solved symbolically: `F = m·a` | each step of the algebra isolating the unknown (one inversion each: `π·d² = 4·A`, `d² = 4·A/π`, `d = √(4·A/π)`; the terms without the unknown cross over together, in one step, leaving only the monomial holding it, a zero left out: `0 kN·m = V_A·4.5 m − q_1·3 m·1.5 m + F_2·1 m` gives `V_A·4.5 m = q_1·3 m·1.5 m − F_2·1 m` at once; powers, roots, `exp ln log`, `sin cos tan` and their inverses likewise), then the substitution and the result |
 | solved numerically: `x³ + x = k` | the equation with its values (`x³ + x = 10`), the result, and the note in the block's language: `(numerical solution)`, `(soluzione numerica)`, `(numerische Lösung)` or `(solution numérique)` |
+| a call of a user function: `M(6 m) =` | the call opened into the function's law with its argument (`V_A·6 m − F_1·(6 m − 1 m)`), the values substituted, then each term of a sum worked out (`167.321 kN·m − 150 kN·m`) when one is more than a value alone, the result; a law that is a value alone has no steps |
 | a check: `σ ≤ f_yd` | the two sides' values and ✓ or ✗ |
 
 A quantity divided by a number keeps its parentheses in every step, also as a product's last
 factor: `q·6 m·(6 m)/2` stays so when the terms move (written `q·6 m·6 m/2` it would read, and be
 set, as `6·m/2`); a unit quotient is not a number (`12 kN/m` stays as written).
+
+A line holding a calculation is always widely spaced: when its math is more than plain symbols
+(a subscript or superscript, a fraction, a root, a bracket or a bar) it keeps a quarter of its
+font size free above and below the math, never less than the font's own line, so subscripts,
+fractions and the parentheses around substituted values never come near the line above or below
+(calculations one under the other with Shift+Enter, or a long one wrapping). Plain symbols on the
+baseline (`x`, `a + b` in a sentence) leave the line as the text around it, so prose with inline
+symbols stays evenly spaced. Exact line spacing still fixes the line.
+
+A calculation wider than its paragraph breaks into lines at its operators, in a line of text as
+well as on a line of its own (a structure's `T(2.5 m) = V_A − q·2.5 m = … = −5.208 kN`): the
+first line stays on the text's baseline and nothing runs past the margin. A line that has to break
+goes back to its last relation (`=`, `<`, `≈`…) when that keeps it at least half full, so a chain
+of equalities breaks between its steps, and back to its last `+` or `−` rather than inside a
+product (`F_2·d_(2,A)` stays whole); the lines after the first start under the first `=`
+(when that is in the first half of the line), as a worked solution is written by hand, and they
+are spaced one and a half lines apart, like a calculation's steps, so a fraction or a bracket keeps
+clear of the next line. Equations that are not calculations keep Word's wrap indent and spacing
+(`crates/layout/src/math/breaks.rs`, `eq_wrap.rs`). A structure's working sets each equation that
+stands alone on its line in display mode (a block).
+
+A fraction is one block for Word, so a calculation substituting many values into one
+(`V_E = ((30 kN)·(7.5 m) + … − ((33 kN)·3 m + (12 kN)·9 m))/(3 m + 3 m)`) could not fit any line.
+In a calculation, a top-level fraction whose numerator or denominator is wider than the room after
+the first `=` breaks that part at its own operators: its lines stand over the bar (the later ones
+indented one em), the fraction stays beside its `=`, and every term shows
+(`crates/layout/src/math/frac_wrap.rs`). Other equations keep the fraction whole, as Word does.
 
 The variable a sum, a product, an integral or a limit runs over is never substituted, whatever
 is defined under its name: after `i = 1..5` and `k = 2`, `∑_i▒k·i² =` shows
@@ -753,6 +790,8 @@ none of them.
    regions (pending equations solved together). Plots are done ([plot.md](plot.md)).
 
 ## Revision history
+
+- 2026-11-21: lines of math keep a quarter of the font size free above and below it (`crates/layout/src/para/math_leading.rs`): calculations under one another no longer look glued together. Put right in the review of pull request 107: only math beyond plain symbols takes that room (an `x` in a sentence left prose unevenly spaced); with Decimal Places a substituted value keeps its digits (`(0.001 kN/mm)` was written for 0.0005); the limit of the rounding rule noted.
 
 - 2026-11-17: docs brought up to date with the code: the Math tab's groups (Variables, Plot and Plot Properties; exercises on the Teaching tab), Rounding under Math › Number Display (was Math › Results), Total Row on the Calculated Table tab (no longer Table Layout › Data or Math › Tables), the stages (derivatives, integrals, structures and plots done).
 

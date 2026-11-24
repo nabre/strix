@@ -1,6 +1,6 @@
 //! The sign conventions a diagram's values follow, drawn beside its title as the textbooks draw
 //! them on a short piece of member: N positive pulling (tension), T positive turning the piece
-//! clockwise, M positive stretching the reference fibres (dashed, below a member drawn left to
+//! clockwise, M positive stretching the reference fibres (dashed, along the lower edge of a member drawn left to
 //! right). And a reaction that came out negative: the way it was taken positive, faded and
 //! crossed out, beside the arrow the way it really acts.
 
@@ -10,69 +10,95 @@ use super::{BLACK, Ctx, ERROR, P, Pen, Rgb, TEXT, add, lighter, mul, pd, unit};
 use crate::diagram::Action;
 use crate::model::Positive;
 
-/// Half the piece of member's length (paper mm).
-const HALF: f64 = 5.0;
-/// The arrows' length.
-const LEN: f64 = 4.0;
 /// The room between the title and the convention.
 pub(super) const AFTER_TITLE: f64 = 4.0;
 
 impl Pen {
-    /// The sign convention of `action` on a piece of member, its left end `HALF` before `at`'s
-    /// centre (`at` is the drawing's left edge, half way up), the forces in colour `c`.
+    /// Draw the positive internal action on a short member bounded by two cut faces.
+    /// `at` is the left edge of the symbol at mid-height, in paper millimetres.
     pub(super) fn convention(&mut self, at: P, action: Action, c: Rgb) {
-        let w = 0.35;
+        let (left, right) = (4.6, 14.6);
+        let h = 2.0;
+        let outline = vec![
+            (left, -h),
+            (right, -h),
+            (right - 0.5, -0.7),
+            (right + 0.5, 0.7),
+            (right, h),
+            (left, h),
+            (left + 0.5, 0.7),
+            (left - 0.5, -0.7),
+            (left, -h),
+        ];
+        self.poly(outline.into_iter().map(|p| add(at, p)).collect(), BLACK, 0.5);
+
+        let w = 0.4;
         match action {
             Action::Axial => {
-                // The piece, and a force at each end pulling it apart.
-                let (l, r) = (add(at, (LEN + 0.6, 0.0)), add(at, (LEN + 0.6 + 2.0 * HALF, 0.0)));
-                self.line(l, r, BLACK, 0.5);
-                self.arrow(l, add(l, (-LEN, 0.0)), c, w);
-                self.arrow(r, add(r, (LEN, 0.0)), c, w);
+                self.arrow(add(at, (left - 0.7, 0.0)), add(at, (0.6, 0.0)), c, w);
+                self.arrow(add(at, (right + 0.7, 0.0)), add(at, (18.6, 0.0)), c, w);
             }
             Action::Shear => {
-                // Up on the left face, down on the right one: a clockwise pair.
-                let (l, r) = (add(at, (0.6, 0.0)), add(at, (0.6 + 2.0 * HALF, 0.0)));
-                self.line(l, r, BLACK, 0.5);
-                self.arrow(add(l, (0.0, LEN / 2.0)), add(l, (0.0, -LEN / 2.0)), c, w);
-                self.arrow(add(r, (0.0, -LEN / 2.0)), add(r, (0.0, LEN / 2.0)), c, w);
+                // Up on the left face, down on the right: a clockwise pair.
+                let (l, r) = (left - 1.7, right + 1.7);
+                self.arrow(add(at, (l, h)), add(at, (l, -h)), c, w);
+                self.arrow(add(at, (r, -h)), add(at, (r, h)), c, w);
             }
             Action::Moment => {
-                // Clockwise on the left face, counter-clockwise on the right: the reference
-                // fibres (dashed, below) stretched.
-                let r = 2.2;
-                let (l, rt) = (add(at, (r + 0.4, 0.0)), add(at, (r + 0.4 + 2.0 * HALF, 0.0)));
-                self.line(l, rt, BLACK, 0.5);
-                self.dashed(add(l, (0.0, 0.8)), add(rt, (0.0, 0.8)), BLACK, 0.2);
-                self.end_couple(l, r, true, c, w);
-                self.end_couple(rt, r, false, c, w);
+                self.dashed(add(at, (left + 0.9, 1.15)), add(at, (right - 0.9, 1.15)), BLACK, 0.25);
+                self.end_couple(add(at, (left - 1.6, 0.0)), 2.2, true, c, w);
+                self.end_couple(add(at, (right + 1.6, 0.0)), 2.2, false, c, w);
             }
         }
     }
 
     /// The senses the reactions' equations count positive, as the textbooks draw them: an arrow
     /// along x and one along y from a common origin, each the way its axis counts positive and
-    /// named at its tip, and a curved arrow marked `+` the way a rotation counts positive; in the
-    /// title row whose top left corner is `at` (`TITLE_ROW` high).
+    /// named at its tip, and a curved arrow marked `+` the way a rotation counts positive, in
+    /// the quadrant between the two arrows, its opening towards their origin; in the title row
+    /// whose top left corner is `at` (`TITLE_ROW` high). Bold heads, readable at a glance.
     pub(super) fn positive(&mut self, at: P, pos: Positive) {
-        let (w, len) = (0.35, 6.5);
+        let (w, len, head, half) = (0.45, 7.5, 2.4, 0.42);
         let (sx, sy) = (pos.sx(), pos.sy());
         // The origin at the corner the arrows leave from (paper y grows downwards).
-        let o = add(at, (if sx > 0.0 { 1.0 } else { 1.0 + len }, if sy > 0.0 { 1.5 + len } else { 1.5 }));
+        let small = TEXT * 0.85;
+        // With y downwards, room above the x arrow for its name.
+        let o = add(at, (if sx > 0.0 { 1.0 } else { 1.0 + len }, if sy > 0.0 { 1.0 + len } else { 1.5 + small }));
         let tx = add(o, (sx * len, 0.0));
         let ty = add(o, (0.0, -sy * len));
-        self.arrow(o, tx, BLACK, w);
-        self.arrow(o, ty, BLACK, w);
-        self.dot(o, 0.35, BLACK, None);
-        let small = TEXT * 0.85;
-        // `x` under its tip, `y` beside its tip, away from the other arrow.
-        self.text(add(tx, (0.0, small * 1.15)), "x".to_string(), small, false, PlotAnchor::Center, BLACK);
-        let (yx, anchor) = if sx > 0.0 { (-0.9, PlotAnchor::Right) } else { (0.9, PlotAnchor::Left) };
+        self.arrow_sized(o, tx, BLACK, w, head, half);
+        self.arrow_sized(o, ty, BLACK, w, head, half);
+        self.dot(o, 0.4, BLACK, None);
+        // `x` by its tip and `y` beside its tip, both outside the quadrant the rotation takes.
+        let xy = if sy > 0.0 { small * 1.15 } else { -small * 0.65 };
+        self.text(add(tx, (0.0, xy)), "x".to_string(), small, false, PlotAnchor::Center, BLACK);
+        let (yx, anchor) = if sx > 0.0 { (-1.1, PlotAnchor::Right) } else { (1.1, PlotAnchor::Left) };
         self.text(add(ty, (yx, small * 0.75)), "y".to_string(), small, false, anchor, BLACK);
-        // The rotation beside them.
-        let c = add(at, (len + 6.5, 5.0));
-        self.couple(c, 2.6, pos.sr() > 0.0, BLACK, w);
-        self.text(add(c, (0.0, small * 0.38)), "+".to_string(), small, false, PlotAnchor::Center, BLACK);
+        // The rotation in the quadrant between the arrows (x and y both positive), open towards
+        // the origin (the angles counter-clockwise from the right, y up).
+        let q = add(o, (sx * 4.5, -sy * 4.5));
+        let gap = (-sy).atan2(-sx).to_degrees();
+        self.turn(q, 2.5, pos.sr() > 0.0, (gap + 40.0, gap + 320.0), (w, head, half));
+        self.text(add(q, (0.0, small * 0.38)), "+".to_string(), small, false, PlotAnchor::Center, BLACK);
+    }
+
+    /// The curved arrow of [`Pen::positive`] round `q`, radius `r`, over the angles `span`
+    /// (degrees, counter-clockwise from the right, y up), turning counter-clockwise when `ccw`:
+    /// the same stroke and the same head (`style`: width, head length, half width) as the axes'
+    /// arrows, the head wrapped on the arc's last `head` mm so it keeps its full size.
+    fn turn(&mut self, q: P, r: f64, ccw: bool, span: (f64, f64), style: (f64, f64, f64)) {
+        let (w, head, half) = style;
+        let (a0, a1) = (span.0.to_radians(), span.1.to_radians());
+        let (from, to) = if ccw { (a0, a1) } else { (a1, a0) };
+        let at = |t: f64| (q.0 + r * t.cos(), q.1 - r * t.sin());
+        // The head's base on the arc, `head` mm (along the arc) before its point.
+        let back = (head / r).min((to - from).abs() * 0.5);
+        let base = to - back * (to - from).signum();
+        let n = 24;
+        let arc: Vec<P> = (0..=n).map(|k| at(from + (base - from) * f64::from(k) / f64::from(n))).collect();
+        self.poly(arc, BLACK, w);
+        let (tip, b) = (at(to), at(base));
+        self.head(tip, unit((tip.0 - b.0, tip.1 - b.1)), head, half, BLACK);
     }
 
     /// Half a turn round a piece's end `p` on its outer side: on the left end (`left`) from below
@@ -170,14 +196,38 @@ mod tests {
     }
 
     #[test]
+    fn the_rotation_has_the_same_head_as_the_axes() {
+        use crate::model::{Positive, SenseTurn, SenseX, SenseY};
+        let area = |t: &[(f64, f64)]| ((t[1].0 - t[0].0) * (t[2].1 - t[0].1) - (t[2].0 - t[0].0) * (t[1].1 - t[0].1)).abs() / 2.0;
+        for pos in [Positive::default(), Positive { x: SenseX::Left, y: SenseY::Down, rotation: SenseTurn::Cw }] {
+            let mut pen = super::Pen::default();
+            pen.positive((0.0, 0.0), pos);
+            let heads: Vec<f64> = pen
+                .prims
+                .iter()
+                .filter_map(|p| match p {
+                    PlotPrim::Path { pts, fill: Some(_), .. } if pts.len() == 3 => Some(area(pts)),
+                    _ => None,
+                })
+                .collect();
+            // The x arrow's, the y arrow's and the rotation's: all three the same size.
+            assert_eq!(heads.len(), 3, "{pos:?}");
+            assert!(heads.iter().all(|a| (a - heads[0]).abs() < 1e-9), "{heads:?}");
+        }
+    }
+
+    #[test]
     fn each_diagram_title_has_its_sign_convention() {
-        // The pieces of member the conventions are drawn on (solid black, 0.5 mm).
+        // Each legend has a closed outline with two zigzag cut faces.
         let pieces = |st: &Structure| {
             let r = st.render(None);
             r.plot
                 .prims
                 .iter()
-                .filter(|p| matches!(p, PlotPrim::Path { stroke: Some((c, w)), dash, .. } if *c == BLACK && *w == 0.5 && dash.is_empty()))
+                .filter(|p| {
+                    matches!(p, PlotPrim::Path { pts, stroke: Some((c, w)), dash, .. }
+                        if *c == BLACK && *w == 0.5 && dash.is_empty() && pts.len() == 9 && pts.first() == pts.last())
+                })
                 .count()
         };
         let mut st = cantilever(false);

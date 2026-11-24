@@ -18,7 +18,7 @@ use crate::{CmdError, Session};
 const PREFIX: &str = "_StrixWorking_";
 
 /// The labels a working's words come from (`structure.working`'s and an exercise's).
-const KEYS: [&str; 28] = [
+const KEYS: [&str; 27] = [
     "heading",
     "loads",
     "reactions",
@@ -41,7 +41,6 @@ const KEYS: [&str; 28] = [
     "hinge",
     "range",
     "stretch",
-    "cut",
     "values",
     "valuesMax",
     "jump",
@@ -96,6 +95,12 @@ pub(in crate::cmd::structure) fn any(s: &Session, group: &str) -> bool {
         Block::Para(p) => p.objects.iter().any(|o| matches!(o, InlineObject::BookmarkStart { name } if names.contains(name))),
         _ => false,
     })
+}
+
+/// Whether body block `i` is in one of `group`'s written workings, which a change to the
+/// structure writes again.
+pub(in crate::cmd::structure) fn holds(s: &Session, group: &str, i: usize) -> bool {
+    !group.is_empty() && PARTS.iter().any(|&p| range(s, &name(group, p)).is_some_and(|(a, b)| a <= i && i <= b))
 }
 
 /// Keeps in `st` the working's words given in `v`'s `labels`.

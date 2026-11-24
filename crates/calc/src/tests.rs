@@ -953,6 +953,17 @@ fn solutions_show_formula_substitution_and_result() {
     assert_eq!(steps(&["L = 4.5 m", "q = 12 kN/m", "M = q·L^2/8"]).unwrap(), ["= (12 kN/m)·(4.5 m)²/8", "= 30.375 kN·m"]);
     // Each step of the algebra on a line of its own.
     assert_eq!(steps(&["A = 50 cm^2", "A = π·d^2/4"]).unwrap(), ["π·d² = 4·A", "d² = 4·A/π", "d = √(4·A/π)", "d = √(4·(50 cm²)/π)", "d = 0.0798 m"]);
+    // A minus on the unknown crosses over into the other side's leading one, never `V = --F·…`.
+    assert_eq!(
+        steps(&["F = 60 kN", "d = 3 m", "0 kN·m = -V·6 m + F·d"]).unwrap(),
+        ["-V·6 m = -F·d", "-V = -F·d/(6 m)", "V = F·d/(6 m)", "V = (60 kN)·(3 m)/(6 m)", "V = 30 kN"]
+    );
+    // With more monomials the minus is worked into each of them, never left in front of the fraction.
+    assert_eq!(
+        steps(&["F = 60 kN", "G = 30 kN", "d = 3 m", "e = 2 m", "0 kN·m = -V·6 m + F·d + G·e"]).unwrap()[..3],
+        ["-V·6 m = -G·e - F·d", "-V = (-G·e - F·d)/(6 m)", "V = (G·e + F·d)/(6 m)"]
+    );
+    assert_eq!(steps(&["F = 60 kN", "G = 30 kN", "0 kN = -V + F - G"]).unwrap()[..2], ["-V = G - F", "V = F - G"]);
     // Plain numbers in the substitution need no parentheses; negatives do.
     assert_eq!(steps(&["a = 2", "b = -3", "c = a·b"]).unwrap(), ["= 2·(-3)", "= -6"]);
     // Solved numerically: the equation with the values, then the result, marked as numerical.
@@ -2297,11 +2308,11 @@ fn an_unknown_in_a_call_and_an_interval_for_its_root() {
     assert_eq!(last(&["0 kN = (30 kN) - (5 kN/m^2)·x_1^2; 6 m ≥ x_1 > 0 m", "x_1 ="]), "x_1 = 2.449 m");
     let shown = last(&["T(x) = (30 kN) - (5 kN/m^2)·x^2", "0 kN = T(x_1); 0 m ≤ x_1 ≤ 6 m"]);
     assert_eq!(shown, "0 kN = T(x_1); 0 m ≤ x_1 ≤ 6 m ⇒ x_1 = 2.449 m");
-    // The root substituted in a call: one pair of parentheses.
+    // The root substituted in the call opened into its law: one pair of parentheses.
     let opts = Options { steps: true, ..Options::default() };
     let r = evaluate(&["T(x) = (30 kN) - (5 kN/m^2)·x^2", "0 kN = T(x_1); 0 m ≤ x_1 ≤ 6 m", "M(x) = (30 kN)·x", "M(x_1) = kN·m"], &opts);
     let shown = r.last().and_then(|r| r.display.clone()).unwrap_or_default();
-    assert!(shown.contains("M(2.449 m)") && !shown.contains("(("), "{shown}");
+    assert_eq!(shown, "M(x_1) = 30 kN·x_1 = 30 kN·(2.449 m) = 73.485 kN·m");
     let shown = last(&["T(x) = (30 kN) - (5 kN/m^2)·x^2", "0 kN = T(x_1); 0 m ≤ x_1 ≤ 6 m"]);
     // Read back as written, it solves the same.
     assert_eq!(last(&["T(x) = (30 kN) - (5 kN/m^2)·x^2", &shown, "x_1 ="]), "x_1 = 2.449 m");
@@ -2359,4 +2370,108 @@ fn an_unknown_in_a_call_shows_its_algebra() {
     let s = steps(&["T(x) = (30 kN) - (5 kN/m^2)·x^2", "0 kN = T(x_1); 0 m ≤ x_1 ≤ 6 m"]).unwrap();
     assert_eq!(s.first().map(String::as_str), Some("0 kN = 30 kN - 5 kN/(m)²·x_1²"), "{s:?}");
     assert_eq!(s.last().map(String::as_str), Some("x_1 = 2.449 m"), "{s:?}");
+}
+
+/// A user function's value is worked out with its law: the call opened (`x` substituted), the
+/// values substituted, each term's weight, then the result; a moment that balances is 0, never
+/// the rounding left over (`1.819·10^-14`).
+#[test]
+fn a_call_is_worked_out_with_its_law() {
+    let opts = Options { steps: true, ..Options::default() };
+    let r = evaluate(
+        &[
+            "V_A := (150 kN + 20 kN·sin(60°))/6",
+            "F_1 := 30 kN",
+            "F_2 := 10 kN",
+            "M(x) := V_A·x - F_1·(x - 1 m) - F_2·sin(60°)·(x - 4 m)",
+            "M(6 m) = kN·m",
+            "M(4 m) = kN·m",
+            "T(x) := V_A - F_1 - F_2·sin(60°)",
+            "T(4 m) = kN",
+            "C(x) := 30 kN",
+            "C(2 m) = kN",
+        ],
+        &opts,
+    );
+    let shown: Vec<String> = r.iter().filter_map(|r| r.display.clone()).collect();
+    assert_eq!(
+        shown,
+        [
+            "M(6 m) = V_A·6 m - F_1·(6 m - 1 m) - F_2·sin(60 °)·(6 m - 4 m) = (27.887 kN)·6 m - (30 kN)·(6 m - 1 m) - (10 kN)·sin(60 °)·(6 m - 4 m) = 167.321 kN·m - 150 kN·m - 17.321 kN·m = 0 kN·m",
+            "M(4 m) = V_A·4 m - F_1·(4 m - 1 m) - F_2·sin(60 °)·(4 m - 4 m) = (27.887 kN)·4 m - (30 kN)·(4 m - 1 m) - (10 kN)·sin(60 °)·(4 m - 4 m) = 111.547 kN·m - 90 kN·m - 0 kN·m = 21.547 kN·m",
+            "T(4 m) = V_A - F_1 - F_2·sin(60 °) = (27.887 kN) - (30 kN) - (10 kN)·sin(60 °) = 27.887 kN - 30 kN - 8.66 kN = -10.774 kN",
+            // A law that is a value alone: nothing to work out.
+            "C(2 m) = 30 kN",
+        ]
+    );
+    // Without steps the result alone, the rounding gone all the same.
+    assert_eq!(
+        last(&["V_A := (150 kN + 20 kN·sin(60°))/6", "M(x) := V_A·x - 30 kN·(x - 1 m) - 10 kN·sin(60°)·(x - 4 m)", "M(6 m) = kN·m"]),
+        "M(6 m) = 0 kN·m"
+    );
+}
+
+/// What a sum or a difference leaves of binary rounding is 0; a small value that is one is kept.
+#[test]
+fn rounding_left_by_a_sum_is_zero() {
+    assert_eq!(last(&["a := 0.1 m + 0.2 m - 0.3 m", "a = m"]), "a = 0 m");
+    assert_eq!(last(&["b := 1 m - 0.99988 m", "b = m"]), "b = 1.2·10^-4 m");
+    assert_eq!(last(&["c := 101325 Pa + 0.001 Pa - 101325 Pa", "c = Pa"]), "c = 0.001 Pa");
+}
+
+/// With the decimals counted, a result is rounded to them but a substituted value never is:
+/// `0.0005 kN/mm` stays whole in the step.
+#[test]
+fn a_substitution_keeps_digits_past_the_decimals() {
+    let opts = Options { steps: true, count: Count::Decimals, ..Options::default() };
+    let r = evaluate(&["q := 0.0005 kN/mm", "a := 2.5 m", "F = q·a ="], &opts);
+    let shown = r.last().and_then(|r| r.display.clone()).unwrap_or_default();
+    assert!(!shown.contains("0.001 kN/mm") && shown.contains("(5·10^-4 kN/mm)") && shown.ends_with("= 1.25 kN"), "{shown}");
+}
+
+/// A call opened with a negative argument, or one that is a sum, keeps the argument whole in
+/// parentheses: `V·(-2 m)`, `(-2 m)²`, `- (-2 m)`, never `V·-2 m` nor `- -2 m`.
+#[test]
+fn a_call_opened_keeps_a_negative_argument_in_parentheses() {
+    let opts = Options { steps: true, ..Options::default() };
+    let r = evaluate(
+        &["V := 10 kN", "a := 1 m", "M(x) := V·x - V·(a - x)", "M(-2 m) = kN·m", "g(x) := 3 m - x + x^2/(1 m)", "g(-2 m) = m", "M(a + 1 m) = kN·m"],
+        &opts,
+    );
+    let shown: Vec<String> = r.iter().filter_map(|r| r.display.clone()).collect();
+    for s in &shown {
+        assert!(!s.contains("·-") && !s.contains("- -") && !s.contains("+ -"), "{s}");
+    }
+    assert!(shown[0].contains("V·(-2 m)") && shown[0].ends_with("= -50 kN·m"), "{shown:?}");
+    assert!(shown[1].contains("3 m - (-2 m) + (-2 m)²") && shown[1].ends_with("= 9 m"), "{shown:?}");
+    assert!(shown[2].contains("V·(a + 1 m)") && shown[2].ends_with("= 30 kN·m"), "{shown:?}");
+}
+
+/// A call of known arguments shown opened with its working (`M(x_1) = law = numbers = result`,
+/// as the document holds it once worked out) reads back as the call with its result, never as
+/// a function definition with more than one `=`: the results summary quotes it as it is.
+#[test]
+fn a_call_opened_with_its_working_reads_back() {
+    let opts = Options { steps: true, ..Options::default() };
+    let r = evaluate(
+        &[
+            "V := 30 kN",
+            "q := 10 kN/m",
+            "x_1 := 3 m",
+            "M(x) := V·x - q·x^2/2",
+            "M(x_1) = V·x_1 - q·(x_1²)/2 = (30 kN)·(3 m) - (10 kN∕m)·((3 m)²)/2 = 90 kN·m - 45 kN·m = 45 kN·m",
+        ],
+        &opts,
+    );
+    let last = r.last().unwrap();
+    assert!(last.error.is_none(), "{:?}", last.error);
+    // Opened again with its working.
+    let shown = last.display.clone().unwrap_or_default();
+    assert!(shown.starts_with("M(x_1) = V·x_1") && shown.contains("(30 kN)·(3 m)") && shown.ends_with("= 45 kN·m"), "{shown}");
+    // Read back without its working, or with a result gone stale: the same.
+    for text in ["M(x_1) = V·x_1 - q·(x_1²)/2 = 45 kN·m", "M(x_1) = V·x_1 - q·(x_1²)/2 = (30 kN)·(3 m) - 9 kN·m = 99 kN·m"] {
+        let r = evaluate(&["V := 30 kN", "q := 10 kN/m", "x_1 := 3 m", "M(x) := V·x - q·x^2/2", text], &opts);
+        let again = r.last().and_then(|r| r.display.clone()).unwrap_or_default();
+        assert!(r.last().is_some_and(|r| r.error.is_none()) && again.ends_with("= 45 kN·m"), "{text}: {again}");
+    }
 }

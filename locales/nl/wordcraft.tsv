@@ -2853,3 +2853,6 @@ paper	Envelope DL	Envelop DL
 	Calculated\nTable	Berekende\ntabel
 	Graph\nPaper	Millimeter-\npapier
 	New\nCalculation	Nieuwe\nberekening
+	Dictionary file:	Woordenlijstbestand:
+	Not set: custom-dictionary.txt in the settings folder	Niet ingesteld: custom-dictionary.txt in de map met instellingen
+	A custom-word dictionary file (.dic or plain text) used with the main dictionary.	Een bestand met eigen woorden (.dic of platte tekst) dat samen met de hoofdwoordenlijst wordt gebruikt.

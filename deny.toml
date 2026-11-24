@@ -42,6 +42,9 @@ confidence-threshold = 0.9
 # bringing OFL or Ubuntu Font Licence material must be looked at first (CLAUDE.md: fonts).
 exceptions = [
     { crate = "epaint_default_fonts", allow = ["OFL-1.1", "Ubuntu-font-1.0"] },
+    # jpeg-encoder (craft-image-codecs) is MIT OR Apache-2.0 plus the IJG licence for its DCT, ported
+    # from libjpeg-turbo: permissive, asking only for the IJG acknowledgment, which NOTICE gives.
+    { crate = "jpeg-encoder", allow = ["IJG"] },
 ]
 
 [licenses.private]

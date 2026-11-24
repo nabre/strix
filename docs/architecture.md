@@ -9,7 +9,7 @@ committed, current summary. Rules for working in the code are in [`AGENTS.md`](.
 
 ## Layers
 
-18 crates, 3 apps and `xtask`. Layering is enforced by `cargo xtask layers`:
+17 crates, 3 apps and `xtask`. Layering is enforced by `cargo xtask layers`:
 a crate may only depend on crates in lower layers, and nothing below L6 depends on egui, eframe,
 winit or rfd.
 
@@ -20,7 +20,7 @@ winit or rfd.
 | L1 | `fonts` | 2.3k | Font database (bundled OFL + system fonts), metrics, outlines, shaping with HarfRust, Word font substitution (`word.rs`: Carlito ↔ Calibri, Caladea ↔ Cambria, Liberation ↔ Arial/Times/Courier), OpenType MATH |
 | L1 | `calc` | | Live calculations with units: calc regions, calculated tables (header formulas, ordinal column, total row, index row) |
 | L1 | `cad` | | 2D drafting model (drawing units, scale, layers, entities, dimensions, levels), editing kernel, rendering to a neutral item list and SVG; builds on `calc` |
-| L1 | `metafile` | | WMF/EMF reader into a neutral vector model |
+| L1 (external) | [`craft-metafile`](https://github.com/storytold/craft-libs/tree/main/crates/metafile) | — | WMF, EMF and EMF+ reader shared with the other Craft apps: paths, pattern fills, bitmaps and text with their clips, placed into a picture frame for the renderers |
 | L1 (external) | [`craft-proof`](https://github.com/storytold/craft-libs/tree/main/crates/proof) (package alias `wordcraft-proof`) | — | Proofing moved to craft-libs (CP1, 2026-11): fifteen spelling dictionaries: English (US, GB, CA), Polish, Portuguese, Italian, Croatian, Turkish, Russian, Czech, Indonesian and Spanish (Spain, Mexico, Latin America, Uruguay); language modules provide spelling, suggestions and grammar, while Bulgarian and German have hyphenation only. Its word lists and patterns are craft-i18n's `language-data/`, embedded from `CRAFT_I18N_DIR` at the commit in `craft-i18n.rev` (CI and releases set `CRAFT_I18N_REQUIRED=1`); without them English spelling falls back to an installed Hunspell English or craft-proof's built-in Moby list, and pattern hyphenation is off (Bulgarian, Turkish and Russian hyphenate by rule) |
 | L2 | `layout` | 9.6k | Shaping runs, line breaking, tabs, lists, tables (row splitting, floating tables), pagination, headers/footers, notes, floating objects and wrap, math layout, fields, hit testing; produces a display list |
 | L2 | `docx` | 8.4k | OOXML WordprocessingML reader and writer (Transitional and Strict namespaces, `.docx/.docm/.dotx/.dotm`), OMML, custom properties, VBA parts preserved |

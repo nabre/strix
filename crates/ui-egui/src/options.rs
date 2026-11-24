@@ -250,6 +250,7 @@ fn general(app: &mut WordApp, ui: &mut Ui) {
     {
         let _ = app.run("view.darkMode", json!({"value": dark_page}));
     }
+    ui.checkbox(&mut app.ui.font_download_notice, tl!("Tell me when a document's missing fonts can be downloaded"));
     default_app_button(app, ui);
     ui.add_space(8.0);
     section(ui, "Start-up");
@@ -354,7 +355,40 @@ fn proofing(app: &mut WordApp, ui: &mut Ui) {
     ui.add_enabled_ui(app.session.view.proofing, |ui| flag(app, ui, "Mark grammar errors as you type", "markGrammar", pr.mark_grammar));
     ui.add_space(8.0);
     section(ui, "Custom dictionary");
+    custom_dictionary_file(app, ui);
     custom_dictionary(app, ui);
+}
+
+/// The Dictionary file field (#5840): a custom-word dictionary file (`custom.dic`, or plain text)
+/// that becomes where Add to Dictionary writes. The path is committed only by Apply or Enter, as
+/// each half-typed draft would otherwise bind (and later write to) whatever file it names.
+fn custom_dictionary_file(app: &mut WordApp, ui: &mut Ui) {
+    let saved = app.session.prefs.custom_dictionary.clone().unwrap_or_default();
+    let id = egui::Id::unique("options_custom_dictionary_file");
+    let mut file = ui.data(|d| d.get_temp::<String>(id)).unwrap_or_else(|| saved.clone());
+    let file_label = ui.label(tl!("Dictionary file:")).id;
+    ui.horizontal(|ui| {
+        let r = ui
+            .add(egui::TextEdit::singleline(&mut file).desired_width(320.0).hint_text(tl!("Not set: custom-dictionary.txt in the settings folder")))
+            .labelled_by(file_label);
+        let enter = r.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
+        let changed = file.trim() != saved;
+        if ui.add_enabled(changed, egui::Button::new(tl!("Apply"))).clicked() || (enter && changed) {
+            let value = if file.trim().is_empty() { "auto" } else { file.trim() };
+            match app.run("file.options", json!({"customDictionary": value})) {
+                // Shown as saved (`~/` expanded).
+                Ok(_) => file = app.session.prefs.custom_dictionary.clone().unwrap_or_default(),
+                Err(e) => app.status(e),
+            }
+        }
+        if ui.add_enabled(!saved.is_empty(), egui::Button::new(tl!("Clear"))).clicked()
+            && app.run("file.options", json!({"customDictionary": "auto"})).is_ok()
+        {
+            file.clear();
+        }
+    });
+    ui.data_mut(|d| d.insert_temp(id, file));
+    note(ui, "A custom-word dictionary file (.dic or plain text) used with the main dictionary.");
 }
 
 /// Where the spelling dictionaries come from (#1063): a folder searched before the system's
@@ -676,6 +710,9 @@ fn advanced(app: &mut WordApp, ui: &mut Ui) {
         templates_folder(app, ui);
     }
     ui.add_space(8.0);
+    section(ui, "Scrolling");
+    scroll_speed_picker(app, ui);
+    ui.add_space(8.0);
     section(ui, "Customize");
     ui.horizontal(|ui| {
         ui.label(tl!("Keyboard shortcuts:"));
@@ -769,8 +806,8 @@ fn interface_size_picker(app: &mut WordApp, ui: &mut Ui) {
     let native = ui.ctx().native_pixels_per_point().unwrap_or(1.0);
     // The template keeps the percent sign outside its placeholder, so `fmt` isolates the number
     // without it and a right-to-left line draws "(%200)": the sign goes inside the isolate.
-    let auto = crate::i18n::fmt(tl!("Auto ({percent}%)"), &[("percent", &InterfaceSize::AUTO.drawn_percent(native).to_string())])
-        .replace("\u{2069}%", "%\u{2069}");
+    let drawn = InterfaceSize::AUTO.drawn_percent_within(native, app.auto_scale_limit);
+    let auto = crate::i18n::fmt(tl!("Auto ({percent}%)"), &[("percent", &drawn.to_string())]).replace("\u{2069}%", "%\u{2069}");
     let selected = size.percent().map_or_else(|| auto.clone(), |pct| format!("{pct}%"));
     ui.horizontal(|ui| {
         let label = ui.label(tl!("Interface size:"));
@@ -839,6 +876,42 @@ fn display_server_picker(app: &mut WordApp, ui: &mut Ui) {
         combo.response.labelled_by(label.id);
     });
     note(ui, "Applies the next time Strix starts.");
+}
+
+/// Scroll speed preferences (#6146): mouse wheel and touchpad (Wayland / macOS).
+fn scroll_speed_picker(app: &mut WordApp, ui: &mut Ui) {
+    use crate::scroll::ScrollSpeed;
+    ui.horizontal(|ui| {
+        let label = ui.label(tl!("Mouse wheel scroll speed:"));
+        let combo = craft_ui::ComboBox::from_id_salt("scroll_speed").selected_text(tl!(app.ui.scroll_speed.label())).width(220.0).show_ui(ui, |ui| {
+            for s in ScrollSpeed::ALL {
+                if ui.selectable_label(app.ui.scroll_speed == s, tl!(s.label())).clicked() {
+                    let _ = app.run("ui.scrollSpeed", json!({"value": s.code()}));
+                }
+            }
+        });
+        combo.response.labelled_by(label.id);
+    });
+    // Windows and browsers do not report touchpads in points.
+    if !cfg!(any(target_os = "windows", target_arch = "wasm32")) {
+        let row = ui.horizontal(|ui| {
+            let label = ui.label(tl!("Touchpad scroll speed:"));
+            let combo = craft_ui::ComboBox::from_id_salt("touchpad_scroll_speed")
+                .selected_text(tl!(app.ui.touchpad_scroll_speed.label()))
+                .width(220.0)
+                .show_ui(ui, |ui| {
+                    for s in ScrollSpeed::ALL {
+                        if ui.selectable_label(app.ui.touchpad_scroll_speed == s, tl!(s.label())).clicked() {
+                            let _ = app.run("ui.touchpadScrollSpeed", json!({"value": s.code()}));
+                        }
+                    }
+                });
+            combo.response.labelled_by(label.id);
+        });
+        if !cfg!(target_os = "macos") {
+            row.response.on_hover_text(tl!("On X11, the touchpad follows the mouse wheel speed."));
+        }
+    }
 }
 
 /// Interface language: follow the system (the default) or pick one (#8).

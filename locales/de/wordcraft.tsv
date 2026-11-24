@@ -3561,6 +3561,9 @@ mark	Grade	Note
 	Page background	Seitenhintergrund
 	Page breaks, parts shown, graph paper and numbering are the series': they are in the Series tab	Seitenumbrüche, angezeigte Teile, Rasterpapier und Nummerierung gehören zur Serie: Sie stehen auf der Registerkarte Serie
 	Panel Layout	Feldanordnung
+	Properties	Eigenschaften
+	Diagram Names	Diagrammnamen
+	Positive Senses	Positive Richtungen
 paper	Legal	Legal
 paper	Letter	Letter
 	Parenthesis (1))	Klammer (1))
@@ -3688,7 +3691,7 @@ structure	Click a node to hold it with a slider (glifo)	Einen Knoten anklicken, 
 structure	Click a node to make it an internal hinge, or not	Einen Knoten anklicken, um ihn zu einem Gelenk zu machen oder das Gelenk zu entfernen
 structure	Click a node to pin it (cerniera)	Einen Knoten anklicken, um ihn mit einem Festlager zu halten
 structure	Click a node to put it on a roller (carrello)	Einen Knoten anklicken, um ihn auf ein Loslager zu setzen
-structure	Click a node to put it on a roller drawn as a circle (carrello)	Einen Knoten anklicken, um ihn auf ein als Kreis gezeichnetes Loslager zu setzen
+structure	Click a node to put it on a roller drawn on a triangle (carrello)	Einen Knoten anklicken, um ihn auf ein auf einem Dreieck gezeichnetes Loslager zu setzen
 structure	Click to add a node	Klicken, um einen Knoten hinzuzufügen
 structure	Click two points to draw a member; it goes on from its end (Esc or a right click stops)	Zwei Punkte anklicken, um einen Stab zu zeichnen; es geht an seinem Ende weiter (Esc oder Rechtsklick beendet)
 structure	Continuous Beam	Durchlaufträger
@@ -3747,7 +3750,7 @@ structure	Remove the member with its loads	Den Stab mit seinen Lasten entfernen
 structure	Remove the node with its members, support and loads	Den Knoten mit seinen Stäben, seinem Lager und seinen Lasten entfernen
 structure	Remove the support	Das Lager entfernen
 structure	Roller	Loslager
-structure	Roller (circle)	Loslager (Kreis)
+structure	Roller (triangle)	Loslager (Dreieck)
 structure	Select	Auswählen
 structure	Select nodes, members and loads (Shift+click, a window); drag to move them, a load slides along its member	Knoten, Stäbe und Lasten auswählen (Umschalt+Klick, ein Rahmen); ziehen zum Verschieben, eine Last gleitet entlang ihres Stabs
 structure	Select a structure in the document to draw and edit it, or insert one.	Wählen Sie ein Tragwerk im Dokument aus, um es zu zeichnen und zu bearbeiten, oder fügen Sie eines ein.
@@ -3919,7 +3922,7 @@ structure	Click a node, a member or a load to see its properties; Shift+click or
 	Fixed	Einspannung
 	Pin	Festlager
 	Roller	Loslager
-	Roller (circle)	Loslager (Kreis)
+	Roller (triangle)	Loslager (Dreieck)
 	Link	Pendelstab
 	Slider	Parallelführung
 	Internal hinge	Gelenk
@@ -3931,7 +3934,7 @@ structure	Click a node, a member or a load to see its properties; Shift+click or
 	Click a node to fix it (incastro)	Einen Knoten anklicken, um ihn einzuspannen (Einspannung)
 	Click a node to pin it (cerniera)	Einen Knoten anklicken, um ihn mit einem Festlager zu halten
 	Click a node to put it on a roller (carrello)	Einen Knoten anklicken, um ihn auf ein Loslager zu setzen
-	Click a node to put it on a roller drawn as a circle (carrello)	Einen Knoten anklicken, um ihn auf ein als Kreis gezeichnetes Loslager zu setzen
+	Click a node to put it on a roller drawn on a triangle (carrello)	Einen Knoten anklicken, um ihn auf ein auf einem Dreieck gezeichnetes Loslager zu setzen
 	Click a node to hold it with a link (pendolo)	Einen Knoten anklicken, um ihn mit einem Pendelstab zu halten
 	Click a node to hold it with a slider (glifo)	Einen Knoten anklicken, um ihn mit einer Parallelführung zu halten
 	Click a node to make it an internal hinge, or not	Einen Knoten anklicken, um ihn zu einem Gelenk zu machen oder das Gelenk zu entfernen
@@ -4065,7 +4068,6 @@ structure	Shear force	Querkraft
 structure	Bending moment	Biegemoment
 structure	Symbols	Symbole
 structure	Name the panels by their symbols	Die Felder mit ihren Symbolen benennen
-structure	Written over the diagrams' panels; the working keeps the symbols.	Über den Feldern der Diagramme geschrieben; der Rechenweg behält die Symbole.
 structure	Positive Senses	Positive Richtungen
 structure	Rotation	Drehung
 structure	Positive to the right	Positiv nach rechts
@@ -4083,6 +4085,8 @@ structure	Down	Nach unten
 structure	Counter-clockwise	Gegen den Uhrzeigersinn
 structure	Clockwise	Im Uhrzeigersinn
 structure	Stretch	Abschnitt
-structure	Cut at x from {a}: the part before the cut (drawn in full) balances its loads, its reactions and N, {T}, M on the cut (drawn positive):	Schnitt bei x von {a}: Der Teil vor dem Schnitt (voll gezeichnet) ist im Gleichgewicht mit seinen Lasten, seinen Reaktionen und N, {T}, M am Schnitt (positiv gezeichnet):
 structure	Values at the ends of the stretch:	Werte an den Enden des Abschnitts:
 structure	Values at the ends of the stretch and at M's extremes:	Werte an den Enden des Abschnitts und an den Extremstellen von M:
+	Dictionary file:	Wörterbuchdatei:
+	Not set: custom-dictionary.txt in the settings folder	Nicht festgelegt: custom-dictionary.txt im Einstellungsordner
+	A custom-word dictionary file (.dic or plain text) used with the main dictionary.	Eine Datei mit eigenen Wörtern (.dic oder Nur-Text), die zusammen mit dem Hauptwörterbuch verwendet wird.

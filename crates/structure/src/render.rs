@@ -11,6 +11,7 @@ use crate::model::{Diagram, Layout, Load, LoadAxes, Side, Structure, SupportKind
 use crate::solve::{Analysis, MemberResult, Status, analyse};
 
 mod annotate;
+mod arms;
 mod conventions;
 mod equilibrium;
 mod section;
@@ -35,6 +36,9 @@ const MEMBER_W: f64 = 0.6;
 const AXIS_W: f64 = 0.35;
 const TEXT: f64 = 2.3;
 const ARROW: f64 = 11.0;
+/// How far along a reaction's arrow from its near end its crossed-out positive way starts
+/// (paper mm): the node's name stands by the node.
+const CROSSED_FROM: f64 = 4.5;
 const SPREAD: f64 = 8.0;
 /// The room between a text and the line it names (paper mm).
 const GAP: f64 = 1.0;
@@ -95,6 +99,17 @@ fn lighter(c: Rgb, t: f64) -> Rgb {
     [mix(c[0]), mix(c[1]), mix(c[2])]
 }
 
+/// The largest distributed-load intensity on `st` (`0.0` when it has none).
+fn max_spread(st: &Structure) -> f64 {
+    st.loads
+        .iter()
+        .filter_map(|l| match l {
+            Load::Distributed { q1, q2, .. } => Some(q1.value.abs().max(q2.as_ref().map_or(0.0, |q| q.value.abs()))),
+            _ => None,
+        })
+        .fold(0.0_f64, f64::max)
+}
+
 #[derive(Default)]
 struct Pen {
     prims: Vec<PlotPrim>,
@@ -148,18 +163,38 @@ impl Pen {
 
     /// An arrow from `tail` to `tip` with a filled head.
     fn arrow(&mut self, tail: P, tip: P, c: Rgb, w: f64) {
+        self.arrow_sized(tail, tip, c, w, 2.0, 0.36);
+    }
+
+    /// [`Pen::arrow`] with a head `head` mm long (at most 60 % of the arrow) and `half` of its
+    /// length wide on each side.
+    fn arrow_sized(&mut self, tail: P, tip: P, c: Rgb, w: f64, head: f64, half: f64) {
         let d = unit((tip.0 - tail.0, tip.1 - tail.1));
         let len = (tip.0 - tail.0).hypot(tip.1 - tail.1);
-        let head = 2.0_f64.min(len * 0.6);
+        let head = head.min(len * 0.6);
         let base = add(tip, mul(d, -head));
         self.line(tail, base, c, w);
+        self.head(tip, d, head, half, c);
+    }
+
+    /// A filled arrowhead with its point at `tip`, pointing along the unit direction `d`, `head`
+    /// mm long and `half` of its length wide on each side.
+    fn head(&mut self, tip: P, d: P, head: f64, half: f64, c: Rgb) {
+        let base = add(tip, mul(d, -head));
         let n = (-d.1, d.0);
-        self.fill(vec![tip, add(base, mul(n, head * 0.36)), add(base, mul(n, -head * 0.36))], c, None);
+        self.fill(vec![tip, add(base, mul(n, head * half)), add(base, mul(n, -head * half))], c, None);
     }
 
     /// A curved arrow round `c` (paper), counter-clockwise on the page when `ccw`.
     fn couple(&mut self, c: P, r: f64, ccw: bool, col: Rgb, w: f64) {
-        let (a0, a1) = (-120.0_f64.to_radians(), 150.0_f64.to_radians());
+        self.couple_sized(c, r, ccw, col, w, (-120.0, 150.0), 3, (2.0, 0.36));
+    }
+
+    /// [`Pen::couple`] over the angles `span` (degrees, counter-clockwise from the right), its
+    /// head taking the last `back` of the arc's 24 steps, `head` its length and half width.
+    #[allow(clippy::too_many_arguments)]
+    fn couple_sized(&mut self, c: P, r: f64, ccw: bool, col: Rgb, w: f64, span: (f64, f64), back: usize, head: (f64, f64)) {
+        let (a0, a1) = (span.0.to_radians(), span.1.to_radians());
         let n = 24;
         let mut pts: Vec<P> = (0..=n)
             .map(|k| {
@@ -170,10 +205,10 @@ impl Pen {
         if !ccw {
             pts.reverse();
         }
-        let (Some(&tip), Some(&before)) = (pts.last(), pts.get(pts.len().saturating_sub(4))) else { return };
-        pts.truncate(pts.len().saturating_sub(3));
+        let (Some(&tip), Some(&before)) = (pts.last(), pts.get(pts.len().saturating_sub(back + 1))) else { return };
+        pts.truncate(pts.len().saturating_sub(back));
         self.poly(pts, col, w);
-        self.arrow(before, tip, col, w);
+        self.arrow_sized(before, tip, col, w, head.0, head.1);
     }
 }
 
@@ -241,17 +276,39 @@ impl Ctx<'_> {
 
     /// [`Ctx::node_names`] of the nodes `at` picks.
     fn node_names_where(&mut self, f: &Frame, at: &dyn Fn(&str) -> bool) {
+        self.node_names_styled(f, BLACK, true, at);
+    }
+
+    /// [`Ctx::node_names`] of the nodes `at` picks, in `color` and weight `bold`.
+    fn node_names_styled(&mut self, f: &Frame, color: Rgb, bold: bool, at: &dyn Fn(&str) -> bool) {
+        self.node_names_avoiding(f, color, bold, at, &|_| Vec::new());
+    }
+
+    /// [`Ctx::node_names_styled`], each name clear of the paper directions `taken` gives for its
+    /// node too (the reactions' arrows).
+    fn node_names_avoiding(&mut self, f: &Frame, color: Rgb, bold: bool, at: &dyn Fn(&str) -> bool, taken: &dyn Fn(&str) -> Vec<P>) {
         let st = self.st;
         for n in &st.nodes {
             if n.id.is_empty() || !at(&n.id) || !st.members.iter().any(|m| m.a == n.id || m.b == n.id) {
                 continue;
             }
             let p = f.p(n.x.value, n.y.value);
-            // Away from the node's members.
-            let away = self.free_side(&n.id);
+            // Away from the node's members; off the side an arrow took only when it lies along it.
+            let arrows = taken(&n.id);
+            let mut away = self.free_side(&n.id);
+            if arrows.iter().any(|a| a.0 * away.0 + a.1 * away.1 > 0.9) {
+                away = self.free_side_avoiding(&n.id, &arrows);
+            }
             let supported = st.supports.iter().any(|s| s.node == n.id);
-            let at = add(p, mul(away, if supported { 5.0 } else { 3.6 }));
-            self.pen.text((at.0, at.1 + 1.4), n.id.clone(), 2.8, true, PlotAnchor::Center, BLACK);
+            // Clear of a fixed end's couple, drawn round the node.
+            let fixed = st.supports.iter().any(|s| s.node == n.id && matches!(s.kind, SupportKind::Fixed | SupportKind::Slider));
+            let reach = match (fixed && !arrows.is_empty(), supported) {
+                (true, _) => 8.5,
+                (false, true) => 5.0,
+                (false, false) => 3.6,
+            };
+            let at = add(p, mul(away, reach));
+            self.pen.text((at.0, at.1 + 1.4), n.id.clone(), 2.8, bold, PlotAnchor::Center, color);
         }
     }
 
@@ -405,15 +462,13 @@ impl Ctx<'_> {
 
     /// The loads `which` picks, in colour `col`, with their names and values when `labelled`.
     fn loads_as(&mut self, f: &Frame, col: Rgb, labelled: bool, which: &dyn Fn(usize, &Load) -> bool) {
+        self.loads_with_max(f, col, labelled, max_spread(self.st), which);
+    }
+
+    /// [`Ctx::loads_as`] scaled against `qmax` (so a distributed load split across a section cut
+    /// keeps one scale on both sides).
+    fn loads_with_max(&mut self, f: &Frame, col: Rgb, labelled: bool, qmax: f64, which: &dyn Fn(usize, &Load) -> bool) {
         let st = self.st;
-        let qmax = st
-            .loads
-            .iter()
-            .filter_map(|l| match l {
-                Load::Distributed { q1, q2, .. } => Some(q1.value.abs().max(q2.as_ref().map_or(0.0, |q| q.value.abs()))),
-                _ => None,
-            })
-            .fold(0.0_f64, f64::max);
         let names = crate::names::load_names(st);
         // `F₁ = 20 kN`: the load's name before its value.
         let named = |k: usize, end: u8, value: String| match names.get(k).copied().flatten() {
@@ -521,7 +576,10 @@ impl Ctx<'_> {
         self.node_p(f, node?)
     }
 
-    fn reactions(&mut self, f: &Frame) {
+    /// The reactions with their values; returns, for each support's node, the paper directions
+    /// its arrows and its couple's value took.
+    fn reactions(&mut self, f: &Frame) -> Vec<(String, Vec<P>)> {
+        let mut sides = Vec::new();
         let an = self.an;
         let pos = self.st.positive;
         let (sx, sy, sr) = (pos.sx(), pos.sy(), pos.sr());
@@ -567,10 +625,11 @@ impl Ctx<'_> {
                 }
                 if v < 0.0 {
                     // Taken positive along the axis, it came out negative: that way crossed out
-                    // beside it, on the side away from the structure.
+                    // beside it, on the side away from the structure; along the arrow's outer
+                    // part only, clear of the node's name next to the node.
                     let across = self.outwards(&r.node, (-side.1, side.0));
                     let (a, b) = (add(near, mul(across, 4.0)), add(far, mul(across, 4.0)));
-                    let a = add(a, mul(side, 1.0));
+                    let a = add(a, mul(side, CROSSED_FROM));
                     if toward_node { self.pen.crossed_arrow(a, b, REACTION) } else { self.pen.crossed_arrow(b, a, REACTION) }
                 }
                 let label = self.force(v.abs());
@@ -588,8 +647,11 @@ impl Ctx<'_> {
                 let label = self.moment(r.m.abs());
                 let free = self.free_side_avoiding(&r.node, &taken);
                 self.pen.beside(add(p, mul(free, reach)), free, label, REACTION);
+                taken.push(free);
             }
+            sides.push((r.node.clone(), taken));
         }
+        sides
     }
 
     /// One diagram of `action` on every member.
@@ -882,7 +944,7 @@ impl Ctx<'_> {
 /// The values written on a diagram: the notable ones, a stretch of constant value once at its
 /// middle instead of at both its ends.
 fn shown_values(m: &MemberResult, action: Action) -> Vec<(crate::diagram::Notable, bool)> {
-    let bps = m.breakpoints();
+    let bps = m.breakpoints_of(action);
     let val = |x: f64, after: bool| action.of(m.forces(x, after));
     let mut constant: Vec<(f64, f64, f64)> = Vec::new();
     for w in bps.windows(2) {
@@ -912,7 +974,7 @@ fn shown_values(m: &MemberResult, action: Action) -> Vec<(crate::diagram::Notabl
 /// The diagram's points along a member, a list per stretch (the ends of a stretch take the
 /// values just inside it, so jumps show).
 fn sample(m: &MemberResult, action: Action) -> Vec<Vec<(f64, f64)>> {
-    let bps = m.breakpoints();
+    let bps = m.breakpoints_of(action);
     let mut out = Vec::new();
     for w in bps.windows(2) {
         let (x0, x1) = (w[0], w[1]);
@@ -1008,6 +1070,8 @@ impl Structure {
                 errors.push(format!("{expr}: {why}"));
             }
         }
+        // However its members were drawn, they run along the structure's axes.
+        let st = st.oriented();
         let an = analyse(&st);
         errors.extend(an.warnings.iter().cloned());
         let show = show_answers || !st.answer;
@@ -1075,7 +1139,7 @@ impl Structure {
             }
             first = false;
             // The free body's row shows the senses its equations count positive.
-            let titled = row.iter().any(|(p, _, _)| cx.panel_title(*p).is_some() || matches!(p, Panel::Equilibrium));
+            let titled = row.iter().any(|(p, _, _)| cx.panel_title(*p).is_some() || matches!(p, Panel::Equilibrium | Panel::Arms));
             let top = y + if titled { TITLE_ROW } else { 0.0 };
             let height = row.iter().filter_map(|(_, _, b)| b.map(|b| b[3] - b[1])).fold(0.0_f64, f64::max);
             for (c, (panel, prims, bbox)) in row.iter().enumerate() {
@@ -1092,7 +1156,7 @@ impl Structure {
                         pen.convention((after, y + 3.0), a, color);
                     }
                 }
-                if matches!(panel, Panel::Equilibrium) {
+                if matches!(panel, Panel::Equilibrium | Panel::Arms) {
                     pen.positive((cell * c as f64 + 2.0, y), st.positive);
                 }
                 let Some(b) = bbox else { continue };
@@ -1132,7 +1196,9 @@ fn union(a: [f64; 4], b: [f64; 4]) -> [f64; 4] {
     [a[0].min(b[0]), a[1].min(b[1]), a[2].max(b[2]), a[3].max(b[3])]
 }
 
-/// The box round what a primitive draws (texts estimated: glyphs ~0.55 of the height wide).
+/// The box round what a primitive draws (texts estimated: glyphs ~0.6 of the height wide, a
+/// little wider than most fonts' so a value at the drawing's edge, `7.071 kN` beside a horizontal
+/// reaction, stays inside it whatever font draws it).
 fn prim_box(p: &PlotPrim) -> Option<[f64; 4]> {
     let b = match p {
         PlotPrim::Rect { rect, .. } => [rect[0], rect[1], rect[0] + rect[2], rect[1] + rect[3]],
@@ -1143,7 +1209,7 @@ fn prim_box(p: &PlotPrim) -> Option<[f64; 4]> {
         }
         PlotPrim::Dot { at, r, .. } => [at.0 - r, at.1 - r, at.0 + r, at.1 + r],
         PlotPrim::Text { at, text, height, bold, anchor, .. } => {
-            let w = text.chars().count() as f64 * height * if *bold { 0.6 } else { 0.55 };
+            let w = text.chars().count() as f64 * height * if *bold { 0.65 } else { 0.6 };
             let (x0, y0) = match anchor {
                 PlotAnchor::Left => (at.0, at.1 - height * 0.85),
                 PlotAnchor::Center => (at.0 - w / 2.0, at.1 - height * 0.85),
@@ -1197,7 +1263,7 @@ impl Ctx<'_> {
         let fu = st.force_unit.symbol();
         let lu = st.length_unit.symbol();
         match panel {
-            Panel::Schema | Panel::Reactions | Panel::Equilibrium | Panel::Section => None,
+            Panel::Schema | Panel::Reactions | Panel::Equilibrium | Panel::Section | Panel::Arms => None,
             // The name given to the diagram (`Sforzo normale`), else its symbol (`N`).
             Panel::Truss | Panel::Diagram(Action::Axial) => Some((format!("{} [{fu}]", named(&st.names.n, &st.titles.n)), COLOR_N)),
             Panel::Diagram(Action::Shear) => Some((format!("{} [{fu}]", named(&st.names.v, &st.titles.v)), COLOR_V)),
@@ -1221,13 +1287,26 @@ impl Ctx<'_> {
             Panel::Reactions => {
                 self.members(f, if show { GREY } else { BLACK }, MEMBER_W, true);
                 self.supports(f, if show { GREY } else { BLACK });
-                if show {
-                    self.reactions(f);
+                // On its own (an exercise's question) it carries the schema's indications: the
+                // loads with their names and values, the dimensions (after the reactions, so they
+                // keep clear of them) and the nodes' names (clear of the reactions' arrows).
+                let alone = self.st.view == View::Reactions;
+                if alone {
+                    self.loads(f);
+                    self.force_angles(f);
+                    self.slopes(f);
+                }
+                let taken = if show { self.reactions(f) } else { Vec::new() };
+                if alone {
+                    self.dimensions(f);
+                    let sides = |id: &str| taken.iter().filter(|(n, _)| n == id).flat_map(|(_, s)| s.iter().copied()).collect();
+                    self.node_names_avoiding(f, BLACK, true, &|_| true, &sides);
                 }
             }
             // Names only, no answers: the same in the student's copy.
             Panel::Equilibrium => self.equilibrium(f),
             Panel::Section => self.section(f),
+            Panel::Arms => self.arms(f),
             Panel::Truss => {
                 if show {
                     self.truss(f);
@@ -1266,6 +1345,9 @@ fn plan(st: &Structure, an: &Analysis) -> Vec<Panel> {
     }
     if st.view == View::Section {
         panels.push(Panel::Section);
+    }
+    if st.view == View::Arms {
+        panels.push(Panel::Arms);
     }
     if (d.reactions && st.view == View::All) || st.view == View::Reactions {
         panels.push(Panel::Reactions);
@@ -1321,6 +1403,8 @@ enum Panel {
     Equilibrium,
     /// One stretch of a written working, cut ([`View::Section`]).
     Section,
+    /// The lever arms of one moment equation of the reactions' working ([`View::Arms`]).
+    Arms,
     Truss,
     Diagram(Action),
 }
@@ -1405,6 +1489,40 @@ mod layout_tests {
     }
 
     #[test]
+    fn the_reactions_on_their_own_keep_the_names_and_dimensions_clear_of_their_arrows() {
+        let mut st = Structure { view: View::Reactions, ..frame() };
+        st.loads.push(Load::Distributed {
+            member: "2".into(),
+            q1: 10.0.into(),
+            q2: None,
+            from: Num::default(),
+            to: None,
+            angle: Num::new(-90.0),
+            axes: LoadAxes::Global,
+            per: LoadPer::Length,
+        });
+        let prims = st.render(None).plot.prims;
+        let reaction = [0x1B, 0x4F, 0x72];
+        let arrows: Vec<[f64; 4]> = prims
+            .iter()
+            .filter(|p| matches!(p, strix_plot::PlotPrim::Path { stroke: Some((c, _)), .. } if *c == reaction))
+            .filter_map(prim_box)
+            .collect();
+        let values: Vec<[f64; 4]> = prims
+            .iter()
+            .filter(|p| matches!(p, strix_plot::PlotPrim::Text { text, color, .. } if *color == reaction && text.ends_with("kN")))
+            .filter_map(prim_box)
+            .collect();
+        let hits = |a: &[f64; 4], b: &[f64; 4]| a[0] < b[2] && b[0] < a[2] && a[1] < b[3] && b[1] < a[3];
+        let a = prims.iter().find(|p| matches!(p, strix_plot::PlotPrim::Text { text, .. } if text == "A")).and_then(prim_box).expect("A is named");
+        assert!(!arrows.iter().any(|b| hits(&a, b)), "A clear of its reactions' arrows");
+        // The dimensions below the reactions' values: the span's text under them.
+        let span =
+            prims.iter().find(|p| matches!(p, strix_plot::PlotPrim::TextAt { text, .. } if text == "6 m")).and_then(prim_box).expect("the span");
+        assert!(values.len() >= 3 && values.iter().all(|v| v[3] < span[1]), "{values:?} {span:?}");
+    }
+
+    #[test]
     fn a_view_draws_only_its_panels() {
         let all = beam().render(None).plot;
         let schema = Structure { view: View::Structure, ..beam() }.render(None).plot;
@@ -1421,7 +1539,9 @@ mod layout_tests {
         };
         let has = |p: &strix_plot::PlotRendered, t: &str| texts(p).iter().any(|x| x.contains(t));
         assert!(has(&schema, "8 m") && !has(&schema, "N [") && !has(&schema, "31.768"));
-        assert!(has(&reactions, "31.768 kN") && !has(&reactions, "8 m") && !has(&reactions, "M ["));
+        // On its own, the reactions' panel carries the schema's dimensions, loads and names.
+        assert!(has(&reactions, "31.768 kN") && has(&reactions, "8 m") && has(&reactions, "10 kN/m") && !has(&reactions, "M ["));
+        assert!(texts(&reactions).iter().any(|t| t == "A") && texts(&reactions).iter().any(|t| t == "B"));
         assert!(has(&diagrams, "M [") && has(&diagrams, "50.46") && !has(&diagrams, "31.768 kN"));
         for p in [&schema, &reactions, &diagrams] {
             assert!(p.size.1 < all.size.1);

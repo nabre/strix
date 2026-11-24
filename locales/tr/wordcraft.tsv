@@ -2718,3 +2718,6 @@ paper	Envelope DL	DL zarf
 	Calculated\nTable	Hesaplanan\nTablo
 	Graph\nPaper	Milimetrik\nKâğıt
 	New\nCalculation	Yeni\nHesaplama
+	Dictionary file:	Sözlük dosyası:
+	Not set: custom-dictionary.txt in the settings folder	Ayarlanmadı: ayarlar klasöründeki custom-dictionary.txt
+	A custom-word dictionary file (.dic or plain text) used with the main dictionary.	Ana sözlükle birlikte kullanılan özel sözcük dosyası (.dic veya düz metin).

@@ -2748,3 +2748,6 @@ paper	Envelope DL	Omotnica DL
 	Calculated\nTable	Izračunata\ntablica
 	Graph\nPaper	Milimetarski\npapir
 	New\nCalculation	Novi\nizračun
+	Dictionary file:	Datoteka rječnika:
+	Not set: custom-dictionary.txt in the settings folder	Nije postavljeno: custom-dictionary.txt u mapi postavki
+	A custom-word dictionary file (.dic or plain text) used with the main dictionary.	Datoteka prilagođenih riječi (.dic ili običan tekst) koja se koristi uz glavni rječnik.

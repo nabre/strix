@@ -47,7 +47,19 @@ impl Session {
     /// A command that changes nothing is not an edit: it adds no undo step, marks no
     /// unsaved changes, forces no relayout and leaves the redo stack alone (#23).
     fn unchanged(&self, doc: &Document, sel: &Selection, column: &Option<ColumnBlock>, pending: &Option<CharProps>) -> bool {
-        doc.same_content(&self.doc) && *sel == self.sel && *column == self.column && *pending == self.pending
+        doc.same_content(&self.doc)
+            && *sel == self.sel
+            && *column == self.column
+            && *pending == self.pending
+            && !self.md_source.as_ref().is_some_and(|src| src.is_pending())
+    }
+
+    /// A navigated style change is for the Accept or Reject that follows: a command that edits
+    /// or moves the selection forgets it.
+    fn forget_review_style(&mut self, id: &str, mutates: bool) {
+        if (mutates && !matches!(id, "review.accept" | "review.reject")) || id.starts_with("caret.") || id.starts_with("select.") {
+            self.review_style = None;
+        }
     }
 
     /// Run a command by id with JSON params (the single entry point for the UI, CLI, MCP and
@@ -60,9 +72,28 @@ impl Session {
         {
             return typed;
         }
+        if self.md_source.is_some()
+            && let Some(mutates) = self.registry.get(id).map(|spec| spec.mutates)
+        {
+            crate::cmd::md_source::before_command(self, id, mutates)?;
+        }
         let clean_subdocuments = crate::cmd::master::clean_before_view(self, id);
         self.run_depth = self.run_depth.saturating_add(1);
+        // Formatting Backspace carried over is for typing where the character was deleted: a
+        // caret the front end moved itself (a click elsewhere) has left it behind (#6518).
+        self.drop_stale_carried();
+        let carried_before = self.pending_at.clone().map(|at| (self.pending.clone(), at));
+        // The formatting waiting at the caret is not part of the document snapshot a failed
+        // command is rolled back to: put it back here, so a refused edit (a Backspace into a
+        // locked content control) leaves it as it was.
+        let document_before = self.document_id;
+        let waiting_before = (self.pending.clone(), self.pending_at.clone());
         let result = self.run_command(id, params);
+        if result.is_ok() {
+            self.settle_carried(carried_before);
+        } else if self.document_id == document_before {
+            (self.pending, self.pending_at) = waiting_before;
+        }
         self.run_depth = self.run_depth.saturating_sub(1);
         // A top-level command that changed what the calculations read recalculates them.
         if self.run_depth == 0 && result.is_ok() {
@@ -90,6 +121,8 @@ impl Session {
         }
     }
 
+    /// Dispatches `id` through the command registry with transactional rollback on failure,
+    /// tracking history, undo checkpoints, and IME outcomes.
     fn run_command(&mut self, id: &str, params: &Value) -> Result<Value, CmdError> {
         // The document the command starts in, and the first id a document it opens can have.
         let home = self.document_id;
@@ -109,6 +142,7 @@ impl Session {
         let ime_text_join = self.ime_text_join.take();
         let reg = self.registry.clone();
         let Some(spec) = reg.get(id) else { return Err(CmdError::Unknown(id.to_string())) };
+        self.forget_review_style(id, spec.mutates);
         let join = join
             || (equation_join && matches!(id, "equation.type" | "equation.backspace"))
             || (id == "text.insert" && ime_text_join.as_ref().is_some_and(|sel| sel == &self.sel));
@@ -198,7 +232,7 @@ impl Session {
         // Whether this command pushed an undo step (a no-op command's step is dropped below,
         // leaving its undo group without one).
         let mut pushed = false;
-        if spec.mutates {
+        if spec.mutates && spec.id != "view.markdownSourceText" {
             let label = if typing { "Typing" } else { spec.label };
             // A joined command merges into its group's step; a group whose first command
             // changed nothing has none, so the next command in it starts one (#4001).
@@ -314,6 +348,19 @@ impl Session {
             }
         }
         result
+    }
+
+    /// After a command, formatting Backspace carried over stays only where typing would use it
+    /// (#6518). One the command left alone is dropped if the caret is elsewhere now (a paste,
+    /// Find, Go To); one it changed (Bold, a hyperlink's end) is for the caret it left.
+    fn settle_carried(&mut self, before: Option<(Option<CharProps>, Pos)>) {
+        if let Some((pending, at)) = before
+            && self.pending_at.as_ref() == Some(&at)
+            && self.pending != pending
+        {
+            self.pending_at = Some(self.sel.focus.clone());
+        }
+        self.drop_stale_carried();
     }
 
     fn finish_success(&mut self, context: SuccessContext<'_>) {

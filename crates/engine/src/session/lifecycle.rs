@@ -23,7 +23,7 @@ impl Session {
         let name = path.to_string_lossy();
         if let Err(e) = crate::file_access::check_read(&name)
             .and_then(|()| crate::file_access::check_write(&name))
-            .and_then(|()| wordcraft_proof::save_user_dictionary(path, removed).map_err(|e| e.to_string()))
+            .and_then(|()| crate::custom_dict::save_custom_dictionary(path, removed))
         {
             log::warn!("custom dictionary: save failed: {e}");
         }
@@ -58,6 +58,7 @@ impl Session {
             sel,
             view,
             pending,
+            pending_at,
             path,
             file_name,
             dirty,
@@ -85,6 +86,8 @@ impl Session {
             layout,
             typing,
             originals,
+            md_source,
+            md_file,
             picture_looks,
             versions,
             autosave,
@@ -106,10 +109,12 @@ impl Session {
             sel,
             view,
             pending,
+            pending_at,
             last_highlight: wordcraft_doc::props::Highlight::Yellow,
             path,
             file_name,
             user_dict_path: None,
+            default_user_dict_path: None,
             dirty,
             clipboard: None,
             pending_move,
@@ -124,9 +129,11 @@ impl Session {
             author: "Strix User".into(),
             initials: String::new(),
             painter: None,
+            copied_format: None,
             status: String::new(),
             new_header_parts,
             hf_return,
+            review_style: None,
             history,
             undo_evicted,
             redo,
@@ -153,6 +160,8 @@ impl Session {
             layout,
             typing,
             originals,
+            md_source,
+            md_file,
             picture_looks,
             last_command: None,
             recording: None,

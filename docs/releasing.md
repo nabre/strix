@@ -45,7 +45,8 @@ have passed, so a failed CI costs no build minutes.
 
 ## Steps
 
-1. Bump the version on `main`: `cargo xtask version set 0.2.0` (the one source of truth is
+1. On a branch, bump the version with `cargo xtask version set 0.2.0`, then open and
+   merge a pull request into `main` (the one source of truth is
    `[workspace.package] version`; the app shows it in `--version` and About, with the commit from
    `WORDCRAFT_BUILD_SHA`).
 2. Merge it into `main`. `.github/workflows/promote.yml` runs on every push to `main`; its one
