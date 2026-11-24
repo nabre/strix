@@ -11,8 +11,7 @@ use wordcraft_doc::InlineObject;
 use wordcraft_doc::para::Paragraph;
 
 use super::{
-    Figure, Figures, Labels, Line, Units, lines, num, paragraphs, paragraphs_with, shear_name, signed, stretch_header, stretch_tag, sub, units,
-    unknowns,
+    Figure, Figures, Labels, Line, Units, lines, num, paragraphs, paragraphs_with, shear_name, signed, stretch_header, stretch_tag, units, unknowns,
 };
 use crate::{CmdError, Session};
 
@@ -81,7 +80,7 @@ pub(in crate::cmd::structure) fn parts(
     }
     let u = units(st, comma);
     let w = Writer { st, u: &u, labels: &labels, shear: shear_name(st), us: unknowns(st, an) };
-    let members: Vec<(&MemberResult, Vec<Stretch>)> = an.members.iter().map(|m| (m, stretches(m))).collect();
+    let members: Vec<(&MemberResult, Vec<Stretch>)> = super::in_order(st, &an.members).into_iter().map(|m| (m, stretches(m))).collect();
     let mut axial_lines = vec![Line::heading(forces)];
     let mut shear_lines = Vec::new();
     let mut moment_lines = Vec::new();
@@ -203,7 +202,7 @@ struct Writer<'a> {
 
 impl Writer<'_> {
     fn names(&self, m: &MemberResult, k: usize, count: usize) -> (String, String) {
-        let tag = stretch_tag(&sub(&m.id, 0), k, count);
+        let tag = stretch_tag(&super::member_tag(self.st, &m.id), k, count);
         let x = format!("x_{tag}");
         (tag, x)
     }

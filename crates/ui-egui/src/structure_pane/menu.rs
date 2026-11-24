@@ -57,6 +57,8 @@ enum Act {
     Fit,
     Snap,
     Dimensions,
+    /// The members and nodes renamed in the structure's order.
+    Renumber,
 }
 
 fn target_id() -> egui::Id {
@@ -251,6 +253,10 @@ fn items(ui: &mut Ui, st: &Structure, state: &State, t: &Target) -> Option<Act> 
             item(ui, "Fit", "", false, Act::Fit);
             item(ui, "Snap to the grid", "", state.snap, Act::Snap);
             item(ui, "Dimensions", "", state.dims, Act::Dimensions);
+            if st.members.len() >= 2 && !st.names_in_order() {
+                ui.separator();
+                item(ui, "Rename in Order", "", false, Act::Renumber);
+            }
         }
         (n, _) => {
             title(ui, fmt(ts("{n} items selected"), &[("n", &n.to_string())]));
@@ -471,6 +477,12 @@ fn apply(app: &mut WordApp, src: &Structure, st: &Structure, state: &mut State, 
         Act::Fit => state.view = None,
         Act::Snap => state.snap = !state.snap,
         Act::Dimensions => state.dims = !state.dims,
+        Act::Renumber => {
+            // The names change: what was selected by them is let go.
+            if app.run("structure.renumber", json!({})).is_ok() {
+                state.sel.clear();
+            }
+        }
     }
 }
 

@@ -48,12 +48,15 @@ pub(super) fn laws(st: &Structure, us: &[Unknown], m: &MemberResult, s: &Stretch
             Acts::Turns(sense) => agents.push(Agent::Couple { name: k.name.clone(), mag: k.value, sign: sense }),
         }
     }
-    // Member by member: a load over several members in pieces, each with the load's name.
-    let (split, origin) = st.split_chains();
-    let rs = resultants(&split);
-    for (i, load) in split.loads.iter().enumerate() {
-        let Some(&li) = origin.get(i) else { continue };
-        let mine: Vec<Resultant> = rs.iter().filter(|r| r.load == i).map(|r| Resultant { load: li, ..*r }).collect();
+    let whole_rs = resultants(st);
+    // A load over several members, taken whole.
+    let chains = chained(&Section { st, src, e, n, eps, s, u, other_member_left: &other_member_left }, &whole_rs, &mut agents, &mut blocked);
+    // The loads on one member each.
+    for (li, load) in st.loads.iter().enumerate() {
+        if chains.contains(&li) {
+            continue;
+        }
+        let mine: Vec<&Resultant> = whole_rs.iter().filter(|r| r.load == li).collect();
         let whole = match load {
             Load::Force { node: Some(nd), member: None, .. } | Load::Moment { node: Some(nd), member: None, .. } => in_left(nd),
             Load::Force { member: Some(mm), at, .. } | Load::Moment { member: Some(mm), at, .. } => {
@@ -111,7 +114,7 @@ pub(super) fn laws(st: &Structure, us: &[Unknown], m: &MemberResult, s: &Stretch
         if !whole {
             continue;
         }
-        for r in &mine {
+        for r in mine {
             let v = r.value();
             if let ResultantKind::Couple { .. } = r.kind {
                 agents.push(Agent::Couple { name: u.resultant(r), mag: v.abs(), sign: v.signum() });
@@ -139,6 +142,101 @@ pub(super) fn laws(st: &Structure, us: &[Unknown], m: &MemberResult, s: &Stretch
         }
     }
     out
+}
+
+/// What the laws of a stretch are written for: the structure, the member, its axes, the stretch.
+struct Section<'a> {
+    st: &'a Structure,
+    src: &'a strix_structure::Member,
+    e: (f64, f64),
+    n: (f64, f64),
+    eps: f64,
+    s: &'a Stretch,
+    u: &'a Units,
+    /// Is a member (not the one cut) wholly in the part before the section?
+    other_member_left: &'a dyn Fn(&str) -> bool,
+}
+
+/// The loads over several members, each taken whole: by its resultant's name (`F_1`) when all
+/// of it lies before the section; as one load from where it starts along the member's line
+/// (`q_1·(x + 3 m)`) when it goes on across the section; not at all when it starts after it. Its
+/// pieces, each a share of it, can't take its name. Returns the loads so taken (indices into the
+/// structure's loads).
+fn chained(sec: &Section, whole_rs: &[Resultant], agents: &mut Vec<Agent>, blocked: &mut [bool; 3]) -> Vec<usize> {
+    let Section { st, src, e, n, eps, s, u, other_member_left } = *sec;
+    let mut chains: Vec<usize> = Vec::new();
+    for (li, load) in st.loads.iter().enumerate() {
+        let Load::Distributed { member, then, q1, q2, from, to, angle, axes, per } = load else { continue };
+        if then.is_empty() {
+            continue;
+        }
+        chains.push(li);
+        let Some(line) = st.spread_line(member, then) else { continue };
+        let s0 = from.value.clamp(0.0, line.len);
+        let s1 = to.as_ref().map_or(line.len, |t| t.value).clamp(0.0, line.len);
+        let (s0, s1) = if s0 <= s1 { (s0, s1) } else { (s1, s0) };
+        if s1 - s0 <= eps {
+            continue;
+        }
+        let th = angle.value.to_radians();
+        let d = line.dir;
+        let dir = match axes {
+            LoadAxes::Global => (th.cos(), th.sin()),
+            LoadAxes::Local => (d.0 * th.cos() - d.1 * th.sin(), d.1 * th.cos() + d.0 * th.sin()),
+        };
+        let block = |blocked: &mut [bool; 3]| {
+            blocked[0] |= dot(dir, e).abs() > TOL;
+            blocked[1] |= dot(dir, n).abs() > TOL;
+            blocked[2] = blocked[1];
+        };
+        let whole_load = |agents: &mut Vec<Agent>| {
+            for r in whole_rs.iter().filter(|r| r.load == li) {
+                let v = r.value();
+                let sg = v.signum();
+                agents.push(Agent::Point { name: u.resultant(r), mag: v.abs(), at: r.at, dir: (r.dir.0 * sg, r.dir.1 * sg) });
+            }
+        };
+        let covered: Vec<&strix_structure::LinePart> = line.parts.iter().filter(|p| s0.max(p.at) < s1.min(p.at + p.len) - eps).collect();
+        let Some(part) = line.parts.iter().find(|p| p.member == src.id) else {
+            // On other members: all of it before the section, or none of it.
+            if !covered.is_empty() && covered.iter().all(|p| other_member_left(&p.member)) {
+                whole_load(agents);
+            } else if covered.iter().any(|p| other_member_left(&p.member)) {
+                block(blocked);
+            }
+            continue;
+        };
+        // Where the load starts and ends along the member, from its `a` end (beyond its ends
+        // on the members before and after it).
+        let local = |t: f64| if part.reversed { part.at + part.len - t } else { t - part.at };
+        let (c0, c1) = (local(s0).min(local(s1)), local(s0).max(local(s1)));
+        if c1 <= s.x0 + eps {
+            whole_load(agents);
+        } else if c0 >= s.x1 - eps {
+            // After the section.
+        } else {
+            let (qa, qb) = (q1.value, q2.as_ref().map_or(q1.value, |q| q.value));
+            let name = u.names.get(li).copied().flatten();
+            match name {
+                Some(name) if qa == qb && c0 <= s.x0 + eps && c1 >= s.x1 - eps => {
+                    let factor = match per {
+                        LoadPer::Length => 1.0,
+                        LoadPer::Projection => (e.0 * dir.1 - e.1 * dir.0).abs(),
+                    };
+                    let sign = qa.signum();
+                    agents.push(Agent::Spread {
+                        name: name.linear_end(1),
+                        q: qa.abs() * factor,
+                        factor,
+                        from: c0,
+                        dir: (dir.0 * sign, dir.1 * sign),
+                    });
+                }
+                _ => block(blocked),
+            }
+        }
+    }
+    chains
 }
 
 /// What acts on the part before the section.
