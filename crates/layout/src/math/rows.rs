@@ -275,7 +275,7 @@ impl Ctx {
                 }
             })
             .collect();
-        let (lines, auto) = super::breaks::fill_lines(&chunks, avail, if mp.wrap_right { avail } else { avail - indent });
+        let (lines, auto) = super::breaks::fill_lines(&chunks, avail, if mp.wrap_right { avail } else { avail - indent }, self.align_relations);
         // Build each line's box.
         let ops: Vec<bool> = (0..n).map(is_op).collect();
         let path = self.path.clone();

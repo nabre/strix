@@ -4,7 +4,9 @@
 //! and in a Strix calculation (`calc`) the lines after the first line line up under the first
 //! relation instead of the fixed wrap indent, the way a worked solution is written by hand, and a
 //! line that would break inside a product (before a `·`) goes back to its last `+` or `−` when
-//! that keeps it at least half full, so a term such as `F_2·d_(2,A)` stays whole.
+//! that keeps it at least half full, so a term such as `F_2·d_(2,A)` stays whole; once a
+//! calculation has had to break, each later relation starts a line of its own, so a step that
+//! took more than one line is never followed by the next `=` at the end of its last line.
 
 /// One stretch of a row between two break opportunities.
 #[derive(Clone, Copy, Debug, Default)]
@@ -28,8 +30,9 @@ pub(super) struct Chunk {
 const REL_BREAK_FILL: f32 = 0.5;
 
 /// Lines (`[first, end)` chunk ranges) for `chunks` in `first` points on the first line and
-/// `rest` on the others, and whether a line broke for lack of room.
-pub(super) fn fill_lines(chunks: &[Chunk], first: f32, rest: f32) -> (Vec<(usize, usize)>, bool) {
+/// `rest` on the others, and whether a line broke for lack of room. With `steps` (a calculation),
+/// after the first line that broke for lack of room every relation starts a line.
+pub(super) fn fill_lines(chunks: &[Chunk], first: f32, rest: f32, steps: bool) -> (Vec<(usize, usize)>, bool) {
     let n = chunks.len();
     let mut lines = Vec::new();
     let mut auto = false;
@@ -44,7 +47,7 @@ pub(super) fn fill_lines(chunks: &[Chunk], first: f32, rest: f32) -> (Vec<(usize
         let mut last_rel: Option<(usize, f32)> = None;
         let mut last_strong: Option<(usize, f32)> = None;
         while let Some(k) = chunks.get(c) {
-            if k.forced || w + k.lead + k.w > avail + 0.01 {
+            if k.forced || (steps && auto && k.rel) || w + k.lead + k.w > avail + 0.01 {
                 break;
             }
             if k.rel {
@@ -58,6 +61,7 @@ pub(super) fn fill_lines(chunks: &[Chunk], first: f32, rest: f32) -> (Vec<(usize
         }
         if let Some(k) = chunks.get(c)
             && !k.forced
+            && !(steps && auto && k.rel)
         {
             auto = true;
             if !k.rel
@@ -100,7 +104,7 @@ mod tests {
     fn a_line_breaks_at_its_last_relation_when_half_full() {
         // a | = b | − c | = d | − e | − f: room for 50.
         let cs = [chunk(10.0, false), chunk(10.0, true), chunk(10.0, false), chunk(10.0, true), chunk(10.0, false), chunk(10.0, false)];
-        let (lines, auto) = fill_lines(&cs, 50.0, 50.0);
+        let (lines, auto) = fill_lines(&cs, 50.0, 50.0, false);
         assert!(auto);
         // Greedy would put four chunks (46) on the first line; the relation at 3 is past half.
         assert_eq!(lines, vec![(0, 3), (3, 6)]);
@@ -109,7 +113,7 @@ mod tests {
     #[test]
     fn a_relation_too_early_leaves_the_greedy_break() {
         let cs = [chunk(10.0, false), chunk(10.0, true), chunk(10.0, false), chunk(10.0, false), chunk(10.0, false), chunk(10.0, false)];
-        let (lines, _) = fill_lines(&cs, 50.0, 50.0);
+        let (lines, _) = fill_lines(&cs, 50.0, 50.0, false);
         assert_eq!(lines.first(), Some(&(0, 4)));
     }
 
@@ -119,11 +123,24 @@ mod tests {
         // a | + b | · c | + d | · e: room for 40; greedy breaks before `· e`, splitting `d · e`.
         let weak = |w: f32| Chunk { weak: true, ..chunk(w, false) };
         let cs = [chunk(10.0, false), chunk(10.0, false), weak(5.0), chunk(8.0, false), weak(10.0)];
-        let (lines, _) = fill_lines(&cs, 40.0, 40.0);
+        let (lines, _) = fill_lines(&cs, 40.0, 40.0, false);
         assert_eq!(lines, vec![(0, 3), (3, 5)]);
         // No `+` past half the line: the greedy break stays.
         let cs = [chunk(30.0, false), weak(5.0), weak(10.0)];
-        assert_eq!(fill_lines(&cs, 40.0, 40.0).0.first(), Some(&(0, 2)));
+        assert_eq!(fill_lines(&cs, 40.0, 40.0, false).0.first(), Some(&(0, 2)));
+    }
+
+    /// Once a calculation has broken, each later relation starts a line: a step that took two
+    /// lines is not followed by the next `=` at the end of its second one.
+    #[test]
+    fn after_a_break_a_calculations_relations_start_lines() {
+        // a | = b | − c | − d | = e | = f: room for 40.
+        let cs = [chunk(10.0, false), chunk(10.0, true), chunk(10.0, false), chunk(8.0, false), chunk(5.0, true), chunk(5.0, true)];
+        // Greedy fills `− d = e = f` on the second line (8 + 2 + 5 + 2 + 5).
+        assert_eq!(fill_lines(&cs, 40.0, 40.0, false).0, vec![(0, 3), (3, 6)]);
+        assert_eq!(fill_lines(&cs, 40.0, 40.0, true).0, vec![(0, 3), (3, 4), (4, 5), (5, 6)]);
+        // An equation that fits keeps its relations on one line.
+        assert_eq!(fill_lines(&cs, 100.0, 100.0, true).0, vec![(0, 6)]);
     }
 
     #[test]
@@ -132,10 +149,10 @@ mod tests {
         if let Some(k) = cs.get_mut(2) {
             k.forced = true;
         }
-        let (lines, _) = fill_lines(&cs, 50.0, 50.0);
+        let (lines, _) = fill_lines(&cs, 50.0, 50.0, false);
         assert_eq!(lines, vec![(0, 1), (1, 2), (2, 3)]);
-        assert_eq!(fill_lines(&[], 50.0, 50.0).0, Vec::<(usize, usize)>::new());
-        assert!(!fill_lines(&cs, f32::NAN, -1.0).0.is_empty());
+        assert_eq!(fill_lines(&[], 50.0, 50.0, false).0, Vec::<(usize, usize)>::new());
+        assert!(!fill_lines(&cs, f32::NAN, -1.0, false).0.is_empty());
     }
 
     #[test]
