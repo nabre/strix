@@ -1049,7 +1049,9 @@ fn the_free_body_names_keep_clear_of_the_member_and_the_arrows() {
     let pts = prims
         .iter()
         .find_map(|p| match p {
-            PlotPrim::Path { pts, stroke: Some((_, w)), .. } if (*w - 0.6).abs() < 1e-9 && pts.len() == 2 && (pts[0].1 - pts[1].1).abs() < 1e-9 => Some(pts.clone()),
+            PlotPrim::Path { pts, stroke: Some((_, w)), .. } if (*w - 0.6).abs() < 1e-9 && pts.len() == 2 && (pts[0].1 - pts[1].1).abs() < 1e-9 => {
+                Some(pts.clone())
+            }
             _ => None,
         })
         .expect("the beam");
