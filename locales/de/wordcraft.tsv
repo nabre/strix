@@ -3997,6 +3997,9 @@ structure	Distributed load	Streckenlast
 structure	Uniform	Gleichmäßig
 structure	Triangular	Dreieckig
 structure	On the whole member	Auf dem ganzen Stab
+structure	members	Stäbe
+structure	Members {n}	Stäbe {n}
+structure	On all the aligned members	Auf allen fluchtenden Stäben
 structure	Add a node here	Hier einen Knoten hinzufügen
 structure	Select all	Alles auswählen
 structure	Snap to the grid	Am Raster fangen
@@ -4020,6 +4023,7 @@ structure	Double-click	Doppelklick
 	Work out and draw the diagram of the bending moment M.	Berechnen und zeichnen Sie die Momentenlinie M.
 	Find the axial force in every member and draw it.	Berechnen Sie die Normalkraft in jedem Stab und zeichnen Sie sie.
 	{T} changes sign under a concentrated load	{T} wechselt unter einer Einzellast das Vorzeichen
+	{T} changes sign at node {node}	{T} wechselt am Knoten {node} das Vorzeichen
 	{T} never vanishes nor changes sign: the greatest moment is at an end of a stretch.	{T} wird nirgends null und wechselt nicht das Vorzeichen: das größte Moment liegt am Ende eines Abschnitts.
 	The structure can't be solved: its working will be written again as soon as it can.	Das Tragwerk ist nicht lösbar: der Lösungsweg wird neu geschrieben, sobald es lösbar ist.
 # Strix (2026-11-19): Structure Editor active command bar, selection, info and graphical vector rotation.

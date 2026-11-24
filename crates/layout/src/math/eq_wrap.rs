@@ -266,6 +266,48 @@ mod tests {
         assert!(plain_starts.iter().skip(1).all(|(x, _)| (x - 72.0).abs() < 3.0), "{plain_starts:?}");
     }
 
+    /// Once a calculation has broken, every later `=` starts a line: a step that took two lines
+    /// is not followed by the next `=` at the end of its last one.
+    #[test]
+    fn after_a_break_each_of_a_calculations_steps_starts_a_line() {
+        let lin = "M_3b (3 m)=-H_A·1 m+V_A·(3 m+1.5 m)-F_1·(1 m)/2=-(-15 kN)·1 m+(1.38 kN)·(3 m+1.5 m)-(10 kN)·(1 m)/2-(10 kN/m)·2 m=15 kN·m+6.21 kN·m-5 kN·m-20 kN·m=-3.79 kN·m";
+        let full = lay_with(lin, true, true, 1e4);
+        let calc = lay_with(lin, true, true, full.width * 0.45);
+        // Each line's first caret offset, top first.
+        let mut lines: Vec<(f32, usize)> = Vec::new();
+        for s in calc.slots.iter().filter(|s| s.path.is_empty()) {
+            match lines.iter_mut().find(|(y, _)| (y - s.y).abs() < 0.5) {
+                Some(e) => e.1 = e.1.min(s.off),
+                None => lines.push((s.y, s.off)),
+            }
+        }
+        lines.sort_by(|a, b| b.0.total_cmp(&a.0));
+        let starts: Vec<usize> = lines.iter().map(|l| l.1).collect();
+        assert!(starts.len() >= 4, "it wraps: {starts:?}");
+        // The `=`s' unit offsets at the top level (a run's characters, one per structure).
+        let mut eqs = Vec::new();
+        let mut u = 0usize;
+        for node in parse_linear(lin) {
+            match node {
+                wordcraft_doc::math::MNode::Run(r) => {
+                    for ch in r.text.chars() {
+                        if ch == '=' {
+                            eqs.push(u);
+                        }
+                        u += 1;
+                    }
+                }
+                _ => u += 1,
+            }
+        }
+        let eqs: Vec<usize> = eqs.into_iter().skip(1).collect();
+        assert_eq!(eqs.len(), 3);
+        let first_auto = starts.get(1).copied().unwrap_or(0);
+        for e in eqs.iter().filter(|&&e| e >= first_auto) {
+            assert!(starts.contains(e), "`=` at {e} starts a line: {starts:?}");
+        }
+    }
+
     /// A calculation's wrapped lines are spaced as its steps, one and a half lines apart, wider
     /// than an ordinary long equation's.
     #[test]

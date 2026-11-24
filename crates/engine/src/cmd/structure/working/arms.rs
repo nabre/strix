@@ -34,59 +34,10 @@ impl Units {
         }
     }
 
-    /// The chain's segments from `a` to `b` along `axis` (0: x, 1: y), as few as the chains
-    /// allow: empty when `a` is `b`, `None` when either is not a station.
-    fn segments(&self, axis: usize, a: f64, b: f64) -> Option<Vec<f64>> {
-        let tol = self.chains.tol.max(1e-12);
-        if (a - b).abs() <= tol {
-            return Some(Vec::new());
-        }
-        let rows = if axis == 0 { &self.chains.x } else { &self.chains.y };
-        let (lo, hi) = if a < b { (a, b) } else { (b, a) };
-        let mut stops: Vec<f64> = rows.iter().flatten().copied().filter(|x| *x >= lo - tol && *x <= hi + tol).collect();
-        stops.sort_by(f64::total_cmp);
-        stops.dedup_by(|x, y| (*x - *y).abs() <= tol);
-        let at = |v: f64| stops.iter().position(|s| (s - v).abs() <= tol);
-        let (start, end) = (at(lo)?, at(hi)?);
-        // Fewest segments from `lo` to each stop (stops sorted, segments go forward).
-        let n = stops.len();
-        let mut best: Vec<Option<(usize, usize)>> = vec![None; n];
-        if let Some(b) = best.get_mut(start) {
-            *b = Some((0, start));
-        }
-        for i in start..n {
-            let Some((count, _)) = best.get(i).copied().flatten() else { continue };
-            let from = stops.get(i).copied().unwrap_or(0.0);
-            for row in rows {
-                for w in row.windows(2) {
-                    if (w[0] - from).abs() > tol {
-                        continue;
-                    }
-                    let Some(j) = at(w[1]) else { continue };
-                    if j > i
-                        && best.get(j).copied().flatten().is_none_or(|(c, _)| c > count + 1)
-                        && let Some(b) = best.get_mut(j)
-                    {
-                        *b = Some((count + 1, i));
-                    }
-                }
-            }
-        }
-        let mut out = Vec::new();
-        let mut j = end;
-        while j != start {
-            let (_, i) = best.get(j).copied().flatten()?;
-            out.push(stops.get(j).copied().unwrap_or(0.0) - stops.get(i).copied().unwrap_or(0.0));
-            j = i;
-        }
-        out.reverse();
-        Some(out)
-    }
-
     /// The distance from `a` to `b` along `axis` as its chain's terms (`["3 m", "1 m"]`), or by
     /// its size when no chain measures it.
     fn distance(&self, axis: usize, a: f64, b: f64) -> Vec<String> {
-        match self.segments(axis, a, b) {
+        match self.chains.segments(axis, a, b) {
             Some(s) => s.iter().map(|d| self.measure(*d)).collect(),
             None if (a - b).abs() <= self.chains.tol.max(1e-12) => Vec::new(),
             None => vec![self.length(b - a)],

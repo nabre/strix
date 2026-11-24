@@ -70,6 +70,9 @@ struct Labels {
     values_max: String,
     /// An exercise's shear changing sign under a concentrated load (`{T}`: the shear's name).
     jump: String,
+    /// An exercise's shear changing sign from one member to the next in line, at node `{node}`
+    /// (a support's reaction, or a load at the node).
+    jump_node: String,
     /// An exercise's shear never vanishing nor changing sign.
     nozero: String,
     /// In place of a working kept up to date, while its structure can't be solved.
@@ -122,6 +125,7 @@ impl Labels {
             values: get("values", "Values at the ends of the stretch:"),
             values_max: get("valuesMax", "Values at the ends of the stretch and at M's extremes:"),
             jump: get("jump", "{T} changes sign under a concentrated load"),
+            jump_node: get("jumpNode", "{T} changes sign at node {node}"),
             nozero: get("nozero", "{T} never vanishes nor changes sign: the greatest moment is at an end of a stretch."),
             unsolved: get("unsolved", "The structure can't be solved: its working will be written again as soon as it can."),
         }
@@ -914,6 +918,23 @@ fn rotation(p: (f64, f64), pivot: &str, us: &[(usize, &Unknown)], rs: &[&Resulta
                     } else {
                         u.length(arm)
                     };
+                    // An arm the drawing gives as a sum of its distances is worked out before
+                    // the equation, like a load's, named after the support and the point
+                    // (`d_(D,A) = 1.5 m + 4 m = 5.5 m`; a fixed end's or pin's parts `d_(D,v,A)`).
+                    let text = if text.contains(['+', '-', '/', '(']) {
+                        let mut idx = vec![k.name.split_once('_').map_or_else(|| sub(&k.node, i + 1), |(_, s)| s.to_string())];
+                        if matches!(k.kind, SupportKind::Fixed | SupportKind::Pin) {
+                            idx.push(if d.0.abs() < TOL { "v" } else { "h" }.to_string());
+                        }
+                        idx.push(pivot.to_string());
+                        let name = named("d", &idx);
+                        if !eq.arms.iter().any(|(n, _)| n == &name) {
+                            eq.arms.push((name.clone(), format!("{name} = {} =", bare(&text))));
+                        }
+                        name
+                    } else {
+                        text
+                    };
                     eq.unknowns.push((i, arm, format!("{}·{text}", k.name)));
                     eq.levers = true;
                 }
@@ -1243,14 +1264,14 @@ fn lines(st: &Structure, an: &strix_structure::Analysis, labels: &Labels, comma:
             if let (true, true, Some(p)) = (e.moment, e.levers, &e.pivot) {
                 out.push(Line::figure(Figure::Arms(p.clone())));
             }
-            out.push(Line::noted(String::new(), e.label.clone(), e.after.clone()));
-            // Its arms first, each once (a hinge's part may share an arm with its support's) and
-            // each worked out on its own line.
+            // Its arms worked out before the equation is set up, each once (a hinge's part may
+            // share an arm with its support's) and each on its own line.
             for (n, d) in &e.arms {
                 if defined.insert(n.clone()) {
                     out.push(Line::eqs(vec![d.clone()], false));
                 }
             }
+            out.push(Line::noted(String::new(), e.label.clone(), e.after.clone()));
             out.push(Line { stepped: true, ..Line::eqs(vec![e.text(&us, &u)], true) });
             continue;
         }

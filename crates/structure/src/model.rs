@@ -312,9 +312,14 @@ pub enum Load {
     },
     /// A load spread along a member from `from` to `to` (its whole length by default), varying
     /// linearly from `q1` to `q2` (uniform when `q2` is absent): uniform, triangular, trapezoidal.
+    /// It may go on (`then`) over the members aligned with `member`, joined end to end: then
+    /// `from`, `to` and the local axes are along that line, from the end of `member` away from
+    /// them (`chain.rs`).
     #[serde(rename_all = "camelCase")]
     Distributed {
         member: String,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        then: Vec<String>,
         q1: Num,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         q2: Option<Num>,
@@ -842,7 +847,13 @@ impl Structure {
                     *node = node.as_deref().map(clean_id);
                     *member = member.as_deref().map(clean_id);
                 }
-                Load::Distributed { member, .. } => *member = clean_id(member),
+                Load::Distributed { member, then, .. } => {
+                    *member = clean_id(member);
+                    then.truncate(crate::chain::MAX_CHAIN);
+                    for m in then.iter_mut() {
+                        *m = clean_id(m);
+                    }
+                }
             }
         }
         for (n, _) in self.nums_mut() {

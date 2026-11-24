@@ -3,8 +3,8 @@
 //! that node alone and, dropped on another node, joins the two; a point load's point carries it
 //! onto any node or member; a force's tail, a distributed load's envelope midpoint and a support's
 //! ground handle turn them with a graphical protractor (by 15° steps and member ∥/⊥ snaps while
-//! snapping, Shift the other way); a distributed load's ends set where it starts and stops along
-//! its member. Also here: the crossing window, the hover/erase tags, member local-axis cues, and
+//! snapping, Shift the other way); a distributed load's ends set where it starts and stops, and
+//! its body slides it, along its straight run of aligned members (past a node onto the next one). Also here: the crossing window, the hover/erase tags, member local-axis cues, and
 //! connected-part selection.
 
 use egui::{Color32, CursorIcon, FontId, Pos2, Rect, Shape, Stroke, pos2, vec2};
@@ -39,6 +39,9 @@ pub(crate) enum Grip {
     From(usize),
     /// Where a distributed load stops.
     To(usize),
+    /// A distributed load's body, slid along its run of aligned members: the load's index and
+    /// how far from its start (along the run) it was grabbed.
+    Body(usize, f64),
 }
 
 /// Where a grip dragged to a point puts what it edits.
@@ -52,7 +55,8 @@ enum Target {
     Place(Place),
     /// A vector or support turned to `(stored_deg, visual_deg, snap_ref)`.
     Turn(RotTarget, f64, f64, Option<SnapRef>),
-    /// A distributed load spread over this stretch of its member.
+    /// A distributed load spread over this stretch of its run of aligned members (from, to,
+    /// along the run).
     Spread(f64, f64),
     /// Nothing changes.
     Stay,
@@ -123,14 +127,22 @@ pub(super) fn hit(grips: &[(Grip, Pos2)], p: Pos2) -> Option<Grip> {
     grips.iter().map(|(g, at)| (g, (*at - p).length())).filter(|(_, d)| *d <= HIT).min_by(|a, b| a.1.total_cmp(&b.1)).map(|(g, _)| g.clone())
 }
 
-/// Where along member `id` (from its `a` end, within it) the world point `w` falls.
-fn along_member(st: &Structure, id: &str, w: (f64, f64)) -> Option<(f64, f64)> {
-    let m = st.member(id)?;
-    let (a, b) = (st.node(&m.a)?, st.node(&m.b)?);
-    let len = st.length(m).filter(|l| *l > 0.0)?;
-    let (ux, uy) = ((b.x.value - a.x.value) / len, (b.y.value - a.y.value) / len);
-    let s = (w.0 - a.x.value) * ux + (w.1 - a.y.value) * uy;
-    s.is_finite().then_some((s.clamp(0.0, len), len))
+/// A position `s` along a run of members rounded to the grid (when snapping) from the start of
+/// the member it falls on, within the run.
+fn round_on_run(run: &strix_structure::SpreadLine, s: f64, state: &State) -> f64 {
+    let s = s.clamp(0.0, run.len);
+    let eps = 1e-9 * (1.0 + run.len);
+    match run.parts.iter().find(|p| s <= p.at + p.len + eps) {
+        Some(p) => round(p.at + round_at(s - p.at, p.len, state)),
+        None => round(s),
+    }
+}
+
+/// The body grip of distributed load `k` grabbed at screen point `p`: how far from the load's
+/// start along its run.
+pub(super) fn body(st: &Structure, v: View, k: usize, p: Pos2) -> Option<Grip> {
+    let (run, f, _) = edits::on_run(st, k)?;
+    Some(Grip::Body(k, run.along(v.to_world(p)) - f))
 }
 
 /// What grip `g` dragged to `p` does. `shift`: a node keeps its row or column, a rotation turns
@@ -216,11 +228,17 @@ fn target(st: &Structure, v: View, state: &State, g: &Grip, p: Pos2, shift: bool
             Target::Turn(rt, stored, vis, sref)
         }
         Grip::From(k) | Grip::To(k) => {
-            let Some(Load::Distributed { member, from, to, .. }) = st.loads.get(*k) else { return Target::Stay };
-            let Some((s, len)) = along_member(st, member, w) else { return Target::Stay };
-            let s = round(round_at(s, len, state));
-            let (f, t) = (from.value, to.as_ref().map_or(len, |t| t.value));
-            if matches!(g, Grip::From(_)) { Target::Spread(s, t) } else { Target::Spread(f, s) }
+            // Along the run: past a node, onto the aligned member that goes on from it.
+            let Some((run, f, t)) = edits::on_run(st, *k) else { return Target::Stay };
+            let s = round_on_run(&run, run.along(w), state);
+            if matches!(g, Grip::From(_)) { Target::Spread(s.min(t), t) } else { Target::Spread(f, s.max(f)) }
+        }
+        Grip::Body(k, grab) => {
+            let Some((run, f, t)) = edits::on_run(st, *k) else { return Target::Stay };
+            let span = t - f;
+            let start = (run.along(w) - grab).clamp(0.0, (run.len - span).max(0.0));
+            let start = round_on_run(&run, start, state).clamp(0.0, (run.len - span).max(0.0));
+            if (start - f).abs() <= 1e-9 { Target::Stay } else { Target::Spread(start, start + span) }
         }
     }
 }
@@ -258,8 +276,8 @@ pub(super) fn preview(st: &Structure, v: View, state: &State, g: &Grip, p: Pos2,
         (_, Target::Turn(rt, stored, _, _)) => {
             return rotate::preview_target(st, &rt, stored);
         }
-        (Grip::From(k) | Grip::To(k), Target::Spread(f, t)) => {
-            if let Some(l) = edits::spread(st, st, *k, f, t, gap(state))
+        (Grip::From(k) | Grip::To(k) | Grip::Body(k, _), Target::Spread(f, t)) => {
+            if let Some(l) = edits::respread(st, st, *k, f, t, gap(state))
                 && let Some(slot) = out.loads.get_mut(*k)
             {
                 *slot = l;
@@ -295,7 +313,7 @@ pub(super) fn commit(app: &mut WordApp, src: &Structure, st: &Structure, v: View
         (_, Target::Turn(rt, stored, _, _)) => {
             rotate::commit_target(app, src, st, &rt, stored, true);
         }
-        (Grip::From(k) | Grip::To(k), Target::Spread(f, t)) => run_load(app, *k, edits::spread(src, st, *k, f, t, gap(state))),
+        (Grip::From(k) | Grip::To(k) | Grip::Body(k, _), Target::Spread(f, t)) => run_load(app, *k, edits::respread(src, st, *k, f, t, gap(state))),
         _ => {}
     }
 }
@@ -320,9 +338,27 @@ pub(super) fn readout(st: &Structure, v: View, state: &State, g: &Grip, p: Pos2,
             format!("{}   {} = {} {unit}", crate::i18n::fmt(ts("Member {n}"), &[("n", &m)]), ts("at"), short(at))
         }
         Target::Turn(rt, _, vis, sref) => rotate::readout_for(st, &rt, vis, sref.as_ref()),
-        Target::Spread(f, t) => format!("{} {} → {} {unit}", ts("from"), short(f), short(t)),
+        Target::Spread(f, t) => match g {
+            Grip::From(k) | Grip::To(k) | Grip::Body(k, _) => spread_readout(st, *k, f, t, unit),
+            _ => String::new(),
+        },
         Target::Stay => String::new(),
     }
+}
+
+/// What a distributed load laid from `f` to `t` along its run reads out: the members it goes
+/// over, and where it starts and stops on the first and the last.
+fn spread_readout(st: &Structure, k: usize, f: f64, t: f64, unit: &str) -> String {
+    let Some((run, _)) = edits::run_of(st, k) else { return String::new() };
+    let eps = 1e-9 * (1.0 + run.len);
+    let ids: Vec<&str> = run.parts.iter().filter(|p| t.min(p.at + p.len) - f.max(p.at) > eps).map(|p| p.member.as_str()).collect();
+    let base = run.parts.iter().find(|p| ids.first() == Some(&p.member.as_str())).map_or(0.0, |p| p.at);
+    let members = if ids.len() > 1 {
+        crate::i18n::fmt(ts("Members {n}"), &[("n", &ids.join(" + "))])
+    } else {
+        crate::i18n::fmt(ts("Member {n}"), &[("n", &ids.join(""))])
+    };
+    format!("{members}   {} {} → {} {unit}", ts("from"), short(f - base), short(t - base))
 }
 
 /// Draws a local-axis arrow (`a → b`) and dashed reference-fibre cue on a selected single member.
@@ -400,6 +436,8 @@ pub(super) fn paint(
                 let pts = vec![*at + vec2(0.0, -d), *at + vec2(d, 0.0), *at + vec2(0.0, d), *at + vec2(-d, 0.0)];
                 painter.add(egui::Shape::convex_polygon(pts, fill, Stroke::new(1.0, Color32::WHITE)));
             }
+            // Taken by dragging the load itself: no handle of its own.
+            Grip::Body(..) => {}
             Grip::Node(_) | Grip::Point(_) => {
                 let r = Rect::from_center_size(*at, vec2(2.0 * HALF, 2.0 * HALF));
                 painter.rect_filled(r, 0.0, fill);

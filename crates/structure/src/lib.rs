@@ -14,6 +14,7 @@
 //! Hostile input never panics: counts are capped, numbers clamped, names cleaned.
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
 
+mod chain;
 mod cut;
 mod diagram;
 mod linalg;
@@ -28,6 +29,7 @@ mod working;
 #[cfg(test)]
 mod tests;
 
+pub use chain::{LinePart, SpreadLine};
 pub use cut::{Cut, part_before};
 pub use diagram::{Action, Notable, NotableKind, notables};
 pub use model::{

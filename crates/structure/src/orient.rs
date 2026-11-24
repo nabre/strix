@@ -42,11 +42,49 @@ impl Structure {
                 turned.push((m.id.clone(), len));
             }
         }
-        if turned.is_empty() {
+        // A load over several members runs left to right (bottom to top) too: its line turned
+        // round starts from its last member.
+        let lines: Vec<Option<(Vec<String>, f64)>> = self
+            .loads
+            .iter()
+            .map(|l| match l {
+                Load::Distributed { then, .. } if !then.is_empty() => {
+                    let line = self.load_line(l)?;
+                    let end = line.point(line.len);
+                    backwards(line.start, end).then(|| (line.parts.iter().rev().map(|p| p.member.clone()).collect(), line.len))
+                }
+                _ => None,
+            })
+            .collect();
+        if turned.is_empty() && lines.iter().all(Option::is_none) {
             return self;
         }
         let length_of = |id: &str| turned.iter().find(|(m, _)| m == id).map(|&(_, len)| len);
-        for l in &mut self.loads {
+        for (l, line) in self.loads.iter_mut().zip(lines) {
+            if let Load::Distributed { then, .. } = l
+                && !then.is_empty()
+            {
+                if let (Some((members, len)), Load::Distributed { member, then, q1, q2, from, to, angle, axes, .. }) = (line, l) {
+                    let mut it = members.into_iter();
+                    if let Some(first) = it.next() {
+                        *member = first;
+                        *then = it.collect();
+                        let (s0, s1) = (from.value.clamp(0.0, len), to.as_ref().map_or(len, |t| t.value).clamp(0.0, len));
+                        let (near, far) = if s0 <= s1 { (s0, s1) } else { (s1, s0) };
+                        let whole = near <= 0.0 && to.is_none();
+                        *from = Num::new(len - far);
+                        *to = if whole { None } else { Some(Num::new(len - near)) };
+                        if let Some(q2) = q2.as_mut() {
+                            std::mem::swap(q1, q2);
+                        }
+                        if *axes == LoadAxes::Local {
+                            let a = angle.value + 180.0;
+                            *angle = Num::new(if a > 180.0 { a - 360.0 } else { a });
+                        }
+                    }
+                }
+                continue;
+            }
             match l {
                 Load::Force { member: Some(m), at, .. } | Load::Moment { member: Some(m), at, .. } => {
                     if let Some(len) = length_of(m) {

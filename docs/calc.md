@@ -612,7 +612,10 @@ well as on a line of its own (a structure's `T(2.5 m) = V_A − q·2.5 m = … =
 first line stays on the text's baseline and nothing runs past the margin. A line that has to break
 goes back to its last relation (`=`, `<`, `≈`…) when that keeps it at least half full, so a chain
 of equalities breaks between its steps, and back to its last `+` or `−` rather than inside a
-product (`F_2·d_(2,A)` stays whole); the lines after the first start under the first `=`
+product (`F_2·d_(2,A)` stays whole). Once a calculation has had to break, every later `=` starts
+a line of its own, so a step that took two lines is never followed by the next step at the end of
+its last line (`… − (10 kN/m)·(3 m − 1.5 m)²/2` / `= 15 kN·m + 6.21 kN·m − …` / `= 4.96 kN·m`).
+The lines after the first start under the first `=`
 (when that is in the first half of the line), as a worked solution is written by hand, and they
 are spaced one and a half lines apart, like a calculation's steps, so a fraction or a bracket keeps
 clear of the next line. Equations that are not calculations keep Word's wrap indent and spacing
