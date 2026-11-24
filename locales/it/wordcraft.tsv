@@ -3831,7 +3831,7 @@ structure	Click a node to hold it with a slider (glifo)	Fai clic su un nodo per 
 structure	Click a node to make it an internal hinge, or not	Fai clic su un nodo per farne una cerniera interna, o toglierla
 structure	Click a node to pin it (cerniera)	Fai clic su un nodo per metterci una cerniera
 structure	Click a node to put it on a roller (carrello)	Fai clic su un nodo per metterlo su un carrello (appoggio scorrevole)
-structure	Click a node to put it on a roller drawn as a circle (carrello)	Fai clic su un nodo per metterlo su un carrello disegnato come un cerchio
+structure	Click a node to put it on a roller drawn on a triangle (carrello)	Fai clic su un nodo per metterlo su un carrello disegnato su un triangolo
 structure	Click to add a node	Fai clic per aggiungere un nodo
 structure	Click two points to draw a member; it goes on from its end (Esc or a right click stops)	Fai clic su due punti per disegnare un'asta; si prosegue dal suo estremo (Esc o clic destro per smettere)
 structure	Continuous Beam	Trave continua
@@ -3876,7 +3876,7 @@ structure	Remove the node with its members, support and loads	Elimina il nodo co
 structure	Remove the member with its loads	Elimina l'asta con i suoi carichi
 structure	Remove the support	Elimina il vincolo
 structure	Roller	Carrello
-structure	Roller (circle)	Carrello (cerchio)
+structure	Roller (triangle)	Carrello (triangolo)
 structure	Select	Seleziona
 structure	Select nodes, members and loads (Shift+click, a window); drag to move them, a load slides along its member	Seleziona nodi, aste e carichi (Maiusc+clic, un riquadro); trascina per spostarli, un carico scorre lungo la sua asta
 	Select a structure in the document to draw and edit it, or insert one.	Seleziona una struttura nel documento per disegnarla e modificarla, o inseriscine una.
@@ -4005,7 +4005,7 @@ structure	Click a node, a member or a load to see its properties; Shift+click or
 	Fixed	Incastro
 	Pin	Cerniera
 	Roller	Carrello
-	Roller (circle)	Carrello (cerchio)
+	Roller (triangle)	Carrello (triangolo)
 	Link	Pendolo
 	Slider	Glifo
 	Internal hinge	Cerniera interna
@@ -4016,7 +4016,7 @@ structure	Click a node, a member or a load to see its properties; Shift+click or
 	Click a node to fix it (incastro)	Fai clic su un nodo per incastrarlo
 	Click a node to pin it (cerniera)	Fai clic su un nodo per metterci una cerniera
 	Click a node to put it on a roller (carrello)	Fai clic su un nodo per metterlo su un carrello (appoggio scorrevole)
-	Click a node to put it on a roller drawn as a circle (carrello)	Fai clic su un nodo per metterlo su un carrello disegnato come un cerchio
+	Click a node to put it on a roller drawn on a triangle (carrello)	Fai clic su un nodo per metterlo su un carrello disegnato su un triangolo
 	Click a node to hold it with a link (pendolo)	Fai clic su un nodo per vincolarlo con un pendolo (biella)
 	Click a node to hold it with a slider (glifo)	Fai clic su un nodo per vincolarlo con un glifo (doppio pendolo)
 	Click a node to make it an internal hinge, or not	Fai clic su un nodo per farne una cerniera interna, o toglierla

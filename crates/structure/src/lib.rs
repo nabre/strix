@@ -19,6 +19,7 @@ mod diagram;
 mod linalg;
 mod model;
 mod names;
+mod orient;
 mod pivot;
 mod render;
 mod solve;

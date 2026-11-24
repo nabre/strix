@@ -925,3 +925,91 @@ fn the_axial_force_s_stations_are_only_where_it_changes() {
     assert!(notables(m, Action::Shear).iter().any(|n| close(n.x, 1.75)));
     assert_eq!(m.breakpoints_of(Action::Axial).len(), 3);
 }
+
+/// A beam A–B–E–C as the screenshot's: member 2 drawn from E back to B, with a trapezoid, a force
+/// and a couple on it, a local load across member 3 drawn from C back to E.
+fn beam_drawn(two_backwards: bool, three_backwards: bool) -> Structure {
+    let trap = |member: &str, q1: f64, q2: f64, from: f64, to: f64, angle: f64, axes: LoadAxes| Load::Distributed {
+        member: member.into(),
+        q1: q1.into(),
+        q2: Some(q2.into()),
+        from: from.into(),
+        to: Some(to.into()),
+        angle: angle.into(),
+        axes,
+        per: LoadPer::Length,
+    };
+    let couple = |member: &str, at: f64, value: f64| Load::Moment { node: None, member: Some(member.into()), at: at.into(), value: value.into() };
+    // Positions on a member drawn backwards are measured from its other end.
+    let p = |backwards: bool, s: f64| if backwards { 3.0 - s } else { s };
+    let (q_near, q_far) = if two_backwards { (12.0, 4.0) } else { (4.0, 12.0) };
+    Structure {
+        nodes: vec![node("A", 0.0, 0.0), node("B", 3.0, 0.0), node("E", 6.0, 0.0), node("C", 9.0, 0.0)],
+        members: vec![
+            member("1", "A", "B"),
+            if two_backwards { Member { hinge_a: true, ..member("2", "E", "B") } } else { Member { hinge_b: true, ..member("2", "B", "E") } },
+            if three_backwards { member("3", "C", "E") } else { member("3", "E", "C") },
+        ],
+        supports: vec![
+            support("A", SupportKind::Pin, 0.0),
+            support("B", SupportKind::Roller, 0.0),
+            support("E", SupportKind::Roller, 0.0),
+            support("C", SupportKind::Roller, 0.0),
+        ],
+        loads: vec![
+            uniform("1", 10.0),
+            // 4 → 12 kN/m from 0.5 m to 2.5 m after B.
+            trap("2", q_near, q_far, p(two_backwards, 0.5), p(two_backwards, 2.5), -90.0, LoadAxes::Global),
+            force_on("2", p(two_backwards, 1.0), 30.0),
+            couple("2", p(two_backwards, 2.0), 7.0),
+            // Down across member 3: −90° from its axis drawn E → C, +90° from C → E.
+            trap("3", 10.0, 10.0, 0.0, 3.0, if three_backwards { 90.0 } else { -90.0 }, LoadAxes::Local),
+        ],
+        ..Structure::default()
+    }
+}
+
+#[test]
+fn members_run_along_the_structure_axes_however_they_were_drawn() {
+    let forward = beam_drawn(false, false).render(None);
+    assert!(forward.analysis.status.is_solved(), "{:?}", forward.analysis.status);
+    for (two, three) in [(true, false), (false, true), (true, true)] {
+        let other = beam_drawn(two, three).render(None);
+        // Every member from left to right, its hinge where it was drawn.
+        for (m, f) in other.resolved.members.iter().zip(&forward.resolved.members) {
+            assert_eq!((&m.a, &m.b, m.hinge_a, m.hinge_b), (&f.a, &f.b, f.hinge_a, f.hinge_b), "{two} {three}");
+        }
+        for (r, f) in other.analysis.reactions.iter().zip(&forward.analysis.reactions) {
+            assert_close!(r.fy, f.fy);
+        }
+        // The same laws: N, T (V) and M at the same points, with the same signs.
+        for (m, f) in other.analysis.members.iter().zip(&forward.analysis.members) {
+            for k in 0..=12 {
+                let x = 3.0 * f64::from(k) / 12.0;
+                for after in [false, true] {
+                    let (a, b) = (m.forces(x, after), f.forces(x, after));
+                    assert_close!(a.n, b.n);
+                    assert_close!(a.v, b.v);
+                    assert_close!(a.m, b.m);
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn a_column_drawn_downwards_runs_upwards() {
+    let st = Structure {
+        nodes: vec![node("A", 0.0, 0.0), node("B", 0.0, 4.0)],
+        members: vec![member("1", "B", "A")],
+        supports: vec![support("A", SupportKind::Fixed, 0.0)],
+        loads: vec![force_on("1", 1.0, 5.0)],
+        ..Structure::default()
+    };
+    let r = st.render(None);
+    let m = &r.resolved.members[0];
+    assert_eq!((m.a.as_str(), m.b.as_str()), ("A", "B"));
+    // The force 1 m below B is 3 m above A.
+    let Load::Force { at, .. } = &r.resolved.loads[0] else { panic!("a force") };
+    assert_close!(at.value, 3.0);
+}

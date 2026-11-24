@@ -2,7 +2,9 @@
 //! line that has to break goes back to its last relation (`=`, `<`, `≈`…) when that keeps it at
 //! least half full, so a chain of equalities breaks between its steps rather than inside one;
 //! and in a Strix calculation (`calc`) the lines after the first line line up under the first
-//! relation instead of the fixed wrap indent, the way a worked solution is written by hand.
+//! relation instead of the fixed wrap indent, the way a worked solution is written by hand, and a
+//! line that would break inside a product (before a `·`) goes back to its last `+` or `−` when
+//! that keeps it at least half full, so a term such as `F_2·d_(2,A)` stays whole.
 
 /// One stretch of a row between two break opportunities.
 #[derive(Clone, Copy, Debug, Default)]
@@ -17,6 +19,8 @@ pub(super) struct Chunk {
     pub forced: bool,
     /// The chunk starts at a relation: the best place to break.
     pub rel: bool,
+    /// The chunk starts inside a product (at a `·` of a calculation): the worst place to break.
+    pub weak: bool,
 }
 
 /// A line must be at least this full (of its width) to break at its last relation rather than
@@ -35,14 +39,19 @@ pub(super) fn fill_lines(chunks: &[Chunk], first: f32, rest: f32) -> (Vec<(usize
         let start = c;
         let mut w = chunks.get(c).map_or(0.0, |k| if c > 0 { k.copy_w + k.w } else { k.w });
         c += 1;
-        // The last relation on this line and the line's width before it.
+        // The last relation on this line, its last break outside a product, and the line's
+        // width before each.
         let mut last_rel: Option<(usize, f32)> = None;
+        let mut last_strong: Option<(usize, f32)> = None;
         while let Some(k) = chunks.get(c) {
             if k.forced || w + k.lead + k.w > avail + 0.01 {
                 break;
             }
             if k.rel {
                 last_rel = Some((c, w));
+            }
+            if !k.weak {
+                last_strong = Some((c, w));
             }
             w += k.lead + k.w;
             c += 1;
@@ -56,11 +65,21 @@ pub(super) fn fill_lines(chunks: &[Chunk], first: f32, rest: f32) -> (Vec<(usize
                 && before >= avail * REL_BREAK_FILL
             {
                 c = j;
+            } else if k.weak
+                && let Some((j, before)) = last_strong
+                && before >= avail * REL_BREAK_FILL
+            {
+                c = j;
             }
         }
         lines.push((start, c));
     }
     (lines, auto)
+}
+
+/// `c` multiplies: breaking at it splits a term (`F_2·d_(2,A)`).
+pub(super) fn is_product(c: char) -> bool {
+    matches!(c, '·' | '⋅' | '∙' | '×' | '*')
 }
 
 /// The indent of a calculation's continuation lines: under its first relation `rel_x` points from
@@ -74,7 +93,7 @@ mod tests {
     use super::*;
 
     fn chunk(w: f32, rel: bool) -> Chunk {
-        Chunk { w, lead: 2.0, copy_w: 0.0, forced: false, rel }
+        Chunk { w, lead: 2.0, copy_w: 0.0, forced: false, rel, weak: false }
     }
 
     #[test]
@@ -92,6 +111,19 @@ mod tests {
         let cs = [chunk(10.0, false), chunk(10.0, true), chunk(10.0, false), chunk(10.0, false), chunk(10.0, false), chunk(10.0, false)];
         let (lines, _) = fill_lines(&cs, 50.0, 50.0);
         assert_eq!(lines.first(), Some(&(0, 4)));
+    }
+
+    /// A calculation's line that runs out of room inside a product goes back to its last `+`.
+    #[test]
+    fn a_line_does_not_break_inside_a_product_when_half_full() {
+        // a | + b | · c | + d | · e: room for 40; greedy breaks before `· e`, splitting `d · e`.
+        let weak = |w: f32| Chunk { weak: true, ..chunk(w, false) };
+        let cs = [chunk(10.0, false), chunk(10.0, false), weak(5.0), chunk(8.0, false), weak(10.0)];
+        let (lines, _) = fill_lines(&cs, 40.0, 40.0);
+        assert_eq!(lines, vec![(0, 3), (3, 5)]);
+        // No `+` past half the line: the greedy break stays.
+        let cs = [chunk(30.0, false), weak(5.0), weak(10.0)];
+        assert_eq!(fill_lines(&cs, 40.0, 40.0).0.first(), Some(&(0, 2)));
     }
 
     #[test]

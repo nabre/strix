@@ -22,6 +22,7 @@ use wordcraft_fonts::{FaceRef, FontDb};
 mod breaks;
 mod bx;
 mod eq_wrap;
+mod frac_wrap;
 mod glyphs;
 mod nodes;
 mod rows;
@@ -238,6 +239,7 @@ pub fn layout_equation(
         node_stack: Vec::new(),
         row_spacing: eq_wrap::row_spacing(math),
         align_relations: math.calc,
+        frac_wrap: None,
     };
     let st = St { level: 0, display, cramped: false, upright: false };
     let avail = if avail.is_finite() { avail.clamp(0.0, 1e5) } else { 0.0 };

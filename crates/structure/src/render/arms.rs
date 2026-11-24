@@ -5,9 +5,10 @@
 //! rows below the drawing; a horizontal one by its vertical distance, in columns at its right; an
 //! inclined reaction by its distance from the point to its line of action. A load's arm is named
 //! as the working names it (`d_(1,A)`, `d_(2,v,A)`), a reaction's (and an unnamed load's) written
-//! by its length (`6 m`). The shortest arms nearest the drawing.
+//! by its length (`6 m`). The shortest arms nearest the drawing. Each arm runs from a small ring
+//! at the point to an arrowhead at the force's line.
 
-use super::annotate::{DIM, reading_angle};
+use super::annotate::{DIM, EXT_OVER, reading_angle};
 use super::equilibrium::node_sub;
 use super::{BLACK, Ctx, Frame, GREY, LOAD, MEMBER_W, P, REACTION, Rgb, TEXT, add, lighter, mul, unit};
 use crate::model::{Load, SupportKind};
@@ -26,6 +27,12 @@ const EXT_GAP: f64 = 1.0;
 const SUB: f64 = 0.72;
 /// At most this many arms are drawn (a hostile structure's loads are capped anyway).
 const MAX_ARMS: usize = 48;
+/// An arm's ends: a small ring at the point, an arrowhead at the force's line (paper mm).
+const RING: f64 = 0.55;
+const HEAD: f64 = 1.5;
+const HEAD_HALF: f64 = 0.3;
+/// The paper under the drawing, inside an arm's ring.
+const PAPER: Rgb = [0xFF, 0xFF, 0xFF];
 
 /// One arm: measured along `axis` (0: a horizontal distance, 1: a vertical one) from the point
 /// to `to` (the world coordinate of the force's line along that axis), written `base` with the
@@ -164,9 +171,24 @@ impl Ctx<'_> {
         (straight, inclined)
     }
 
+    /// One arm's line from the point `a` to the force's line at `b`: a ring at `a`, an
+    /// arrowhead at `b` (the line alone when it is too short for the head).
+    fn arm_line(&mut self, a: P, b: P) {
+        let len = (b.0 - a.0).hypot(b.1 - a.1);
+        if !len.is_finite() {
+            return;
+        }
+        self.pen.line(a, b, DIM, 0.2);
+        if len > HEAD + RING {
+            self.pen.head(b, unit((b.0 - a.0, b.1 - a.1)), HEAD, HEAD_HALF, DIM);
+        }
+        self.pen.dot(a, RING, PAPER, Some((DIM, 0.2)));
+    }
+
     /// The arms along the axes from `o`: horizontal distances in rows below what is drawn,
     /// vertical ones in columns at its right, the shortest nearest; each with its extension lines
-    /// from what it measures, oblique ticks at its ends and its name over its middle.
+    /// from what it measures, a ring at the point, an arrowhead at the force and its name over
+    /// its middle.
     fn straight_arms(&mut self, f: &Frame, o: (f64, f64), mut arms: Vec<Arm>) {
         arms.sort_by(|a, b| {
             let (da, db) = ((a.to - if a.axis == 0 { o.0 } else { o.1 }).abs(), (b.to - if b.axis == 0 { o.0 } else { o.1 }).abs());
@@ -178,7 +200,6 @@ impl Ctx<'_> {
         let right_at = |py: f64| drawn.iter().filter(|b| b[1] <= py + 0.2 && b[3] >= py - 0.2).map(|b| b[2]).fold(po.0, f64::max);
         let bottom = drawn.iter().map(|b| b[3]).fold(po.1, f64::max);
         let right = drawn.iter().map(|b| b[2]).fold(po.0, f64::max);
-        let tick = |cx: &mut Self, p: P| cx.pen.line(add(p, (-0.9, 0.9)), add(p, (0.9, -0.9)), DIM, 0.3);
 
         // Horizontal distances, one row each below everything.
         let rows: Vec<&Arm> = arms.iter().filter(|a| a.axis == 0).collect();
@@ -190,10 +211,8 @@ impl Ctx<'_> {
             let pa = po.0;
             let pb = f.p(a.to, 0.0).0;
             let from_b = bottom_at(pb) + EXT_GAP;
-            self.pen.line((pb, from_b.min(y - 0.5)), (pb, y + 1.2), GREY, 0.15);
-            self.pen.line((pa, y), (pb, y), DIM, 0.2);
-            tick(self, (pa, y));
-            tick(self, (pb, y));
+            self.pen.line((pb, from_b.min(y - 0.5)), (pb, y + EXT_OVER), GREY, 0.15);
+            self.arm_line((pa, y), (pb, y));
             let (lo, hi) = (pa.min(pb), pa.max(pb));
             let w = text_width(&a.base, &a.sub);
             // Over its middle when it fits; beyond its far end otherwise.
@@ -207,7 +226,7 @@ impl Ctx<'_> {
         if !rows.is_empty() {
             // The point's extension line, down to the last row.
             let from = bottom_at(po.0) + EXT_GAP;
-            self.pen.line((po.0, from.min(y - 0.5)), (po.0, y + 1.2), GREY, 0.15);
+            self.pen.line((po.0, from.min(y - 0.5)), (po.0, y + EXT_OVER), GREY, 0.15);
         }
 
         // Vertical distances, one column each at the right, wide enough for its name.
@@ -218,10 +237,8 @@ impl Ctx<'_> {
             let pa = po.1;
             let pb = f.p(0.0, a.to).1;
             let from_b = right_at(pb) + EXT_GAP;
-            self.pen.line((from_b.min(x - 0.5), pb), (x + 1.2, pb), GREY, 0.15);
-            self.pen.line((x, pa), (x, pb), DIM, 0.2);
-            tick(self, (x, pa));
-            tick(self, (x, pb));
+            self.pen.line((from_b.min(x - 0.5), pb), (x + EXT_OVER, pb), GREY, 0.15);
+            self.arm_line((x, pa), (x, pb));
             let mid = (pa + pb) / 2.0;
             self.pen.subscripted((x + 0.3, mid), (1.0, 0.0), &a.base, &a.sub, a.color);
             last_x = x;
@@ -229,7 +246,7 @@ impl Ctx<'_> {
         }
         if !cols.is_empty() {
             let from = right_at(po.1) + EXT_GAP;
-            self.pen.line((from.min(last_x - 0.5), po.1), (last_x + 1.2, po.1), GREY, 0.15);
+            self.pen.line((from.min(last_x - 0.5), po.1), (last_x + EXT_OVER, po.1), GREY, 0.15);
         }
     }
 
@@ -244,9 +261,7 @@ impl Ctx<'_> {
         }
         self.pen.dashed(through, foot, lighter(REACTION, 0.35), 0.2);
         let (a, b) = (add(po, mul(d, 2.2)), foot);
-        self.pen.line(a, b, DIM, 0.2);
-        self.pen.head(b, d, 1.8, 0.34, DIM);
-        self.pen.head(a, mul(d, -1.0), 1.8, 0.34, DIM);
+        self.arm_line(a, b);
         let n = (-d.1, d.0);
         let side = if n.1 <= 0.0 { n } else { mul(n, -1.0) };
         let mid = add(mul(add(a, b), 0.5), mul(side, 1.8));
@@ -315,6 +330,23 @@ mod tests {
         assert!(!t.iter().any(|p| p == "d_2,h,A" || p == "d_2,A"), "{t:?}");
         let back = Structure::from_json(&st.to_json()).unwrap();
         assert_eq!((back.view, back.pivot), (View::Arms, Some(Pivot::whole("A"))));
+    }
+
+    /// Each arm starts with a ring at the point and ends with an arrowhead: about A, three arms
+    /// (`d_1,A`, `d_2,v,A`, `6 m`), so three rings on A's extension line.
+    #[test]
+    fn an_arm_runs_from_a_ring_at_the_point_to_an_arrowhead() {
+        let plot = beam(Some(Pivot::whole("A"))).render(None).plot;
+        let rings: Vec<(f64, f64)> = plot
+            .prims
+            .iter()
+            .filter_map(|p| match p {
+                strix_plot::PlotPrim::Dot { at, r, fill, .. } if (*r - super::RING).abs() < 1e-9 && *fill == super::PAPER => Some(*at),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(rings.len(), 3, "{rings:?}");
+        assert!(rings.iter().all(|p| (p.0 - rings[0].0).abs() < 1e-9), "{rings:?}");
     }
 
     /// About B: every arm measured from B (V_A's is the span).

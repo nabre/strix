@@ -173,7 +173,7 @@ fn template(name: &str) -> Result<Structure, CmdError> {
         "beam" => Structure {
             nodes: vec![n(0.0, 0.0, "A"), n(6.0, 0.0, "B")],
             members: vec![bar("1", "A", "B")],
-            supports: vec![sup("A", SupportKind::Pin, 0.0), sup("B", SupportKind::Roller, 0.0)],
+            supports: vec![sup("A", SupportKind::Pin, 0.0), sup("B", SupportKind::RollerCircle, 0.0)],
             loads: vec![uniform("1", 10.0)],
             ..Structure::default()
         },
@@ -187,14 +187,14 @@ fn template(name: &str) -> Result<Structure, CmdError> {
         "continuous" => Structure {
             nodes: vec![n(0.0, 0.0, "A"), n(5.0, 0.0, "B"), n(10.0, 0.0, "C")],
             members: vec![bar("1", "A", "B"), bar("2", "B", "C")],
-            supports: vec![sup("A", SupportKind::Pin, 0.0), sup("B", SupportKind::Roller, 0.0), sup("C", SupportKind::Roller, 0.0)],
+            supports: vec![sup("A", SupportKind::Pin, 0.0), sup("B", SupportKind::RollerCircle, 0.0), sup("C", SupportKind::RollerCircle, 0.0)],
             loads: vec![uniform("1", 10.0), uniform("2", 10.0)],
             ..Structure::default()
         },
         "frame" => Structure {
             nodes: vec![n(0.0, 0.0, "A"), n(0.0, 4.0, "B"), n(6.0, 4.0, "C"), n(6.0, 0.0, "D")],
             members: vec![bar("1", "A", "B"), bar("2", "B", "C"), bar("3", "C", "D")],
-            supports: vec![sup("A", SupportKind::Pin, 0.0), sup("D", SupportKind::Roller, 0.0)],
+            supports: vec![sup("A", SupportKind::Pin, 0.0), sup("D", SupportKind::RollerCircle, 0.0)],
             loads: vec![uniform("2", 10.0), force("B", 10.0, 0.0)],
             ..Structure::default()
         },
@@ -210,7 +210,7 @@ fn template(name: &str) -> Result<Structure, CmdError> {
                     bar("6", "E", "C"),
                     bar("7", "D", "E"),
                 ],
-                supports: vec![sup("A", SupportKind::Pin, 0.0), sup("C", SupportKind::Roller, 0.0)],
+                supports: vec![sup("A", SupportKind::Pin, 0.0), sup("C", SupportKind::RollerCircle, 0.0)],
                 loads: vec![force("D", 10.0, -90.0), force("E", 10.0, -90.0)],
                 ..Structure::default()
             };

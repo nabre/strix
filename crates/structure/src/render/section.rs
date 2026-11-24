@@ -9,12 +9,13 @@
 //! rest of the member (and any remaining skeleton) faintly dashed with its end node and support so
 //! the whole member is seen without loads past the stretch or reactions past the cut; and the
 //! section's distance `x` from the member's first node as a progressive clear of the reactions,
-//! and below it the progressives of the stretch: the distances from the member's first node to the
-//! stretch's ends and to the member's far end (`0`, `2.5 m`, `6 m`).
+//! and below it the stretch's start and end as progressives: an extension line at each with its
+//! distance from the member's first node written beside it (`2.5 m`, `4.5 m`), no dimension line
+//! or arrows.
 
 use std::ops::Range;
 
-use super::annotate::{DIM, reading_angle};
+use super::annotate::{DIM, EXT_OVER, reading_angle};
 use super::{BLACK, COLOR_M, COLOR_N, COLOR_V, Ctx, Frame, GREY, LOAD, MEMBER_W, P, add, lighter, max_spread, mul, pd, prim_box};
 use crate::cut::part_before;
 use crate::diagram::Action;
@@ -34,11 +35,8 @@ const MIN_DIM_OFF: f64 = 10.5;
 /// The progressive `x`: its origin's circle and its arrow's head (paper mm).
 const X_ORIGIN_R: f64 = 0.8;
 const X_HEAD: f64 = 2.8;
-/// The progressives of the stretch: between their line and `x`'s, their origin's circle and their
-/// arrowheads (paper mm).
+/// The progressives of the stretch's ends: between their labels and `x`'s line (paper mm).
 const PROG_STEP: f64 = 6.5;
-const PROG_ORIGIN_R: f64 = 0.7;
-const PROG_HEAD: f64 = 2.0;
 
 impl Ctx<'_> {
     /// The drawing of the stretch [`Structure::cut`] names (the structure alone without one).
@@ -158,9 +156,9 @@ impl Ctx<'_> {
         self.supports_where(f, lighter(GREY, 0.56), &|id| !in_left(id));
         self.node_names_styled(f, lighter(GREY, 0.15), false, &|id| !in_left(id));
 
-        // 6. The progressives of the stretch's ends and the member's far end, below `x`.
-        let stops: Vec<(P, f64)> = [0.0, geo.from, geo.to, geo.len].into_iter().map(|s| (at(s), s)).collect();
-        self.progressives(&stops, pn, x_off, x_prims);
+        // 6. The stretch's start and end as progressives, below `x`.
+        let stops: Vec<(P, f64)> = [geo.from, geo.to].into_iter().map(|s| (at(s), s)).collect();
+        self.progressives(&stops, pe, pn, x_off, x_prims);
     }
 
     /// Paper distance (mm) from the cut `ps` to where the faint continuation of the member (and
@@ -379,7 +377,7 @@ impl Ctx<'_> {
         let (a, b) = (add(pa, mul(out, off)), add(ps, mul(out, off)));
         for (origin, w_obs, to) in [(pa, w_pa, a), (ps, w_ps, b)] {
             let start = (w_obs + 1.0).clamp(2.2, (off - 1.5).max(2.2));
-            self.pen.line(add(origin, mul(out, start)), add(to, mul(out, 1.2)), BLACK, 0.18);
+            self.pen.line(add(origin, mul(out, start)), add(to, mul(out, EXT_OVER)), BLACK, 0.18);
         }
         // The line from the circle's rim to the arrow's head, the head larger than a force's.
         let base = add(b, mul(d, -X_HEAD));
@@ -392,22 +390,22 @@ impl Ctx<'_> {
         Some(off)
     }
 
-    /// Progressive dimensions along the member on its −y side (`pn` its +y): from the first of
-    /// `stops` (paper point, distance from the member's first node), its origin marked by a small
-    /// circle and written `0`, an arrowhead at each other stop with its distance written after it.
-    /// Placed below the `x` dimension (`x_off` from the member, its primitives `x_prims`) and
-    /// clear of everything else drawn.
-    fn progressives(&mut self, stops: &[(P, f64)], pn: P, x_off: Option<f64>, x_prims: Range<usize>) {
+    /// Progressives along the member (`pe` its direction on paper) on its −y side (`pn` its +y):
+    /// at each of `stops` (paper point, distance from the member's first node) an extension line
+    /// with the distance written beside its end (`0` at the first node) — no dimension line, no
+    /// arrows. The labels sit below the `x` dimension (`x_off` from the member, its primitives
+    /// `x_prims`) and clear of everything else drawn.
+    fn progressives(&mut self, stops: &[(P, f64)], pe: P, pn: P, x_off: Option<f64>, x_prims: Range<usize>) {
         let mut stops: Vec<(P, f64)> = stops.iter().copied().filter(|(p, s)| s.is_finite() && p.0.is_finite() && p.1.is_finite()).collect();
         stops.sort_by(|a, b| a.1.total_cmp(&b.1));
         let tol = 1e-6 * (1.0 + stops.iter().fold(0.0_f64, |m, s| m.max(s.1.abs())));
         stops.dedup_by(|b, a| (b.1 - a.1).abs() <= tol);
         let (Some(&(pa, _)), Some(&(pz, _))) = (stops.first(), stops.last()) else { return };
         let full = (pz.0 - pa.0).hypot(pz.1 - pa.1);
-        if stops.len() < 2 || full < 2.0 {
+        let d = super::unit(pe);
+        if !(d.0.is_finite() && d.1.is_finite()) {
             return;
         }
-        let d = super::unit((pz.0 - pa.0, pz.1 - pa.1));
         let out = mul(pn, -1.0);
         let along = |p: P| (p.0 - pa.0) * d.0 + (p.1 - pa.1) * d.1;
         let ss: Vec<f64> = stops.iter().map(|(p, _)| along(*p)).collect();
@@ -443,19 +441,14 @@ impl Ctx<'_> {
 
         for (&s, &w_obs) in ss.iter().zip(&w_at) {
             let start = (w_obs + 1.0).clamp(2.2, (off - 1.5).max(2.2));
-            self.pen.line(on(s, start), on(s, off + 1.2), DIM, 0.15);
+            self.pen.line(on(s, start), on(s, off + EXT_OVER), DIM, 0.15);
         }
-        self.pen.line(on(PROG_ORIGIN_R, off), on(full - PROG_HEAD, off), DIM, 0.2);
         let angle = reading_angle(d);
-        for (k, (&s, &(_, value))) in ss.iter().zip(&stops).enumerate() {
-            if k > 0 {
-                self.pen.head(on(s, off), d, PROG_HEAD, 0.34, DIM);
-            }
-            let text = if k == 0 { "0".to_string() } else { format!("{} {}", self.num(value), self.st.length_unit.symbol()) };
+        for (&s, &(_, value)) in ss.iter().zip(&stops) {
+            let text = if value.abs() <= tol { "0".to_string() } else { format!("{} {}", self.num(value), self.st.length_unit.symbol()) };
             let width = text.chars().count() as f64 * super::TEXT * 0.55;
             self.pen.turned(on(s + width / 2.0 + 1.0, off + 2.0), text, super::TEXT, angle, DIM);
         }
-        self.pen.dot(on(0.0, off), PROG_ORIGIN_R, [255, 255, 255], Some((DIM, 0.22)));
     }
 }
 
@@ -709,12 +702,12 @@ mod tests {
             .any(|p| matches!(p, strix_plot::PlotPrim::Path { stroke: Some((_, w)), dash, .. } if !dash.is_empty() && (*w - 0.24).abs() < 1e-6));
         assert!(has_ref_fibres);
 
-        // Right-to-left member (part before cut is on the right, cut on its left face):
-        // N points left (-1, 0), T points up (0, -1) on paper (still clockwise!).
+        // A member drawn right to left runs left to right as the structure's axes do: the part
+        // before the cut is still on the left, T still points down.
         let mut rev = beam(Some(Cut { member: "1".into(), from: 0.0, to: 4.0, tag: "1".into(), action: Some(Action::Shear) }));
         rev.members[0] = Member { id: "1".into(), a: "B".into(), b: "A".into(), ..Member::default() };
         let v_rev = head_dir(&rev, super::COLOR_V);
-        assert!(v_rev.0.abs() < 0.05 && v_rev.1 < -0.99, "{v_rev:?}");
+        assert!(v_rev.0.abs() < 0.05 && v_rev.1 > 0.99, "{v_rev:?}");
     }
 
     /// Beyond the cut, the rest of the member is faintly dashed up to `B`, the stretch's yellow
@@ -818,15 +811,26 @@ mod tests {
         assert!(!names(&axial).iter().any(|p| p.starts_with("F")));
     }
 
-    /// Below `x`, the progressives give the distances from the member's first node to the
-    /// stretch's ends and to the member's far end, from an origin written `0`.
+    /// Below `x`, only the stretch's start and end as progressives (their distances from the
+    /// member's first node): no `0` origin, no member's far end, no dimension line with arrows.
     #[test]
     fn a_stretch_shows_its_progressives_below_x() {
-        let st = beam(Some(Cut { member: "1".into(), from: 2.5, to: 6.0, tag: "1b".into(), action: Some(Action::Moment) }));
-        let t = names(&st);
-        for v in ["0", "2.5 m", "6 m"] {
+        let mid = beam(Some(Cut { member: "1".into(), from: 2.5, to: 4.5, tag: "1b".into(), action: Some(Action::Moment) }));
+        let t = names(&mid);
+        for v in ["2.5 m", "4.5 m"] {
             assert_eq!(t.iter().filter(|p| p.as_str() == v).count(), 1, "{v}: {t:?}");
         }
+        assert!(!t.iter().any(|p| p == "0" || p == "6 m"), "{t:?}");
+        // No filled triangle in the dimensions' grey (`x`'s head is black).
+        let dim_heads = mid
+            .render(None)
+            .plot
+            .prims
+            .iter()
+            .filter(|p| matches!(p, strix_plot::PlotPrim::Path { closed: true, fill: Some(c), pts, .. } if *c == super::DIM && pts.len() == 3))
+            .count();
+        assert_eq!(dim_heads, 0, "no arrowheads on the progressives");
+        let st = beam(Some(Cut { member: "1".into(), from: 2.5, to: 6.0, tag: "1b".into(), action: Some(Action::Moment) }));
         let prims = st.render(None).plot.prims;
         let text_y = |want: &str| {
             prims.iter().find_map(|p| match p {
@@ -865,14 +869,17 @@ mod tests {
         assert!(t.iter().any(|p| p == "N_1-2a"), "{t:?}");
     }
 
-    /// A member running right to left: the part before the cut is its first node's side.
+    /// A member drawn right to left runs left to right as the structure's axes do: the part before
+    /// the cut is the left one, as for the member drawn the other way.
     #[test]
-    fn a_reversed_member_is_cut_from_its_first_node() {
+    fn a_reversed_member_is_cut_from_its_left_end() {
+        let forward = names(&beam(Some(Cut { member: "1".into(), from: 0.0, to: 2.0, tag: "1".into(), action: None })));
         let mut st = beam(Some(Cut { member: "1".into(), from: 0.0, to: 2.0, tag: "1".into(), action: None }));
         st.members[0] = Member { id: "1".into(), a: "B".into(), b: "A".into(), ..Member::default() };
         let t = names(&st);
-        assert!(t.iter().any(|p| p == "V_B") && t.iter().any(|p| p == "M_1"), "{t:?}");
-        assert!(!t.iter().any(|p| p == "V_A" || p == "H_A"), "{t:?}");
+        assert!(t.iter().any(|p| p == "V_A") && t.iter().any(|p| p == "M_1"), "{t:?}");
+        assert!(!t.iter().any(|p| p == "V_B"), "{t:?}");
+        assert_eq!(t, forward);
     }
 
     /// A column fixed at its foot: its reactions, the couple among them, and the forces on the cut;

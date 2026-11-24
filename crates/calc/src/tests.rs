@@ -958,6 +958,12 @@ fn solutions_show_formula_substitution_and_result() {
         steps(&["F = 60 kN", "d = 3 m", "0 kN·m = -V·6 m + F·d"]).unwrap(),
         ["-V·6 m = -F·d", "-V = -F·d/(6 m)", "V = F·d/(6 m)", "V = (60 kN)·(3 m)/(6 m)", "V = 30 kN"]
     );
+    // With more monomials the minus is worked into each of them, never left in front of the fraction.
+    assert_eq!(
+        steps(&["F = 60 kN", "G = 30 kN", "d = 3 m", "e = 2 m", "0 kN·m = -V·6 m + F·d + G·e"]).unwrap()[..3],
+        ["-V·6 m = -G·e - F·d", "-V = (-G·e - F·d)/(6 m)", "V = (G·e + F·d)/(6 m)"]
+    );
+    assert_eq!(steps(&["F = 60 kN", "G = 30 kN", "0 kN = -V + F - G"]).unwrap()[..2], ["-V = G - F", "V = F - G"]);
     // Plain numbers in the substitution need no parentheses; negatives do.
     assert_eq!(steps(&["a = 2", "b = -3", "c = a·b"]).unwrap(), ["= 2·(-3)", "= -6"]);
     // Solved numerically: the equation with the values, then the result, marked as numerical.

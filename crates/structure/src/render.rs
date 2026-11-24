@@ -1070,6 +1070,8 @@ impl Structure {
                 errors.push(format!("{expr}: {why}"));
             }
         }
+        // However its members were drawn, they run along the structure's axes.
+        let st = st.oriented();
         let an = analyse(&st);
         errors.extend(an.warnings.iter().cloned());
         let show = show_answers || !st.answer;
