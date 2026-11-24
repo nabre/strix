@@ -60,6 +60,35 @@ pub(super) fn split_member(src: &Structure, st: &Structure, id: &str, s: f64) ->
                 }
                 loads.push(moved);
             }
+            (Load::Distributed { member, then, .. }, _) if !then.is_empty() && (member == id || then.iter().any(|m| m == id)) => {
+                // Over several members: the new one goes into its line where the member was
+                // (the line, and where the load lies along it, stay the same).
+                let line = st.load_line(l);
+                let mut moved = l.clone();
+                if let (Some(line), Load::Distributed { member, then, .. }) = (line, &mut moved) {
+                    let mut ids: Vec<String> = Vec::with_capacity(line.parts.len() + 1);
+                    for p in &line.parts {
+                        if p.member == id {
+                            // Its `a` end side first unless it runs against the line.
+                            if p.reversed {
+                                ids.push(second.clone());
+                                ids.push(p.member.clone());
+                            } else {
+                                ids.push(p.member.clone());
+                                ids.push(second.clone());
+                            }
+                        } else {
+                            ids.push(p.member.clone());
+                        }
+                    }
+                    let mut it = ids.into_iter();
+                    if let Some(first) = it.next() {
+                        *member = first;
+                        *then = it.collect();
+                    }
+                }
+                loads.push(moved);
+            }
             (Load::Distributed { member, q1, q2, from, to, .. }, Some(Load::Distributed { q1: rq1, q2: rq2, from: rf, to: rt, .. }))
                 if member == id =>
             {
@@ -156,7 +185,7 @@ pub(super) fn merge_nodes(src: &Structure, from: &str, onto: &str) -> Option<Str
             }
             !member.as_ref().is_some_and(|m| gone.contains(m))
         }
-        Load::Distributed { member, .. } => !gone.contains(member),
+        Load::Distributed { member, then, .. } => !gone.contains(member) && !then.iter().any(|m| gone.contains(m)),
     });
     Some(out)
 }
@@ -253,6 +282,8 @@ pub(super) fn join_members(src: &Structure, st: &Structure, node: &str) -> Resul
     let len1 = st.length(first).unwrap_or(lu);
     let len2 = st.length(second).unwrap_or(lv);
     let (id1, id2) = (first.id.clone(), second.id.clone());
+    // A load over several members, the two among them, in pieces first (one per member).
+    let (src, st) = (&pieces_on(src, st, &[&id1, &id2]), &pieces_on(st, st, &[&id1, &id2]));
     let mut out = src.clone();
     let hinge_b = if flip_second { second.hinge_a } else { second.hinge_b };
     let start_hinge = if flip_first { first.hinge_b } else { first.hinge_a };
@@ -456,35 +487,103 @@ pub(super) fn force_angle(dx: f64, dy: f64, value: f64, step: f64) -> Option<f64
     Some(round(a))
 }
 
-/// Distributed load `k` spread from `from` to `to` along its member (resolved values, clamped to
-/// it, at least `gap` long): a `from` or `to` written as an expression stays one, a `to` at the
-/// member's end goes back to "to the end". `None` when nothing changed.
-pub(super) fn spread(src: &Structure, st: &Structure, k: usize, from: f64, to: f64, gap: f64) -> Option<Load> {
-    let Some(Load::Distributed { member, from: rf, to: rt, .. }) = st.loads.get(k) else { return None };
-    let len = st.member(member).and_then(|m| st.length(m)).filter(|l| *l > 0.0)?;
-    let gap = gap.clamp(EPS, len);
-    let (cf, ct) = (rf.value, rt.as_ref().map_or(len, |t| t.value));
-    let f = from.clamp(0.0, len - gap);
-    let t = to.clamp(f + gap, len);
-    if (f - cf).abs() <= EPS && (t - ct).abs() <= EPS {
+/// `src` with each load over several members, one of `ids` among them, in one piece per member
+/// (values of `st`, the resolved structure).
+fn pieces_on(src: &Structure, st: &Structure, ids: &[&str]) -> Structure {
+    let mut out = src.clone();
+    out.loads.clear();
+    for (k, l) in src.loads.iter().enumerate() {
+        match (l, st.loads.get(k)) {
+            (Load::Distributed { then, .. }, Some(r)) if !then.is_empty() && st.load_members(r).iter().any(|m| ids.contains(m)) => {
+                out.loads.extend(st.spread_pieces(r));
+            }
+            _ => out.loads.push(l.clone()),
+        }
+    }
+    out
+}
+
+/// The straight run of aligned members distributed load `k` lies in (resolved values), read in
+/// the load's direction, and where the load's line starts along it.
+pub(super) fn run_of(st: &Structure, k: usize) -> Option<(strix_structure::SpreadLine, f64)> {
+    let line = st.load_line(st.loads.get(k)?)?;
+    let first = line.parts.first()?;
+    let (head, then, at) = st.straight_run(&first.member, first.reversed)?;
+    let run = st.spread_line(&head, &then)?;
+    // A run of one member reads it from `a` to `b`: the load's own member, the same way.
+    Some((run, at))
+}
+
+/// Where distributed load `k` lies along its straight run (resolved values): from, to.
+pub(super) fn on_run(st: &Structure, k: usize) -> Option<(strix_structure::SpreadLine, f64, f64)> {
+    let (run, at) = run_of(st, k)?;
+    let Some(Load::Distributed { member, then, from, to, .. }) = st.loads.get(k) else { return None };
+    let line = st.spread_line(member, then)?;
+    let (f, t) = (from.value.clamp(0.0, line.len), to.as_ref().map_or(line.len, |t| t.value).clamp(0.0, line.len));
+    let (f, t) = if f <= t { (f, t) } else { (t, f) };
+    Some((run, at + f, at + t))
+}
+
+/// Distributed load `k` laid from `from` to `to` along its straight run of aligned members
+/// (resolved values, clamped to the run, at least `gap` long): it goes over the members that
+/// stretch covers, from the first of them. Numbers written as expressions stay ones while the
+/// load keeps its way along the line; a load left on one member running against the line is
+/// measured from that member's `a` end, its two values swapped. `None` when nothing changed.
+pub(super) fn respread(src: &Structure, st: &Structure, k: usize, from: f64, to: f64, gap: f64) -> Option<Load> {
+    let (run, _) = run_of(st, k)?;
+    let Some(Load::Distributed { member: rm, then: rthen, from: rf, to: rt, .. }) = st.loads.get(k) else { return None };
+    let old_line = st.spread_line(rm, rthen)?;
+    let (cf, ct) = (rf.value, rt.as_ref().map_or(old_line.len, |t| t.value));
+    let gap = gap.clamp(EPS, run.len);
+    let f = from.clamp(0.0, run.len - gap);
+    let t = to.clamp(f + gap, run.len);
+    let covered: Vec<&strix_structure::LinePart> = run.parts.iter().filter(|p| t.min(p.at + p.len) - f.max(p.at) > EPS).collect();
+    let (first, rest) = covered.split_first()?;
+    let ids: Vec<String> = covered.iter().map(|p| p.member.clone()).collect();
+    let base = first.at;
+    let (nf, nt) = (f - base, t - base);
+    let len = covered.iter().map(|p| p.len).sum::<f64>();
+    let same = ids.first() == Some(rm) && ids.get(1..).is_some_and(|r| r == rthen.as_slice());
+    if same && (nf - cf).abs() <= EPS && (nt - ct).abs() <= EPS {
         return None;
     }
     let mut l = src.loads.get(k)?.clone();
-    if let Load::Distributed { from: lf, to: lt, .. } = &mut l {
-        if (f - cf).abs() > EPS {
-            *lf = if f <= EPS { Num::new(0.0) } else { shifted(lf, f - cf) };
+    let Load::Distributed { member, then, q1, q2, from: lf, to: lt, angle, axes, .. } = &mut l else { return None };
+    if rest.is_empty() && first.reversed {
+        // One member running against the line: measured from its `a` end.
+        let (r0, r1) = (first.len - nt, first.len - nf);
+        *member = first.member.clone();
+        then.clear();
+        *lf = Num::new(if r0 <= EPS { 0.0 } else { round(r0) });
+        *lt = if (first.len - r1).abs() <= EPS { None } else { Some(Num::new(round(r1))) };
+        if let Some(q) = q2.as_mut() {
+            std::mem::swap(q1, q);
         }
-        if (t - ct).abs() > EPS {
-            *lt = if t >= len - EPS {
-                None
-            } else {
-                Some(match lt {
-                    Some(n) => shifted(n, t - ct),
-                    None => Num::new(round(t)),
-                })
-            };
+        if *axes == strix_structure::LoadAxes::Local {
+            let a = angle.value + 180.0;
+            *angle = Num::new(round(if a > 180.0 { a - 360.0 } else { a }));
         }
+        return Some(l);
     }
+    // Shifted by where they land on the new line (`cf`, `ct`: where they were on the old one).
+    *member = first.member.clone();
+    *then = rest.iter().map(|p| p.member.clone()).collect();
+    *lf = if nf <= EPS {
+        Num::new(0.0)
+    } else if (nf - cf).abs() <= EPS {
+        lf.clone()
+    } else {
+        shifted(&lf.clone(), nf - cf)
+    };
+    *lt = if (len - nt).abs() <= EPS {
+        None
+    } else {
+        Some(match lt.as_ref() {
+            Some(n) if (nt - ct).abs() <= EPS => n.clone(),
+            Some(n) => shifted(n, nt - ct),
+            None => Num::new(round(nt)),
+        })
+    };
     Some(l)
 }
 
@@ -508,9 +607,9 @@ pub(super) fn reverse_member(src: &Structure, st: &Structure, id: &str) -> Optio
                 *at = Num::new(round((len - rat.value).clamp(0.0, len)));
             }
             (
-                Load::Distributed { member, q1, q2, from, to, angle, axes, .. },
+                Load::Distributed { member, then, q1, q2, from, to, angle, axes, .. },
                 Load::Distributed { q1: rq1, q2: rq2, from: rf, to: rt, angle: ra, .. },
-            ) if member == id => {
+            ) if member == id && then.is_empty() => {
                 let (f, t) = (rf.value.clamp(0.0, len), rt.as_ref().map_or(len, |t| t.value).clamp(0.0, len));
                 let nf = round((len - t).max(0.0));
                 let nt = round((len - f).min(len));
@@ -778,21 +877,118 @@ mod tests {
     fn a_distributed_load_spreads_within_its_member() {
         let src = beam();
         let st = resolved(&src);
-        match spread(&src, &st, 2, 1.0, 9.0, 0.5).unwrap() {
+        match respread(&src, &st, 2, 1.0, 9.0, 0.5).unwrap() {
             Load::Distributed { from, to, .. } => assert_eq!((from.value, to.is_none()), (1.0, true)),
             other => panic!("{other:?}"),
         }
-        match spread(&src, &st, 2, 0.0, 4.0, 0.5).unwrap() {
+        match respread(&src, &st, 2, 0.0, 4.0, 0.5).unwrap() {
             Load::Distributed { from, to, .. } => assert_eq!((from.value, to.map(|t| t.value)), (0.0, Some(4.0))),
             other => panic!("{other:?}"),
         }
         // Never shorter than the gap, even when the ends cross.
-        match spread(&src, &st, 2, 5.0, 2.0, 0.5).unwrap() {
+        match respread(&src, &st, 2, 5.0, 2.0, 0.5).unwrap() {
             Load::Distributed { from, to, .. } => assert_eq!((from.value, to.map(|t| t.value)), (5.0, Some(5.5))),
             other => panic!("{other:?}"),
         }
-        assert!(spread(&src, &st, 2, 0.0, 6.0, 0.5).is_none(), "unchanged");
-        assert!(spread(&src, &st, 0, 0.0, 6.0, 0.5).is_none(), "not distributed");
+        assert!(respread(&src, &st, 2, 0.0, 6.0, 0.5).is_none(), "unchanged");
+        assert!(respread(&src, &st, 0, 0.0, 6.0, 0.5).is_none(), "not distributed");
+    }
+
+    /// A → B → C → D along x (4 + 2 + 3), member 2 drawn C → B; E above B on a post.
+    fn run() -> Structure {
+        Structure::from_json(
+            r#"{"nodes":[{"id":"A","x":0,"y":0},{"id":"B","x":4,"y":0},{"id":"C","x":6,"y":0},{"id":"D","x":9,"y":0},{"id":"E","x":4,"y":3}],
+                "members":[{"id":"1","a":"A","b":"B"},{"id":"2","a":"C","b":"B"},{"id":"3","a":"C","b":"D"},{"id":"4","a":"B","b":"E"}],
+                "loads":[{"type":"distributed","member":"1","q1":10,"from":"L","to":3},
+                         {"type":"distributed","member":"2","q1":1,"q2":3,"axes":"local","angle":-90}]}"#,
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn a_distributed_load_slides_past_a_node_onto_the_aligned_members() {
+        let src = run();
+        let mut st = src.clone();
+        if let Some(Load::Distributed { from, .. }) = st.loads.get_mut(0) {
+            from.value = 1.0;
+        }
+        let (line, f, t) = on_run(&st, 0).unwrap();
+        assert_eq!((line.len, f, t, line.parts.len()), (9.0, 1.0, 3.0, 3));
+        // Slid by 2.5 (the post at B is not on the line): over 1 and 2, its `from` still `L`.
+        match respread(&src, &st, 0, 3.5, 5.5, 0.01).unwrap() {
+            Load::Distributed { member, then, from, to, .. } => {
+                assert_eq!((member.as_str(), then.as_slice()), ("1", ["2".to_string()].as_slice()));
+                // The expression's value comes when the structure is resolved again.
+                assert_eq!((from.expr.as_deref(), to.map(|t| t.value)), (Some("L + 2.5"), Some(5.5)));
+            }
+            other => panic!("{other:?}"),
+        }
+        // Stretched to D: over all three, to the end.
+        match respread(&src, &st, 0, 1.0, 9.0, 0.01).unwrap() {
+            Load::Distributed { member, then, to, .. } => {
+                assert_eq!((member.as_str(), then.len(), to.is_none()), ("1", 2, true));
+            }
+            other => panic!("{other:?}"),
+        }
+        // Onto 3 alone: from its `a` end, no chain.
+        match respread(&src, &st, 0, 7.0, 8.0, 0.01).unwrap() {
+            Load::Distributed { member, then, from, to, .. } => {
+                assert_eq!((member.as_str(), then.is_empty(), from.expr.as_deref(), to.map(|t| t.value)), ("3", true, Some("L"), Some(2.0)));
+            }
+            other => panic!("{other:?}"),
+        }
+        assert!(respread(&src, &st, 0, 1.0, 3.0, 0.01).is_none(), "unchanged");
+    }
+
+    #[test]
+    fn a_load_left_on_a_member_running_against_the_line_is_turned_round() {
+        let src = run();
+        let st = src.clone();
+        // Load 1 (on 2, drawn C → B, so its line runs from C to B: towards A).
+        let (line, f, t) = on_run(&st, 1).unwrap();
+        assert_eq!((line.start, line.len, f, t), ((9.0, 0.0), 9.0, 3.0, 5.0));
+        // Slid onto 1 alone (from 6 to 8 along the run, which is 2..0 on member 1 read A → B).
+        match respread(&src, &st, 1, 6.0, 8.0, 0.01).unwrap() {
+            Load::Distributed { member, then, q1, q2, from, to, angle, .. } => {
+                assert_eq!((member.as_str(), then.is_empty(), from.value, to.map(|t| t.value)), ("1", true, 1.0, Some(3.0)));
+                assert_eq!((q1.value, q2.map(|q| q.value), angle.value), (3.0, Some(1.0), 90.0));
+            }
+            other => panic!("{other:?}"),
+        }
+        // Over 2 and 1: a chain read from C, its values as they were.
+        match respread(&src, &st, 1, 3.0, 7.0, 0.01).unwrap() {
+            Load::Distributed { member, then, q1, from, to, angle, .. } => {
+                assert_eq!((member.as_str(), then.as_slice(), from.value, to.map(|t| t.value)), ("2", ["1".to_string()].as_slice(), 0.0, Some(4.0)));
+                assert_eq!((q1.value, angle.value), (1.0, -90.0));
+            }
+            other => panic!("{other:?}"),
+        }
+    }
+
+    #[test]
+    fn splitting_a_member_under_a_load_over_several_keeps_it_one() {
+        let src = Structure::from_json(
+            r#"{"nodes":[{"id":"A","x":0,"y":0},{"id":"B","x":4,"y":0},{"id":"C","x":6,"y":0}],
+                "members":[{"id":"1","a":"A","b":"B"},{"id":"2","a":"C","b":"B"}],
+                "loads":[{"type":"distributed","member":"1","then":["2"],"q1":5,"from":1}]}"#,
+        )
+        .unwrap();
+        let (out, _) = split_member(&src, &src, "2", 0.5).unwrap();
+        // 2 (C → B) split at 0.5 from C: the new member 3 runs from there to B, before 2 on the line.
+        assert_eq!(out.loads.len(), 1);
+        assert!(matches!(&out.loads[0], Load::Distributed { member, then, from, .. }
+            if member == "1" && then == &["3".to_string(), "2".to_string()] && from.value == 1.0));
+        let line = out.load_line(&out.loads[0]).unwrap();
+        assert_eq!(line.len, 6.0);
+        // Removing a member it lies on takes it away; joining in pieces first.
+        let gone = merge_nodes(&src, "C", "B");
+        assert!(gone.is_some_and(|s| s.loads.is_empty()));
+        let joined = join_members(&src, &src, "B").unwrap();
+        assert_eq!(joined.members.len(), 1);
+        assert!(joined.loads.iter().all(|l| matches!(l, Load::Distributed { member, then, .. } if member == "1" && then.is_empty())));
+        // Turning a member round leaves it where it is.
+        let turned = reverse_member(&src, &src, "2").unwrap();
+        assert_eq!(turned.loads, src.loads);
     }
 
     #[test]

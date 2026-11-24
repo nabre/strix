@@ -1045,8 +1045,11 @@ fn select_gesture(st: &Structure, v: View, state: &mut State, adding: bool, p: P
             }
             match load_on_member(st, k) {
                 Some((_, at)) => Some(Gesture::Slide { load: k, start: at, at }),
-                None if !matches!(st.loads.get(k), Some(Load::Distributed { .. })) => Some(Gesture::Grip { grip: grips::Grip::Point(k), to: p }),
-                None => None,
+                // A distributed load slides along its run of aligned members.
+                None if matches!(st.loads.get(k), Some(Load::Distributed { .. })) => {
+                    grips::body(st, v, k, p).map(|grip| Gesture::Grip { grip, to: p })
+                }
+                None => Some(Gesture::Grip { grip: grips::Grip::Point(k), to: p }),
             }
         }
         (None, Some(hit)) => {
@@ -1802,7 +1805,12 @@ fn without(src: &Structure, sel: &[Sel]) -> Value {
         k += 1;
         let (node, member) = match l {
             Load::Force { node, member, .. } | Load::Moment { node, member, .. } => (node.as_deref(), member.as_deref()),
-            Load::Distributed { member, .. } => (None, Some(member.as_str())),
+            Load::Distributed { member, then, .. } => {
+                if then.iter().any(|m| members.iter().any(|x| x == m)) {
+                    return false;
+                }
+                (None, Some(member.as_str()))
+            }
         };
         !loads.contains(&i) && !node.is_some_and(|n| nodes.contains(&n)) && !member.is_some_and(|m| members.iter().any(|x| x == m))
     });
@@ -1859,11 +1867,10 @@ fn load_shape(st: &Structure, v: View, k: usize) -> Option<Vec<Pos2>> {
             Some(vec![p, p - d * 11.0 * MM])
         }
         Load::Moment { node, member, at, .. } => Some(vec![at_point(node, member, at.value)?]),
-        Load::Distributed { member, q1, q2, from, to, angle, axes, .. } => {
-            let m = st.member(member)?;
-            let (a, b) = (st.node(&m.a)?, st.node(&m.b)?);
-            let len = st.length(m).filter(|l| *l > 0.0)?;
-            let (c, s) = ((b.x.value - a.x.value) / len, (b.y.value - a.y.value) / len);
+        Load::Distributed { member, then, q1, q2, from, to, angle, axes, .. } => {
+            // Along its member, or the aligned members it goes on over.
+            let line = st.spread_line(member, then)?;
+            let (len, (c, s)) = (line.len, line.dir);
             let (x0, x1) = (from.value.clamp(0.0, len), to.as_ref().map_or(len, |t| t.value).clamp(0.0, len));
             let th = angle.value.to_radians();
             let g = match axes {
@@ -1901,8 +1908,8 @@ fn load_shape(st: &Structure, v: View, k: usize) -> Option<Vec<Pos2>> {
                     raw
                 }
             };
-            let p0 = v.to_screen(a.x.value + c * x0, a.y.value + s * x0);
-            let p1 = v.to_screen(a.x.value + c * x1, a.y.value + s * x1);
+            let ((ax, ay), (bx, by)) = (line.point(x0), line.point(x1));
+            let (p0, p1) = (v.to_screen(ax, ay), v.to_screen(bx, by));
             Some(vec![p0, p1, p1 + tail_dir * h_for(q_b), p0 + tail_dir * h_for(q_a)])
         }
     }
@@ -2929,7 +2936,7 @@ fn member_loads(app: &mut WordApp, ui: &mut Ui, src: &Structure, st: &Structure,
         .enumerate()
         .filter(|(_, l)| match l {
             Load::Force { member: Some(m), .. } | Load::Moment { member: Some(m), .. } => m == id,
-            Load::Distributed { member, .. } => member == id,
+            Load::Distributed { member, then, .. } => member == id || then.iter().any(|m| m == id),
             _ => false,
         })
         .map(|(k, _)| k)
@@ -3246,18 +3253,22 @@ fn loads_table(app: &mut WordApp, ui: &mut Ui, src: &Structure, st: &Structure, 
                             }
                         });
                     }
-                    Load::Distributed { member, .. } => {
-                        craft_ui::ComboBox::from_id_salt(("structure_load_member", k))
-                            .width(90.0)
-                            .selected_text(format!("{} {member}", ts("member")))
-                            .show_ui(ui, |ui| {
-                                for m in &src.members {
-                                    if ui.selectable_label(*member == m.id, format!("{} {}", ts("member"), m.id)).clicked() {
-                                        lj["member"] = json!(m.id);
-                                        changed = true;
-                                    }
+                    Load::Distributed { member, then, .. } => {
+                        // Over several aligned members: all of them (`1 + 2`).
+                        let on = if then.is_empty() {
+                            format!("{} {member}", ts("member"))
+                        } else {
+                            format!("{} {member} + {}", ts("members"), then.join(" + "))
+                        };
+                        craft_ui::ComboBox::from_id_salt(("structure_load_member", k)).width(90.0).selected_text(on).show_ui(ui, |ui| {
+                            for m in &src.members {
+                                if ui.selectable_label(*member == m.id && then.is_empty(), format!("{} {}", ts("member"), m.id)).clicked() {
+                                    lj["member"] = json!(m.id);
+                                    lj.as_object_mut().map(|o| o.remove("then"));
+                                    changed = true;
                                 }
-                            });
+                            }
+                        });
                     }
                 }
                 ui.label("");

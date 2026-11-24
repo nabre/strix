@@ -51,7 +51,7 @@ impl Pivot {
             return true;
         }
         match l {
-            Load::Distributed { member, .. } => self.has_member(member),
+            Load::Distributed { member, then, .. } => self.has_member(member) && then.iter().all(|m| self.has_member(m)),
             Load::Force { member: Some(m), .. } | Load::Moment { member: Some(m), .. } => self.has_member(m),
             Load::Force { node: Some(n), .. } | Load::Moment { node: Some(n), .. } => n != &self.node && self.has_node(st, n),
             _ => false,

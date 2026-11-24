@@ -158,12 +158,12 @@ pub(super) fn pivot(st: &Structure, target: &RotTarget) -> Option<(f64, f64)> {
             _ => None,
         },
         RotTarget::Distributed(k) => match st.loads.get(*k)? {
-            Load::Distributed { member, from, to, .. } => {
-                let m = st.member(member)?;
-                let len = st.length(m).filter(|l| *l > 0.0)?;
-                let f = from.value.clamp(0.0, len);
-                let t = to.as_ref().map_or(len, |t| t.value).clamp(0.0, len);
-                edits::point_on(st, member, 0.5 * (f + t))
+            l @ Load::Distributed { from, to, .. } => {
+                // The middle of its stretch, along its member or its aligned members.
+                let line = st.load_line(l)?;
+                let f = from.value.clamp(0.0, line.len);
+                let t = to.as_ref().map_or(line.len, |t| t.value).clamp(0.0, line.len);
+                Some(line.point(0.5 * (f + t)))
             }
             _ => None,
         },
@@ -180,6 +180,14 @@ pub(super) fn member_deg(st: &Structure, id: &str) -> Option<f64> {
         return None;
     }
     let d = dy.atan2(dx).to_degrees();
+    d.is_finite().then_some(norm_deg(d))
+}
+
+/// Angle (degrees CCW from `+x`) of the line distributed load `k` lies along: its member's from
+/// `a` to `b`, or that of the aligned members it goes on over (its local axes').
+pub(super) fn line_deg(st: &Structure, k: usize) -> Option<f64> {
+    let line = st.load_line(st.loads.get(k)?)?;
+    let d = line.dir.1.atan2(line.dir.0).to_degrees();
     d.is_finite().then_some(norm_deg(d))
 }
 
@@ -209,7 +217,7 @@ pub(super) fn member_angles(st: &Structure, target: &RotTarget) -> Vec<(String, 
             _ => Vec::new(),
         },
         RotTarget::Distributed(k) => match st.loads.get(*k) {
-            Some(Load::Distributed { member, .. }) => member_deg(st, member).into_iter().map(|d| (member.clone(), d)).collect(),
+            Some(Load::Distributed { member, .. }) => line_deg(st, *k).into_iter().map(|d| (member.clone(), d)).collect(),
             _ => Vec::new(),
         },
         RotTarget::Support(id) => at_node(id),
@@ -226,10 +234,10 @@ pub(super) fn visual_angle(st: &Structure, target: &RotTarget) -> Option<f64> {
             _ => None,
         },
         RotTarget::Distributed(k) => match st.loads.get(*k)? {
-            Load::Distributed { member, q1, q2, angle, axes, .. } => {
+            Load::Distributed { q1, q2, angle, axes, .. } => {
                 let base = match axes {
                     LoadAxes::Global => angle.value,
-                    LoadAxes::Local => member_deg(st, member).unwrap_or(0.0) + angle.value,
+                    LoadAxes::Local => line_deg(st, *k).unwrap_or(0.0) + angle.value,
                 };
                 let q = if q1.value != 0.0 { q1.value } else { q2.as_ref().map_or(1.0, |q| q.value) };
                 Some(if q < 0.0 { norm_deg(base + 180.0) } else { norm_deg(base) })
@@ -251,12 +259,12 @@ pub(super) fn stored_angle_for_visual(st: &Structure, target: &RotTarget, vis_de
             _ => None,
         },
         RotTarget::Distributed(k) => match st.loads.get(*k)? {
-            Load::Distributed { member, q1, q2, axes, .. } => {
+            Load::Distributed { q1, q2, axes, .. } => {
                 let q = if q1.value != 0.0 { q1.value } else { q2.as_ref().map_or(1.0, |q| q.value) };
                 let base = if q < 0.0 { vis_deg + 180.0 } else { vis_deg };
                 Some(match axes {
                     LoadAxes::Global => norm_deg(base),
-                    LoadAxes::Local => norm_deg(base - member_deg(st, member).unwrap_or(0.0)),
+                    LoadAxes::Local => norm_deg(base - line_deg(st, *k).unwrap_or(0.0)),
                 })
             }
             _ => None,
@@ -276,10 +284,10 @@ pub(super) fn visual_for_stored(st: &Structure, target: &RotTarget, stored_deg: 
             _ => None,
         },
         RotTarget::Distributed(k) => match st.loads.get(*k)? {
-            Load::Distributed { member, q1, q2, axes, .. } => {
+            Load::Distributed { q1, q2, axes, .. } => {
                 let base = match axes {
                     LoadAxes::Global => stored_deg,
-                    LoadAxes::Local => member_deg(st, member).unwrap_or(0.0) + stored_deg,
+                    LoadAxes::Local => line_deg(st, *k).unwrap_or(0.0) + stored_deg,
                 };
                 let q = if q1.value != 0.0 { q1.value } else { q2.as_ref().map_or(1.0, |q| q.value) };
                 Some(if q < 0.0 { norm_deg(base + 180.0) } else { norm_deg(base) })

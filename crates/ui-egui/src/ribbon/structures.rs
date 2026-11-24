@@ -467,6 +467,7 @@ fn exercise_labels(template: &str) -> Value {
         l.insert("title".into(), json!(ts("Structure")));
         l.insert("text".into(), json!(ts("For the structure in the figure, loaded as shown:")));
         l.insert("jump".into(), json!(ts("{T} changes sign under a concentrated load")));
+        l.insert("jumpNode".into(), json!(ts("{T} changes sign at node {node}")));
         l.insert("nozero".into(), json!(ts("{T} never vanishes nor changes sign: the greatest moment is at an end of a stretch.")));
     }
     if let Some(o) = v.as_object_mut() {

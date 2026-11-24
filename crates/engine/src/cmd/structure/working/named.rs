@@ -48,15 +48,18 @@ pub(super) fn laws(st: &Structure, us: &[Unknown], m: &MemberResult, s: &Stretch
             Acts::Turns(sense) => agents.push(Agent::Couple { name: k.name.clone(), mag: k.value, sign: sense }),
         }
     }
-    let rs = resultants(st);
-    for (li, load) in st.loads.iter().enumerate() {
-        let mine: Vec<&Resultant> = rs.iter().filter(|r| r.load == li).collect();
+    // Member by member: a load over several members in pieces, each with the load's name.
+    let (split, origin) = st.split_chains();
+    let rs = resultants(&split);
+    for (i, load) in split.loads.iter().enumerate() {
+        let Some(&li) = origin.get(i) else { continue };
+        let mine: Vec<Resultant> = rs.iter().filter(|r| r.load == i).map(|r| Resultant { load: li, ..*r }).collect();
         let whole = match load {
             Load::Force { node: Some(nd), member: None, .. } | Load::Moment { node: Some(nd), member: None, .. } => in_left(nd),
             Load::Force { member: Some(mm), at, .. } | Load::Moment { member: Some(mm), at, .. } => {
                 other_member_left(mm) || (*mm == src.id && at.value.clamp(0.0, len) <= s.x0 + eps)
             }
-            Load::Distributed { member, from, to, q1, q2, angle, axes, per } => {
+            Load::Distributed { member, from, to, q1, q2, angle, axes, per, .. } => {
                 if other_member_left(member) {
                     true
                 } else if *member == src.id {
@@ -108,7 +111,7 @@ pub(super) fn laws(st: &Structure, us: &[Unknown], m: &MemberResult, s: &Stretch
         if !whole {
             continue;
         }
-        for r in mine {
+        for r in &mine {
             let v = r.value();
             if let ResultantKind::Couple { .. } = r.kind {
                 agents.push(Agent::Couple { name: u.resultant(r), mag: v.abs(), sign: v.signum() });

@@ -153,6 +153,7 @@ fn sup(node: &str, kind: SupportKind, angle: f64) -> Support {
 fn uniform(member: &str, q: f64) -> Load {
     Load::Distributed {
         member: member.into(),
+        then: Vec::new(),
         q1: q.into(),
         q2: None,
         from: Num::default(),
@@ -564,7 +565,7 @@ fn load_uses(l: &Load, node: Option<&str>, members: &[String]) -> bool {
         Load::Force { node: n, member: m, .. } | Load::Moment { node: n, member: m, .. } => {
             (n.is_some() && n.as_deref() == node) || m.as_ref().is_some_and(|m| members.contains(m))
         }
-        Load::Distributed { member, .. } => members.contains(member),
+        Load::Distributed { member, then, .. } => members.contains(member) || then.iter().any(|m| members.contains(m)),
     }
 }
 

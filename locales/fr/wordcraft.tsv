@@ -3996,6 +3996,9 @@ structure	Distributed load	Charge répartie
 structure	Uniform	Uniforme
 structure	Triangular	Triangulaire
 structure	On the whole member	Sur toute la barre
+structure	members	barres
+structure	Members {n}	Barres {n}
+structure	On all the aligned members	Sur toutes les barres alignées
 structure	Add a node here	Ajouter un nœud ici
 structure	Select all	Tout sélectionner
 structure	Snap to the grid	Aimanter à la grille
@@ -4019,6 +4022,7 @@ structure	Double-click	Double-clic
 	Work out and draw the diagram of the bending moment M.	Calculez et tracez le diagramme du moment fléchissant M.
 	Find the axial force in every member and draw it.	Calculez l’effort normal dans chaque barre et tracez-le.
 	{T} changes sign under a concentrated load	{T} change de signe sous une charge concentrée
+	{T} changes sign at node {node}	{T} change de signe au nœud {node}
 	{T} never vanishes nor changes sign: the greatest moment is at an end of a stretch.	{T} ne s’annule pas et ne change pas de signe : le moment maximal est à une extrémité d’un tronçon.
 	The structure can't be solved: its working will be written again as soon as it can.	La structure ne peut pas être résolue : la résolution sera réécrite dès qu’elle le pourra.
 # Strix (2026-11-19): Structure Editor active command bar, selection, info and graphical vector rotation.

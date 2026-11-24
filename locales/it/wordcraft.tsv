@@ -4076,6 +4076,9 @@ structure	Distributed load	Carico distribuito
 structure	Uniform	Uniforme
 structure	Triangular	Triangolare
 structure	On the whole member	Su tutta l'asta
+structure	members	aste
+structure	Members {n}	Aste {n}
+structure	On all the aligned members	Su tutte le aste allineate
 structure	Add a node here	Aggiungi un nodo qui
 structure	Select all	Seleziona tutto
 structure	Snap to the grid	Aggancia alla griglia
@@ -4099,6 +4102,7 @@ structure	Double-click	Doppio clic
 	Work out and draw the diagram of the bending moment M.	Calcola e rappresenta il grafico del momento flettente M.
 	Find the axial force in every member and draw it.	Calcola lo sforzo normale in ogni asta e rappresentalo.
 	{T} changes sign under a concentrated load	{T} cambia segno sotto un carico concentrato
+	{T} changes sign at node {node}	{T} cambia segno al nodo {node}
 	{T} never vanishes nor changes sign: the greatest moment is at an end of a stretch.	{T} non si annulla né cambia segno: il momento massimo è a un estremo di un tratto.
 	The structure can't be solved: its working will be written again as soon as it can.	La struttura non è risolvibile: lo svolgimento verrà riscritto appena lo sarà.
 # Strix (2026-11-19): Structure Editor active command bar, selection, info and graphical vector rotation.

@@ -44,9 +44,18 @@ impl Pen {
     /// `base` with the subscript `sub` (`F` and `2,h`: F₂,ₕ), beside `at` on the side `dir`
     /// points to, as [`Pen::beside`] places a text.
     pub(super) fn subscripted(&mut self, at: P, dir: P, base: &str, sub: &str, c: Rgb) {
+        self.subscripted_then(at, dir, base, sub, "", c);
+    }
+
+    /// [`Pen::subscripted`] followed by `tail` (`H`, `A` and ` = 10 kN`: H_A = 10 kN).
+    pub(super) fn subscripted_then(&mut self, at: P, dir: P, base: &str, sub: &str, tail: &str, c: Rgb) {
         let wb = base.chars().map(glyph).sum::<f64>() * TEXT + 0.5;
         let ws = sub.chars().map(glyph).sum::<f64>() * TEXT * SUB;
-        let w = wb + ws;
+        // The tail's width taken generously (as the layout's boxes take a text's): on the left
+        // it ends at `at`, so a wider estimate only leaves room before it.
+        let wt = tail.chars().count() as f64 * TEXT * 0.65;
+        let w = wb + ws + wt;
+        let left = dir.0.abs() >= 0.6 && dir.0 < 0.0;
         let (x, y) = if dir.0.abs() >= 0.6 {
             if dir.0 > 0.0 { (at.0 + GAP, at.1 + TEXT * 0.4) } else { (at.0 - GAP - w, at.1 + TEXT * 0.4) }
         } else if dir.1 > 0.0 {
@@ -58,6 +67,10 @@ impl Pen {
         if !sub.is_empty() {
             let at = (x + wb, y + TEXT * 0.3);
             self.prims.push(PlotPrim::Text { at, text: sub.to_string(), height: TEXT * SUB, bold: false, anchor: PlotAnchor::Left, color: c });
+        }
+        if !tail.is_empty() {
+            let (at, anchor) = if left { ((at.0 - GAP, y), PlotAnchor::Right) } else { ((x + wb + ws, y), PlotAnchor::Left) };
+            self.prims.push(PlotPrim::Text { at, text: tail.to_string(), height: TEXT, bold: false, anchor, color: c });
         }
     }
 }
@@ -110,10 +123,10 @@ impl Ctx<'_> {
                 ResultantKind::Force { .. } => (vec![n], ARROW),
                 ResultantKind::Spread { triangle, .. } => {
                     // Its centroid is a station of the dimensions: the arms are read there.
-                    if let Some(Load::Distributed { member, .. }) = st.loads.get(r.load)
-                        && let Some(a) = st.member(member).and_then(|m| st.node(&m.a))
+                    if let Some(line) = st.loads.get(r.load).and_then(|l| st.load_line(l))
+                        && let Some((member, at)) = line.locate(line.along(r.at))
                     {
-                        stations.push((member.clone(), (r.at.0 - a.x.value).hypot(r.at.1 - a.y.value)));
+                        stations.push((member.to_string(), at));
                     }
                     let (q1, q2) = match st.loads.get(r.load) {
                         Some(Load::Distributed { q1, q2, .. }) => (q1.value, q2.as_ref().map_or(q1.value, |q| q.value)),

@@ -81,8 +81,10 @@ pub fn resultants(st: &Structure) -> Vec<Resultant> {
                     out.push(Resultant { load: k, at: p, dir: (0.0, 0.0), kind: ResultantKind::Couple { value: value.value }, span: (p, p) });
                 }
             }
-            Load::Distributed { member, q1, q2, from, to, angle, axes, per } => {
-                let Some((a, d, len)) = geometry(member) else { continue };
+            Load::Distributed { member, then, q1, q2, from, to, angle, axes, per } => {
+                // Its line: the member's, or the aligned members' it goes on over.
+                let Some(line) = st.spread_line(member, then) else { continue };
+                let (a, d, len) = (line.start, line.dir, line.len);
                 let s0 = from.value.clamp(0.0, len);
                 let s1 = to.as_ref().map_or(len, |t| t.value).clamp(0.0, len);
                 let (s0, s1) = if s0 <= s1 { (s0, s1) } else { (s1, s0) };
