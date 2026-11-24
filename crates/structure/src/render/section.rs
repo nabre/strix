@@ -160,10 +160,10 @@ impl Ctx<'_> {
                 .filter(|&(j, &x)| x == o && picked.get(j).is_some_and(|p| p.0 && p.1))
                 .max_by(|a, b| reach(a.0).total_cmp(&reach(b.0)).then(b.0.cmp(&a.0)))
                 .map(|(j, _)| j);
-            if varying || longest != Some(k) {
-                if let Some(p) = picked.get_mut(k) {
-                    p.1 = false;
-                }
+            if (varying || longest != Some(k))
+                && let Some(p) = picked.get_mut(k)
+            {
+                p.1 = false;
             }
         }
         let pen = std::mem::take(&mut self.pen);
