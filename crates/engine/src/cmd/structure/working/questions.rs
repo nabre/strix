@@ -11,8 +11,7 @@ use wordcraft_doc::InlineObject;
 use wordcraft_doc::para::Paragraph;
 
 use super::{
-    Figure, Figures, Labels, Line, Units, lines, num, paragraphs, paragraphs_with, shear_name, signed, stretch_header, stretch_tag, sub, units,
-    unknowns,
+    Figure, Figures, Labels, Line, Units, lines, num, paragraphs, paragraphs_with, shear_name, signed, stretch_header, stretch_tag, units, unknowns,
 };
 use crate::{CmdError, Session};
 

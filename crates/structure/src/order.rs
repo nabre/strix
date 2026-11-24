@@ -53,7 +53,7 @@ impl Structure {
     pub fn in_order(&self) -> Structure {
         let order = member_order(self);
         let mut nodes: Vec<String> = Vec::new();
-        let mut meet = |id: &str, nodes: &mut Vec<String>| {
+        let meet = |id: &str, nodes: &mut Vec<String>| {
             if self.node(id).is_some() && !nodes.iter().any(|n| n == id) {
                 nodes.push(id.to_string());
             }
@@ -66,13 +66,8 @@ impl Structure {
             meet(p, &mut nodes);
             meet(q, &mut nodes);
         }
-        let mut alone: Vec<(i64, i64, usize)> = self
-            .nodes
-            .iter()
-            .enumerate()
-            .filter(|(_, n)| !nodes.contains(&n.id))
-            .map(|(k, n)| (key(n.x.value), key(n.y.value), k))
-            .collect();
+        let mut alone: Vec<(i64, i64, usize)> =
+            self.nodes.iter().enumerate().filter(|(_, n)| !nodes.contains(&n.id)).map(|(k, n)| (key(n.x.value), key(n.y.value), k)).collect();
         alone.sort_unstable();
         for (_, _, k) in alone {
             if let Some(n) = self.nodes.get(k) {
@@ -80,11 +75,8 @@ impl Structure {
             }
         }
         let node_map: Vec<(String, String)> = nodes.into_iter().enumerate().map(|(k, old)| (old, node_name(k))).collect();
-        let member_map: Vec<(String, String)> = order
-            .iter()
-            .enumerate()
-            .filter_map(|(r, &k)| self.members.get(k).map(|m| (m.id.clone(), r.saturating_add(1).to_string())))
-            .collect();
+        let member_map: Vec<(String, String)> =
+            order.iter().enumerate().filter_map(|(r, &k)| self.members.get(k).map(|m| (m.id.clone(), r.saturating_add(1).to_string()))).collect();
         let node_of = |id: &str| node_map.iter().find(|(o, _)| o == id).map_or_else(|| id.to_string(), |(_, n)| n.clone());
         let member_of = |id: &str| member_map.iter().find(|(o, _)| o == id).map_or_else(|| id.to_string(), |(_, n)| n.clone());
         let mut st = self.clone();
@@ -153,7 +145,8 @@ mod tests {
     #[test]
     fn a_portal_frame_goes_up_across_and_down() {
         // Drawn beam first, the right column top to bottom.
-        let st = structure(&[("P", 0.0, 4.0), ("Q", 6.0, 4.0), ("R", 0.0, 0.0), ("S", 6.0, 0.0)], &[("b", "P", "Q"), ("r", "Q", "S"), ("l", "R", "P")]);
+        let st =
+            structure(&[("P", 0.0, 4.0), ("Q", 6.0, 4.0), ("R", 0.0, 0.0), ("S", 6.0, 0.0)], &[("b", "P", "Q"), ("r", "Q", "S"), ("l", "R", "P")]);
         assert_eq!(member_order(&st), [2, 0, 1]);
         assert_eq!(member_rank(&st, "r"), Some(3));
         assert!(!st.names_in_order());

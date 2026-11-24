@@ -473,7 +473,15 @@ impl Ctx<'_> {
 
     /// [`Ctx::loads_with_max`] with the loads' `names` given (a section's loads in pieces take
     /// those of the loads they come from).
-    fn loads_named(&mut self, f: &Frame, col: Rgb, labelled: bool, qmax: f64, which: &dyn Fn(usize, &Load) -> bool, names: &[Option<crate::names::LoadName>]) {
+    fn loads_named(
+        &mut self,
+        f: &Frame,
+        col: Rgb,
+        labelled: bool,
+        qmax: f64,
+        which: &dyn Fn(usize, &Load) -> bool,
+        names: &[Option<crate::names::LoadName>],
+    ) {
         let st = self.st;
         // `F₁ = 20 kN`: the load's name before its value.
         let named = |k: usize, end: u8, value: String| match names.get(k).copied().flatten() {

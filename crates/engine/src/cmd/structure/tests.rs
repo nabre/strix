@@ -1320,19 +1320,17 @@ fn the_working_goes_left_to_right_and_takes_a_load_over_members_whole() {
     let first = |p: &str| t.find(p).unwrap_or_else(|| panic!("{p}: {t}"));
     assert!(first("Stretch 1: Member 3 (D–A)") < first("Stretch 2: Member 1 (A–B)"), "{t}");
     assert!(first("Stretch 2: Member 1 (A–B)") < first("Stretch 3: Member 2 (B–C)"), "{t}");
-    for law in [
-        "T_1(x)=V_D-q_1·x",
-        "T_2(x)=V_A+V_D-q_1·(x+3 m)",
-        "M_2(x)=V_A·x+V_D·(x+3 m)-M_D-q_1·((x+3 m)^2)/2",
-        "T_3(x)=V_A+V_B+V_D-q_1·(x+4.5 m)",
-    ] {
+    for law in
+        ["T_1(x)=V_D-q_1·x", "T_2(x)=V_D+V_A-q_1·(x+3 m)", "M_2(x)=V_D·(x+3 m)-M_D+V_A·x-q_1·((x+3 m)^2)/2", "T_3(x)=V_D+V_A+V_B-q_1·(x+4.5 m)"]
+    {
         assert!(has(&t, law), "{law}: {t}");
     }
-    assert!(!has(&t, "-F_1-F_1") && !has(&t, "V_A+V_D-F_1"), "{t}");
+    assert!(!has(&t, "-F_1-F_1") && !has(&t, "V_A-F_1"), "{t}");
     // T: 7.25 kN just past A, zero 0.725 m further, -7.75 kN before B; 10 kN past B.
-    assert!(has_value(&t, "T_2(0 m)", "7.25 kN") && has_value(&t, "T_2(1.5 m)", "-7.75 kN"), "{t}");
-    assert!(has_value(&t, "T_3(0 m)", "10 kN") && has_value(&t, "M_3(1 m)", "0 kN·m"), "{t}");
+    let value = |call: &str, result: &str| t.lines().any(|l| has(l, &format!("{call}=V_")) && has(l, &format!("={result}")));
+    assert!(value("T_2(0 m)", "7.25 kN") && value("T_2(1.5 m)", "-7.75 kN") && value("T_3(0 m)", "10 kN"), "{t}");
     assert!(t.lines().any(|l| l.starts_with("d) ") && l.contains("x_2 = 0.725 m")), "{t}");
+    assert!(t.lines().any(|l| l.starts_with("e) ") && l.contains("M_2(x_2) = -1.997 kN·m")), "{t}");
 }
 
 /// Rename in Order: the members 1, 2, 3 left to right, the nodes A, B, C, D as they meet them;

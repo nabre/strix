@@ -73,7 +73,7 @@ pub(super) fn laws(st: &Structure, us: &[Unknown], m: &MemberResult, s: &Stretch
             LoadAxes::Global => (th.cos(), th.sin()),
             LoadAxes::Local => (d.0 * th.cos() - d.1 * th.sin(), d.1 * th.cos() + d.0 * th.sin()),
         };
-        let mut block = |blocked: &mut [bool; 3]| {
+        let block = |blocked: &mut [bool; 3]| {
             blocked[0] |= dot(dir, e).abs() > TOL;
             blocked[1] |= dot(dir, n).abs() > TOL;
             blocked[2] = blocked[1];
@@ -113,7 +113,13 @@ pub(super) fn laws(st: &Structure, us: &[Unknown], m: &MemberResult, s: &Stretch
                         LoadPer::Projection => (e.0 * dir.1 - e.1 * dir.0).abs(),
                     };
                     let sign = qa.signum();
-                    agents.push(Agent::Spread { name: name.linear_end(1), q: qa.abs() * factor, factor, from: c0, dir: (dir.0 * sign, dir.1 * sign) });
+                    agents.push(Agent::Spread {
+                        name: name.linear_end(1),
+                        q: qa.abs() * factor,
+                        factor,
+                        from: c0,
+                        dir: (dir.0 * sign, dir.1 * sign),
+                    });
                 }
                 _ => block(&mut blocked),
             }
