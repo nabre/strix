@@ -5554,7 +5554,7 @@ checksum = "6637bab7722d379c8b41ba849228d680cc12d0a45ba1fa2b48f2a30577a06731"
 
 [[package]]
 name = "strix"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "arboard",
  "chrono",
@@ -5594,7 +5594,7 @@ dependencies = [
 
 [[package]]
 name = "strix-cad"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "robust",
  "serde",
@@ -5604,11 +5604,11 @@ dependencies = [
 
 [[package]]
 name = "strix-calc"
-version = "0.27.0"
+version = "0.28.0"
 
 [[package]]
 name = "strix-cli"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "craft-zip",
  "image",
@@ -5625,7 +5625,7 @@ dependencies = [
 
 [[package]]
 name = "strix-dictionaries"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "craft-proof",
  "encoding_rs",
@@ -5635,7 +5635,7 @@ dependencies = [
 
 [[package]]
 name = "strix-plot"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -5644,7 +5644,7 @@ dependencies = [
 
 [[package]]
 name = "strix-structure"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -5654,7 +5654,7 @@ dependencies = [
 
 [[package]]
 name = "strix-web"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "craft-web-api",
  "craft-web-host",
@@ -7228,11 +7228,11 @@ dependencies = [
 
 [[package]]
 name = "wordcraft-control-key"
-version = "0.27.0"
+version = "0.28.0"
 
 [[package]]
 name = "wordcraft-doc"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "base64 0.23.1",
  "craft-codepage",
@@ -7248,7 +7248,7 @@ dependencies = [
 
 [[package]]
 name = "wordcraft-docbin"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "cfb",
  "chrono",
@@ -7265,7 +7265,7 @@ dependencies = [
 
 [[package]]
 name = "wordcraft-docx"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "aes",
  "base64 0.23.1",
@@ -7290,7 +7290,7 @@ dependencies = [
 
 [[package]]
 name = "wordcraft-engine"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "cfb",
  "chrono",
@@ -7332,7 +7332,7 @@ dependencies = [
 
 [[package]]
 name = "wordcraft-fonts"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "brotli-decompressor 5.0.3",
  "harfrust 0.13.3",
@@ -7347,7 +7347,7 @@ dependencies = [
 
 [[package]]
 name = "wordcraft-formats"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "aes",
  "base64 0.23.1",
@@ -7375,7 +7375,7 @@ dependencies = [
 
 [[package]]
 name = "wordcraft-geom"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "craft-image-codecs",
  "craft-tiff",
@@ -7385,7 +7385,7 @@ dependencies = [
 
 [[package]]
 name = "wordcraft-layout"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "craft-metafile",
  "craft-proof",
@@ -7404,7 +7404,7 @@ dependencies = [
 
 [[package]]
 name = "wordcraft-mcp"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "craft-mcp-server",
  "log",
@@ -7417,7 +7417,7 @@ dependencies = [
 
 [[package]]
 name = "wordcraft-pdf"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "chrono",
  "craft-metafile",
@@ -7438,7 +7438,7 @@ dependencies = [
 
 [[package]]
 name = "wordcraft-render"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "craft-metafile",
  "image",
@@ -7452,7 +7452,7 @@ dependencies = [
 
 [[package]]
 name = "wordcraft-ui-egui"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "accesskit_consumer",
  "cfb",
@@ -7489,7 +7489,7 @@ dependencies = [
 
 [[package]]
 name = "wordcraft-zotero"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "log",
  "proptest",
@@ -7669,7 +7669,7 @@ checksum = "9440ea3e5aeabb0ac63af70daf835274065238cdd0cec83418f417eae38bacee"
 
 [[package]]
 name = "xtask"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "serde_json",
 ]
