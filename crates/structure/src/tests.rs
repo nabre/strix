@@ -1028,3 +1028,57 @@ fn a_column_drawn_downwards_runs_upwards() {
     let Load::Force { at, .. } = &r.resolved.loads[0] else { panic!("a force") };
     assert_close!(at.value, 3.0);
 }
+
+/// The free body of an overhanging beam: the pin's `H_B` lies along the beam, so it is named
+/// off the beam's line (not over it); the free end's name keeps clear of the askew force's
+/// parts drawn at it (it used to sit on `F_1,h`'s arrow); the dimensions stay below `V_B`.
+#[test]
+fn the_free_body_names_keep_clear_of_the_member_and_the_arrows() {
+    use strix_plot::PlotPrim;
+    let st = Structure {
+        nodes: vec![node("A", 0.0, 0.0), node("B", 3.0, 0.0), node("C", 7.0, 0.0)],
+        members: vec![member("1", "A", "B"), member("2", "B", "C")],
+        supports: vec![support("B", SupportKind::Pin, 0.0), support("C", SupportKind::Roller, 0.0)],
+        loads: vec![Load::Force { node: Some("A".into()), member: None, at: Num::default(), value: Num::new(10.0), angle: Num::new(-45.0) }],
+        view: crate::View::Equilibrium,
+        ..Structure::default()
+    };
+    let r = st.render(None);
+    let prims = &r.plot.prims;
+    // The beam's line: member 1 from A to B, the first level path as thick as a member.
+    let pts = prims
+        .iter()
+        .find_map(|p| match p {
+            PlotPrim::Path { pts, stroke: Some((_, w)), .. } if (*w - 0.6).abs() < 1e-9 && pts.len() == 2 && (pts[0].1 - pts[1].1).abs() < 1e-9 => {
+                Some(pts.clone())
+            }
+            _ => None,
+        })
+        .expect("the beam");
+    let (ax, line_y, bx) = (pts[0].0, pts[0].1, pts[1].0);
+    let text = |name: &str| {
+        prims.iter().find_map(|p| match p {
+            PlotPrim::Text { at, text, .. } if text == name => Some(*at),
+            _ => None,
+        })
+    };
+    // H's baseline, its text's top (about 0.75 of its height above) below the beam.
+    let h = text("H").expect("H_B");
+    assert!(h.1 - 2.3 * 0.75 > line_y, "H_B on the beam: {h:?} line {line_y}");
+    assert!(h.0 < bx - 5.0, "H_B by its tail, clear of B: {h:?} B at {bx}");
+    // A's name not over the level part's arrow (from A leftwards, on the beam's line).
+    let a = text("A").expect("A");
+    let (left, top, bottom) = (a.0 - 1.2, a.1 - 2.8 * 0.75, a.1);
+    let on_arrow = left < ax && top < line_y + 0.3 && bottom > line_y - 0.3;
+    assert!(!on_arrow, "A on F_1,h: {a:?} node at {ax}, {line_y}");
+    // The dimensions below V_B's name.
+    let v = text("V").expect("V_B");
+    assert!(texts(&r).iter().any(|(t, _)| t == "3 m"));
+    for p in prims {
+        if let PlotPrim::Text { at, text, .. } = p
+            && text.ends_with(" m")
+        {
+            assert!(at.1 > v.1 + 1.0, "{text} at {at:?} over V_B at {v:?}");
+        }
+    }
+}

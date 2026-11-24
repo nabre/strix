@@ -42,6 +42,9 @@ const CROSSED_FROM: f64 = 4.5;
 const SPREAD: f64 = 8.0;
 /// The room between a text and the line it names (paper mm).
 const GAP: f64 = 1.0;
+/// How far off a level line a name beside it stands, from the line to the name's middle
+/// (paper mm): its subscript clear of the line too.
+const LABEL_OFF: f64 = 2.4;
 /// The room between a station's distance and the diagram's axis (paper mm).
 const STATION_GAP: f64 = GAP + 2.6;
 /// The room kept round the drawing, between panels and under a panel's title (paper mm).
@@ -345,6 +348,56 @@ impl Ctx<'_> {
         if pref(a) >= pref(b) { a } else { b }
     }
 
+    /// Does a member at node `id` run along the paper direction `s` (within about 18°)? An
+    /// arrow standing there lies on it.
+    fn along_member(&self, id: &str, s: P) -> bool {
+        let st = self.st;
+        let Some(n) = st.node(id) else { return false };
+        st.members.iter().any(|m| {
+            let other = if m.a == id {
+                st.node(&m.b)
+            } else if m.b == id {
+                st.node(&m.a)
+            } else {
+                None
+            };
+            other.is_some_and(|o| {
+                let d = unit(pd((o.x.value - n.x.value, o.y.value - n.y.value)));
+                d.0 * s.0 + d.1 * s.1 > 0.95
+            })
+        })
+    }
+
+    /// Where a reaction's arrow standing on `side` of node `id` (`far`: its outer end) is named,
+    /// the side of that point it is named on, and the paper direction from the node its name
+    /// takes when not the arrow's own. Beyond its outer end; one lying along a member just
+    /// beyond its outer end but off the member's line instead: away from `avoid` (a crossed-out
+    /// arrow drawn beside it) when given, else on the support's side (`below`), else below or
+    /// left.
+    fn arrow_label(&self, id: &str, side: P, far: P, below: P, avoid: Option<P>) -> (P, P, Option<P>) {
+        if !self.along_member(id, side) {
+            return (add(far, mul(side, 0.8)), side, None);
+        }
+        let mut perp = (-side.1, side.0);
+        let toward = |a: P, b: P| a.0 * b.0 + a.1 * b.1;
+        let flip = match avoid {
+            Some(a) => toward(perp, a) > 0.0,
+            None if toward(perp, below).abs() > 0.3 => toward(perp, below) < 0.0,
+            None => perp.1 - perp.0 < 0.0,
+        };
+        if flip {
+            perp = mul(perp, -1.0);
+        }
+        let taken = Some(unit(add(mul(side, 2.0), perp)));
+        if side.0.abs() >= 0.6 {
+            // A level arrow: the name hangs beyond its tail end, above or below the member.
+            (add(far, mul(perp, LABEL_OFF)), side, taken)
+        } else {
+            // An upright one: the name beside its outer end.
+            (add(far, mul(perp, 0.6)), perp, taken)
+        }
+    }
+
     /// The paper direction at node `id` farthest from its members (and supports, below).
     fn free_side(&self, id: &str) -> P {
         self.free_side_avoiding(id, &[])
@@ -642,6 +695,7 @@ impl Ctx<'_> {
                 // The force on the paper.
                 let fd = mul(ap, v.signum());
                 let toward_node = fd.0 * side.0 + fd.1 * side.1 < 0.0;
+                let mut crossed_across = None;
                 if toward_node {
                     self.pen.arrow(far, near, REACTION, 0.4);
                 } else {
@@ -660,9 +714,12 @@ impl Ctx<'_> {
                         self.pen.crossed_arrow(b, a, REACTION)
                     }
                     crossed.push(unit((((a.0 + b.0) / 2.0) - p.0, ((a.1 + b.1) / 2.0) - p.1)));
+                    crossed_across = Some(across);
                 }
                 let label = format!(" = {}", self.force(v.abs()));
-                self.pen.subscripted_then(add(far, mul(side, 0.8)), side, letter, &s, &label, REACTION);
+                let (at, dir, extra) = self.arrow_label(&r.node, side, far, below, crossed_across);
+                taken.extend(extra);
+                self.pen.subscripted_then(at, dir, letter, &s, &label, REACTION);
             }
             if r.m != 0.0 {
                 self.pen.couple(p, 5.0, r.m > 0.0, REACTION, 0.4);
