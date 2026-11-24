@@ -240,16 +240,16 @@ pub(super) fn structure_editor(app: &mut WordApp, ui: &mut Ui) {
         stack(ui, |ui| {
             small(ui, app, "structureFixed", Some("Fixed"), "Click a node to fix it (incastro)", tool("fixed"));
             small(ui, app, "structurePin", Some("Pin"), "Click a node to pin it (cerniera)", tool("pin"));
-            small(ui, app, "structureRoller", Some("Roller"), "Click a node to put it on a roller (carrello)", tool("roller"));
+            small(ui, app, "structureRollerCircle", Some("Roller"), "Click a node to put it on a roller (carrello)", tool("rollerCircle"));
         });
         stack(ui, |ui| {
             small(
                 ui,
                 app,
-                "structureRollerCircle",
-                Some("Roller (circle)"),
-                "Click a node to put it on a roller drawn as a circle (carrello)",
-                tool("rollerCircle"),
+                "structureRoller",
+                Some("Roller (triangle)"),
+                "Click a node to put it on a roller drawn on a triangle (carrello)",
+                tool("roller"),
             );
             small(ui, app, "structureLink", Some("Link"), "Click a node to hold it with a link (pendolo)", tool("link"));
             small(ui, app, "structureSlider", Some("Slider"), "Click a node to hold it with a slider (glifo)", tool("slider"));
