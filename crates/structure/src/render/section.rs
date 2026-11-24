@@ -174,9 +174,9 @@ impl Ctx<'_> {
         cx.loads_named(f, LOAD, false, qmax, &|k, _| pick(k, false), &names);
         self.pen = cx.pen;
 
-        self.unknowns_where(f, &in_left);
+        let taken = self.unknowns_where(f, &in_left);
         self.internal_forces(ps, pe, pn, &geo.tag, geo.action);
-        self.node_names_where(f, &in_left);
+        self.node_names_clear_of(f, &in_left, &taken);
 
         // 4. The progressive `x`, measured below everything drawn on the active part before the cut
         //    so it stays clear of `V_A`, supports, upward loads and `T`.

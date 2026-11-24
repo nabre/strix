@@ -73,9 +73,9 @@ impl Ctx<'_> {
             }
         }
         self.supports_where(f, lighter(GREY, 0.45), &|id| pivot.has_node(st, id));
-        self.resultants_named(f, &|l| pivot.has_load(st, l));
-        self.unknowns_where(f, &|id| pivot.has_node(st, id));
-        self.node_names_where(f, &|id| pivot.has_node(st, id) || id == pivot.node);
+        let (_, mut taken) = self.resultants_named(f, &|l| pivot.has_load(st, l));
+        taken.extend(self.unknowns_where(f, &|id| pivot.has_node(st, id)));
+        self.node_names_clear_of(f, &|id| pivot.has_node(st, id) || id == pivot.node, &taken);
         // The point the moments are taken about.
         let po = f.p(o.0, o.1);
         self.pen.arc(po, 1.9, 0.0, std::f64::consts::TAU, BLACK, 0.3);
