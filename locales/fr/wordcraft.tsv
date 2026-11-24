@@ -3979,6 +3979,10 @@ structure	Add a distributed load	Ajouter une charge répartie
 structure	Split here	Diviser ici
 structure	Split in half	Diviser en deux
 structure	Join the members	Joindre les barres
+structure	Rename in Order	Renommer dans l’ordre
+structure	The names don't follow the structure from left to right.	Les noms ne suivent pas la structure de gauche à droite.
+structure	Name the members 1, 2, 3… from left to right and the nodes A, B, C… in the same order, so the drawing and the working read in order	Nommer les barres 1, 2, 3… de gauche à droite et les nœuds A, B, C… dans le même ordre, pour que le dessin et la résolution se lisent dans l’ordre
+	Rename in Order	Renommer dans l’ordre
 structure	The node must join exactly two members	Le nœud doit relier exactement deux barres
 structure	The two members are not aligned	Les deux barres ne sont pas alignées
 structure	The node has a support	Le nœud a un appui

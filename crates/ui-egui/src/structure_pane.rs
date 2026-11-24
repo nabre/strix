@@ -403,6 +403,7 @@ pub(crate) fn editor(app: &mut WordApp, ui: &mut Ui) {
             ui.add_space(12.0);
             status_line(ui, &info);
         });
+        order_hint(app, ui, &st, &mut state);
         active_command_bar(ui, &st, &mut state);
         // Its tools, Write Working and Close Editor are on its ribbon tab (EDITOR_TAB).
         let h = ui.available_height() - 34.0;
@@ -602,6 +603,26 @@ fn status_line(ui: &mut Ui, info: &Value) {
         ui.label(RichText::new(e).small().color(Color32::from_rgb(0xC0, 0x1C, 0x1C)));
     }
 }
+
+/// Names that don't follow the structure (members `3`, `1`, `2` from left to right, nodes `D`,
+/// `A`, `B`, `C`): a line saying so with one click to rename them in order (`structure.renumber`).
+/// The working goes through the members left to right whatever their names.
+fn order_hint(app: &mut WordApp, ui: &mut Ui, st: &Structure, state: &mut State) {
+    if st.members.len() < 2 || st.names_in_order() {
+        return;
+    }
+    ui.horizontal_wrapped(|ui| {
+        ui.label(RichText::new(ts("The names don't follow the structure from left to right.")).color(Color32::from_rgb(0x9A, 0x5B, 0x00)));
+        if ui.button(ts("Rename in Order")).on_hover_text(ts(RENUMBER_TIP)).clicked() && app.run("structure.renumber", json!({})).is_ok() {
+            // The names change: what was selected by them is let go.
+            state.sel.clear();
+        }
+    });
+}
+
+/// What Rename in Order does.
+pub(crate) const RENUMBER_TIP: &str =
+    "Name the members 1, 2, 3… from left to right and the nodes A, B, C… in the same order, so the drawing and the working read in order";
 
 /// What the editor's Dimensions switch does.
 pub(crate) const DIMS_TIP: &str = "Show on the sheet the dimensions, the slopes of inclined members and the angles of inclined forces (the document draws them as Structures › Dimensions says)";

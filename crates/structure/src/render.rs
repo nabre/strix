@@ -468,8 +468,13 @@ impl Ctx<'_> {
     /// [`Ctx::loads_as`] scaled against `qmax` (so a distributed load split across a section cut
     /// keeps one scale on both sides).
     fn loads_with_max(&mut self, f: &Frame, col: Rgb, labelled: bool, qmax: f64, which: &dyn Fn(usize, &Load) -> bool) {
+        self.loads_named(f, col, labelled, qmax, which, &crate::names::load_names(self.st));
+    }
+
+    /// [`Ctx::loads_with_max`] with the loads' `names` given (a section's loads in pieces take
+    /// those of the loads they come from).
+    fn loads_named(&mut self, f: &Frame, col: Rgb, labelled: bool, qmax: f64, which: &dyn Fn(usize, &Load) -> bool, names: &[Option<crate::names::LoadName>]) {
         let st = self.st;
-        let names = crate::names::load_names(st);
         // `F₁ = 20 kN`: the load's name before its value.
         let named = |k: usize, end: u8, value: String| match names.get(k).copied().flatten() {
             Some(n) => format!("{} = {value}", n.pretty_end(end)),

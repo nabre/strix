@@ -40,6 +40,9 @@ pub fn specs() -> Vec<CommandSpec> {
         CommandSpec::new("structure.support", "Structure Support", PLACE, support).when(selected).params(
             r#"{"node": string, "kind"?: "fixed"|"pin"|"roller"|"rollerCircle"|"link"|"slider", "angle"?: num|expr, "remove"?: bool} → puts a support on a node (replacing its support), turns it, or removes it"#,
         ),
+        CommandSpec::new("structure.renumber", "Rename in Order", PLACE, renumber).when(selected).params(
+            r#"→ renames the selected structure's members 1, 2, 3… left to right (then bottom to top, by their middles) and its nodes A, B, C… as those members meet them, so the names follow the structure as its working goes through it; supports and loads follow their names"#,
+        ),
         CommandSpec::new("structure.working", "Write Working", PLACE, working::run).when(selected).params(
             r#"{"labels"?: {"heading"?, "loads"?, "reactions"?, "signs"?, "hyperstatic"?, "together"?, "force1"? ("… {X} …"), "force2"?, "system0"?, "system"? ("… {i} …"), "congruence"?, "eiconst"?, "eaconst"?, "noaxial"?, "cramer"?, "forces"?, "conventions"?, "member"?, "axial"?, "hinge"?, "range"? ("x from {a} to {b}"): string}} → writes after the selected structure its solution as live calculations: the loads' names defined (F_1, q_1, a varying load's ends q_(1,1) and q_(1,2), couples C_1), the equilibrium equations giving the reactions (a hyperstatic structure of degree 1 or 2: its redundants first, by the force method), then each member's laws N(x), T(x), M(x) stretch by stretch with their values (a truss: its axial forces)"#,
         ),
@@ -555,6 +558,15 @@ fn node(s: &mut Session, v: &Value) -> CmdResult {
                 }
             }
         }
+        Ok(())
+    })
+}
+
+/// `structure.renumber`: the names in the order of the structure's geometry
+/// ([`Structure::in_order`]).
+fn renumber(s: &mut Session, _: &Value) -> CmdResult {
+    edit(s, |st| {
+        *st = st.in_order();
         Ok(())
     })
 }

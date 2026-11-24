@@ -53,7 +53,7 @@ impl Ctx<'_> {
         let (pe, pn) = (pd(geo.e), pd(geo.n));
         let ps = at(geo.cut);
         // The loads member by member: one over several is cut where the members meet.
-        let (split, _) = st.split_chains();
+        let (split, origin) = st.split_chains();
         let left = part_before(st, &geo.member, &geo.start, &geo.end);
         let in_left = |id: &str| left.as_ref().is_some_and(|l| l.iter().any(|x| x == id));
 
@@ -135,13 +135,43 @@ impl Ctx<'_> {
         // end's name would be wrong).
         let part = geo.loads_before(&split, &in_left);
         let mine = Structure { loads: part.iter().map(|(l, _)| l.clone()).collect(), ..st.clone() };
-        let picked: Vec<(bool, bool)> = part.iter().map(|(_, k)| (k.0, k.1)).collect();
+        let mut picked: Vec<(bool, bool)> = part.iter().map(|(_, k)| (k.0, k.1)).collect();
+        // Each piece is named as the load it comes from, as the whole structure's drawing names
+        // it; a load over several members is written once, on its longest piece drawn (not at
+        // all when it varies: its pieces' ends are not its own).
+        let whole = crate::names::load_names(st);
+        let names: Vec<Option<crate::names::LoadName>> = origin.iter().map(|&k| whole.get(k).copied().flatten()).collect();
+        let reach = |k: usize| match mine.loads.get(k) {
+            Some(Load::Distributed { from, to, .. }) => {
+                let len = mine.loads.get(k).and_then(|l| mine.load_line(l)).map_or(0.0, |line| line.len);
+                to.as_ref().map_or(len, |t| t.value) - from.value
+            }
+            _ => 0.0,
+        };
+        for (k, &o) in origin.iter().enumerate() {
+            let chained = origin.iter().filter(|&&x| x == o).count() > 1;
+            if !chained || !picked.get(k).is_some_and(|p| p.0 && p.1) {
+                continue;
+            }
+            let varying = names.get(k).copied().flatten().is_some_and(|n| n.varying);
+            let longest = origin
+                .iter()
+                .enumerate()
+                .filter(|&(j, &x)| x == o && picked.get(j).is_some_and(|p| p.0 && p.1))
+                .max_by(|a, b| reach(a.0).total_cmp(&reach(b.0)).then(b.0.cmp(&a.0)))
+                .map(|(j, _)| j);
+            if varying || longest != Some(k) {
+                if let Some(p) = picked.get_mut(k) {
+                    p.1 = false;
+                }
+            }
+        }
         let pen = std::mem::take(&mut self.pen);
         let mut cx = Ctx { st: &mine, an: self.an, opts: self.opts, pen, amp_cap: self.amp_cap, placed: Vec::new() };
         // `mine.loads` and `picked` are in the same order: the load's index picks it.
         let pick = |k: usize, named: bool| picked.get(k).is_some_and(|&(on, plain)| on && (plain == named));
-        cx.loads_with_max(f, LOAD, true, qmax, &|k, _| pick(k, true));
-        cx.loads_with_max(f, LOAD, false, qmax, &|k, _| pick(k, false));
+        cx.loads_named(f, LOAD, true, qmax, &|k, _| pick(k, true), &names);
+        cx.loads_named(f, LOAD, false, qmax, &|k, _| pick(k, false), &names);
         self.pen = cx.pen;
 
         self.unknowns_where(f, &in_left);

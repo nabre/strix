@@ -193,8 +193,10 @@ impl Writer<'_> {
         let (before, after) = words.split_once("{X}").unwrap_or((words.as_str(), ""));
         out.push(Line::noted(before.to_string(), names.join(", "), after.to_string()));
         // Each member's stretches under the loads, with every system's laws there.
-        let all: Vec<(usize, Vec<Stretch>)> =
+        let mut all: Vec<(usize, Vec<Stretch>)> =
             a0.members.iter().enumerate().filter_map(|(k, m)| self.st.member(&m.id).map(|_| (k, stretches(m)))).collect();
+        // In the working's order, as the stretches' tags.
+        all.sort_by_key(|(k, _)| a0.members.get(*k).and_then(|m| strix_structure::member_rank(self.st, &m.id)).unwrap_or(usize::MAX));
         let mut pieces: Vec<Piece> = Vec::new();
         for (k, parts) in &all {
             let Some(m0) = a0.members.get(*k) else { continue };
@@ -210,7 +212,7 @@ impl Writer<'_> {
                         .and_then(|ss| ss.into_iter().find(|t| t.x0 <= mid && mid <= t.x1).map(|t| [t.n, t.m]));
                     laws.push(law.unwrap_or([[0.0; 4]; 2]));
                 }
-                pieces.push(Piece { member: *k, stretch: s, tag: stretch_tag(&sub(&m0.id, 0), j, parts.len()), laws });
+                pieces.push(Piece { member: *k, stretch: s, tag: stretch_tag(&super::member_tag(self.st, &m0.id), j, parts.len()), laws });
             }
         }
         let kinds: Vec<usize> = self.kinds_used();
