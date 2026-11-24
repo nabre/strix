@@ -59,15 +59,6 @@ pub(super) fn structures(app: &mut WordApp, ui: &mut Ui) {
     let shear = st["titles"]["v"].as_str().unwrap_or("T").to_string();
     group(ui, "Diagrams", None, app, |ui, app| {
         stack(ui, |ui| {
-            let on = flag("reactions");
-            small(
-                ui,
-                app,
-                "structureReactions",
-                Some("Reactions"),
-                "Draw the reactions on the structure, in a panel of their own",
-                crate::widgets::ButtonAction::new("structure.set", json!({"diagrams": {"reactions": !on}}), on),
-            );
             let on = shown("n");
             small(
                 ui,
@@ -87,8 +78,6 @@ pub(super) fn structures(app: &mut WordApp, ui: &mut Ui) {
                 "Draw the shear diagram",
                 crate::widgets::ButtonAction::new("structure.set", json!({"diagrams": {"v": {"show": !on}}}), on),
             );
-        });
-        stack(ui, |ui| {
             let on = shown("m");
             small(
                 ui,
@@ -98,6 +87,24 @@ pub(super) fn structures(app: &mut WordApp, ui: &mut Ui) {
                 "Draw the bending moment diagram",
                 crate::widgets::ButtonAction::new("structure.set", json!({"diagrams": {"m": {"show": !on}}}), on),
             );
+        });
+        stack(ui, |ui| {
+            let on = flag("reactions");
+            small(
+                ui,
+                app,
+                "structureReactions",
+                Some("Reactions"),
+                "Draw the reactions on the structure, in a panel of their own",
+                crate::widgets::ButtonAction::new("structure.set", json!({"diagrams": {"reactions": !on}}), on),
+            );
+        });
+    });
+    group(ui, "Conventions", None, app, |ui, app| {
+        stack(ui, |ui| {
+            positive_senses(app, ui, &st);
+            let italian =
+                [("n", "up"), ("v", "up"), ("m", "down")].into_iter().all(|(key, side)| d[key]["positive"].as_str().unwrap_or(side) == side) && on;
             menu_button(
                 ui,
                 app,
@@ -116,12 +123,11 @@ pub(super) fn structures(app: &mut WordApp, ui: &mut Ui) {
                 "structureItalian",
                 Some("Italian Convention"),
                 "N and T positive up, M on the stretched fibres (positive down)",
-                crate::widgets::ButtonAction::new("structure.set", json!({"convention": "italian"}), false),
+                crate::widgets::ButtonAction::new("structure.set", json!({"convention": "italian"}), italian),
             );
         });
     });
     names_group(app, ui, &st, on);
-    senses_group(app, ui, &st, on);
     group(ui, "Show", None, app, |ui, app| {
         stack(ui, |ui| {
             let on = flag("values");
@@ -171,8 +177,6 @@ pub(super) fn structures(app: &mut WordApp, ui: &mut Ui) {
                 "Mark on each diagram's axis where its notable values are: a load's position, a maximum, a zero, with the distance from the member's start",
                 crate::widgets::ButtonAction::new("structure.set", json!({"diagrams": {"stations": !on}}), on),
             );
-        });
-        stack(ui, |ui| {
             let layout = st["layout"].as_str().unwrap_or("auto").to_string();
             menu_button(
                 ui,
@@ -218,6 +222,9 @@ pub(super) fn structure_editor(app: &mut WordApp, ui: &mut Ui) {
         let a11y = tl!(label).replace('\n', " ");
         resp.widget_info(|| egui::WidgetInfo::selected(egui::Role::Button, true, on, &a11y));
     };
+    group(ui, "Close", None, app, |ui, app| {
+        super::big(ui, app, "cadClose", "Close\nEditor", "ui.structureClose", json!({}), false);
+    });
     group(ui, "Selection", None, app, |ui, app| {
         big_tool(ui, app, "cadSelect", "Select", "select");
         big_tool(ui, app, "structureRotate", "Rotate", "rotate");
@@ -235,6 +242,9 @@ pub(super) fn structure_editor(app: &mut WordApp, ui: &mut Ui) {
     group(ui, "Draw", None, app, |ui, app| {
         big_tool(ui, app, "structureNode", "Node", "node");
         big_tool(ui, app, "structureMember", "Member", "member");
+        stack(ui, |ui| {
+            small(ui, app, "structureHinge", Some("Internal hinge"), "Click a node to make it an internal hinge, or not", tool("hinge"));
+        });
     });
     group(ui, "Supports", None, app, |ui, app| {
         stack(ui, |ui| {
@@ -253,9 +263,6 @@ pub(super) fn structure_editor(app: &mut WordApp, ui: &mut Ui) {
             );
             small(ui, app, "structureLink", Some("Link"), "Click a node to hold it with a link (pendolo)", tool("link"));
             small(ui, app, "structureSlider", Some("Slider"), "Click a node to hold it with a slider (glifo)", tool("slider"));
-        });
-        stack(ui, |ui| {
-            small(ui, app, "structureHinge", Some("Internal hinge"), "Click a node to make it an internal hinge, or not", tool("hinge"));
         });
     });
     group(ui, "Loads", None, app, |ui, app| {
@@ -289,9 +296,9 @@ pub(super) fn structure_editor(app: &mut WordApp, ui: &mut Ui) {
                     let _ = app.run("ui.structureGrid", json!({"size": grid}));
                 }
             });
-            small(ui, app, "cadFit", Some("Fit"), "Show the whole structure", crate::widgets::ButtonAction::new("ui.structureFit", json!({}), false));
         });
         stack(ui, |ui| {
+            small(ui, app, "cadFit", Some("Fit"), "Show the whole structure", crate::widgets::ButtonAction::new("ui.structureFit", json!({}), false));
             small(
                 ui,
                 app,
@@ -304,9 +311,6 @@ pub(super) fn structure_editor(app: &mut WordApp, ui: &mut Ui) {
     });
     group(ui, "Teaching", None, app, |ui, app| {
         super::big(ui, app, "steps", "Write\nWorking", "structure.working", crate::structure_pane::working_labels(), false);
-    });
-    group(ui, "Close", None, app, |ui, app| {
-        super::big(ui, app, "cadClose", "Close\nEditor", "ui.structureClose", json!({}), false);
     });
 }
 
@@ -386,48 +390,37 @@ fn names_group(app: &mut WordApp, ui: &mut Ui, st: &Value, on: bool) {
 
 /// Positive Senses: the senses the reactions' working counts positive (x, y, rotation), each a
 /// pair of choices; the working is written again at each change.
-fn senses_group(app: &mut WordApp, ui: &mut Ui, st: &Value, on: bool) {
-    let pos = &st["positive"];
-    let now = |k: &str, default: &str| pos[k].as_str().unwrap_or(default).to_string();
-    let rows = [
-        ("x", "x", now("x", "right"), [("right", "Right"), ("left", "Left")]),
-        ("y", "y", now("y", "up"), [("up", "Up"), ("down", "Down")]),
-        ("Rotation", "rotation", now("rotation", "ccw"), [("ccw", "Counter-clockwise"), ("cw", "Clockwise")]),
-    ];
-    let note = ts("The reactions are taken positive so and the equilibrium equations sum so; the free body shows the symbol.");
-    group(ui, "Positive Senses", None, app, |ui, app| {
-        ui.add_enabled_ui(on, |ui| {
-            stack(ui, |ui| {
-                for (label, key, current, options) in &rows {
-                    crate::widgets::row(ui, |ui| {
-                        ui.spacing_mut().item_spacing.x = 2.0;
-                        let text = egui::RichText::new(ts(label)).small();
-                        ui.add_sized([58.0, 18.0], egui::Label::new(text)).on_hover_text(note);
-                        // Words, not arrows: the interface's fonts may lack the arrows' glyphs.
-                        for (value, text) in options {
-                            let sel = current == value;
-                            let r = ui.selectable_label(sel, egui::RichText::new(ts(text)).small()).on_hover_text(ts(value_hint(value)));
-                            if r.clicked() && !sel {
-                                let _ = app.run("structure.set", json!({"positive": {*key: *value}}));
-                            }
-                        }
-                    });
+fn positive_senses(app: &mut WordApp, ui: &mut Ui, st: &Value) {
+    menu_button(
+        ui,
+        app,
+        crate::widgets::MenuButtonOptions::new(
+            "structureRotate",
+            Some("Positive Senses"),
+            "The reactions are taken positive so and the equilibrium equations sum so; the free body shows the symbol.",
+            false,
+            "structure.set",
+        ),
+        |ui, app| {
+            let pos = &st["positive"];
+            let rows = [
+                ("x", "x", [("right", "Right"), ("left", "Left")]),
+                ("y", "y", [("up", "Up"), ("down", "Down")]),
+                ("Rotation", "rotation", [("ccw", "Counter-clockwise"), ("cw", "Clockwise")]),
+            ];
+            for (label, key, options) in rows {
+                ui.label(egui::RichText::new(ts(label)).small().strong());
+                let [(default, first), (other, second)] = options;
+                let current = pos[key].as_str().unwrap_or(default);
+                for (value, text) in [(default, first), (other, second)] {
+                    mi_check(ui, app, ts(text), current == value, "structure.set", json!({"positive": {key: value}}));
                 }
-            });
-        });
-    });
-}
-
-/// A positive sense's tooltip.
-fn value_hint(value: &str) -> &'static str {
-    match value {
-        "right" => "Positive to the right",
-        "left" => "Positive to the left",
-        "up" => "Positive upwards",
-        "down" => "Positive downwards",
-        "ccw" => "Positive counter-clockwise",
-        _ => "Positive clockwise",
-    }
+                if key != "rotation" {
+                    ui.separator();
+                }
+            }
+        },
+    );
 }
 
 /// Positive Side: up or down for each diagram.

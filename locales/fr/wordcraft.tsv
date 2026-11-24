@@ -3736,6 +3736,7 @@ mark	Grade	Note
 	Draw the bending moment diagram	Dessiner le diagramme du moment fléchissant
 	Positive Side	Côté positif
 	Which side of each member a diagram's positive values are drawn on	De quel côté de chaque barre les valeurs positives d’un diagramme sont dessinées
+	Conventions	Conventions
 	Italian Convention	Convention italienne
 	N and T positive up, M on the stretched fibres (positive down)	N et T positifs vers le haut, M du côté des fibres tendues (positif vers le bas)
 	Write the notable values: at the ends of each stretch, the jumps, the maxima	Écrire les valeurs remarquables : aux extrémités de chaque tronçon, les sauts, les maximums
