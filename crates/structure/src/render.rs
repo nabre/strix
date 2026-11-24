@@ -506,11 +506,11 @@ impl Ctx<'_> {
                         self.pen.label(add(p, (5.5, -5.5)), label, col);
                     }
                 }
-                Load::Distributed { member, q1, q2, from, to, angle, axes, .. } => {
-                    let Some(m) = st.member(member) else { continue };
-                    let (Some(na), Some(nb)) = (st.node(&m.a), st.node(&m.b)) else { continue };
-                    let Some(len) = st.length(m).filter(|l| *l > 0.0) else { continue };
-                    let (c, s) = ((nb.x.value - na.x.value) / len, (nb.y.value - na.y.value) / len);
+                Load::Distributed { member, then, q1, q2, from, to, angle, axes, .. } => {
+                    // Along its member, or the aligned members it goes on over.
+                    let Some(line) = st.spread_line(member, then) else { continue };
+                    let (len, (c, s)) = (line.len, line.dir);
+                    let (x0, y0) = line.start;
                     let a0 = from.value.clamp(0.0, len);
                     let a1 = to.as_ref().map_or(len, |t| t.value).clamp(0.0, len);
                     let (a0, a1) = if a0 <= a1 { (a0, a1) } else { (a1, a0) };
@@ -524,7 +524,7 @@ impl Ctx<'_> {
                         LoadAxes::Local => (c * th.cos() - s * th.sin(), s * th.cos() + c * th.sin()),
                     };
                     let gp = pd(g);
-                    let world = |x: f64| f.p(na.x.value + c * x, na.y.value + s * x);
+                    let world = |x: f64| f.p(x0 + c * x, y0 + s * x);
                     let span_mm = (a1 - a0) * f.k;
                     let count = ((span_mm / 4.5).round() as usize).clamp(2, 60);
                     let q_at = |x: f64| q1 + (q2 - q1) * (x - a0) / (a1 - a0);
@@ -583,16 +583,18 @@ impl Ctx<'_> {
         let an = self.an;
         let pos = self.st.positive;
         let (sx, sy, sr) = (pos.sx(), pos.sy(), pos.sr());
-        for r in &an.reactions {
+        for (k, r) in an.reactions.iter().enumerate() {
             let Some(p) = self.node_p(f, &r.node) else { continue };
+            // Named as the free body and the working name it (`H_A = 10 kN`).
+            let s = equilibrium::node_sub(&r.node, k + 1);
             let phi = r.angle.to_radians();
             let below = (phi.sin(), phi.cos());
-            let mut comps: Vec<(P, f64)> = Vec::new();
+            let mut comps: Vec<(P, f64, &str)> = Vec::new();
             match r.kind {
                 SupportKind::Fixed | SupportKind::Pin => {
                     // Each along the way it counts positive: crossed out when it came out negative.
-                    comps.push(((sx, 0.0), r.fx * sx));
-                    comps.push(((0.0, sy), r.fy * sy));
+                    comps.push(((sx, 0.0), r.fx * sx, "H"));
+                    comps.push(((0.0, sy), r.fy * sy, "V"));
                 }
                 SupportKind::Roller | SupportKind::RollerCircle | SupportKind::Link | SupportKind::Slider => {
                     // Across the roller; along an axis, the way that axis counts positive.
@@ -600,11 +602,20 @@ impl Ctx<'_> {
                     if (n.0.abs() < 1e-9 && n.1 * sy < 0.0) || (n.1.abs() < 1e-9 && n.0 * sx < 0.0) {
                         n = (-n.0, -n.1);
                     }
-                    comps.push((n, r.fx * n.0 + r.fy * n.1));
+                    let letter = if n.0.abs() < 1e-9 {
+                        "V"
+                    } else if n.1.abs() < 1e-9 {
+                        "H"
+                    } else {
+                        "R"
+                    };
+                    comps.push((n, r.fx * n.0 + r.fy * n.1, letter));
                 }
             }
             let mut taken: Vec<P> = Vec::new();
-            for (axis, v) in comps {
+            // The directions of the crossed-out arrows from the node: the couple's value keeps clear.
+            let mut crossed: Vec<P> = Vec::new();
+            for (axis, v, letter) in comps {
                 if v == 0.0 {
                     continue;
                 }
@@ -630,10 +641,15 @@ impl Ctx<'_> {
                     let across = self.outwards(&r.node, (-side.1, side.0));
                     let (a, b) = (add(near, mul(across, 4.0)), add(far, mul(across, 4.0)));
                     let a = add(a, mul(side, CROSSED_FROM));
-                    if toward_node { self.pen.crossed_arrow(a, b, REACTION) } else { self.pen.crossed_arrow(b, a, REACTION) }
+                    if toward_node {
+                        self.pen.crossed_arrow(a, b, REACTION)
+                    } else {
+                        self.pen.crossed_arrow(b, a, REACTION)
+                    }
+                    crossed.push(unit((((a.0 + b.0) / 2.0) - p.0, ((a.1 + b.1) / 2.0) - p.1)));
                 }
-                let label = self.force(v.abs());
-                self.pen.beside(add(far, mul(side, 0.8)), side, label, REACTION);
+                let label = format!(" = {}", self.force(v.abs()));
+                self.pen.subscripted_then(add(far, mul(side, 0.8)), side, letter, &s, &label, REACTION);
             }
             if r.m != 0.0 {
                 self.pen.couple(p, 5.0, r.m > 0.0, REACTION, 0.4);
@@ -644,9 +660,13 @@ impl Ctx<'_> {
                     self.pen.crossed_couple(p, 7.5, sr > 0.0, REACTION);
                     reach = 9.5;
                 }
-                let label = self.moment(r.m.abs());
-                let free = self.free_side_avoiding(&r.node, &taken);
-                self.pen.beside(add(p, mul(free, reach)), free, label, REACTION);
+                let label = format!(" = {}", self.moment(r.m.abs()));
+                // Clear of the node's name too, which takes the node's free side.
+                let mut avoid = taken.clone();
+                avoid.push(self.free_side(&r.node));
+                avoid.extend_from_slice(&crossed);
+                let free = self.free_side_avoiding(&r.node, &avoid);
+                self.pen.subscripted_then(add(p, mul(free, reach)), free, "M", &s, &label, REACTION);
                 taken.push(free);
             }
             sides.push((r.node.clone(), taken));
@@ -685,6 +705,25 @@ impl Ctx<'_> {
                 }
             }
         }
+        // Every stretch's ends on the paper (axis, curve): a stretch's end closed down to the
+        // axis is a jump of the diagram unless another stretch (of this member or of one meeting
+        // it there) goes on from the same point of the curve.
+        let ends: Vec<(P, P)> = an
+            .members
+            .iter()
+            .zip(samples.iter())
+            .flat_map(|(m, segs)| {
+                let dir = m.dir();
+                let normal = pd((-dir.1, dir.0));
+                segs.iter().flat_map(move |seg| [seg.first(), seg.last()]).flatten().map(move |&(x, v)| {
+                    let o = if vmax > 0.0 { side * v / vmax * d.amplitude } else { 0.0 };
+                    let base = f.p(m.a.0 + dir.0 * x, m.a.1 + dir.1 * x);
+                    (base, add(base, mul(normal, o)))
+                })
+            })
+            .collect();
+        let near = |a: P, b: P| (a.0 - b.0).hypot(a.1 - b.1) <= 0.05;
+        let jump = |base: P, top: P| ends.iter().filter(|(b, t)| near(*b, base) && near(*t, top)).count() < 2;
         // Each value with the places it may go, best first.
         let mut labels: Vec<(Vec<Place>, String, P)> = Vec::new();
         for (m, segs) in an.members.iter().zip(samples.iter()) {
@@ -706,12 +745,18 @@ impl Ctx<'_> {
                         }
                     }
                 }
-                // The curve bold; its ends closed down to the axis as thin as the hatching, so
-                // the stretches' bounds (and a jump) don't read as heavy vertical bars.
+                // The curve bold; its ends closed down to the axis bold too where the diagram
+                // jumps there (a concentrated load, a support, a member's end), as thin as the
+                // hatching where it goes on (a stretch's bound only).
                 let pts: Vec<P> = seg.iter().map(|&(x, v)| curve(x, v)).collect();
                 for (x, v) in [seg.first(), seg.last()].into_iter().flatten() {
                     if ord(*v).abs() > 1e-9 {
-                        self.pen.line(axis(*x), curve(*x, *v), lighter(color, 0.3), 0.15);
+                        let (base, top) = (axis(*x), curve(*x, *v));
+                        if jump(base, top) {
+                            self.pen.line(base, top, color, 0.4);
+                        } else {
+                            self.pen.line(base, top, lighter(color, 0.3), 0.15);
+                        }
                     }
                 }
                 self.pen.poly(pts, color, 0.4);
@@ -1433,6 +1478,7 @@ mod layout_tests {
             ],
             loads: vec![
                 Load::Distributed {
+                    then: Vec::new(),
                     member: "1".into(),
                     q1: 10.0.into(),
                     q2: None,
@@ -1492,6 +1538,7 @@ mod layout_tests {
     fn the_reactions_on_their_own_keep_the_names_and_dimensions_clear_of_their_arrows() {
         let mut st = Structure { view: View::Reactions, ..frame() };
         st.loads.push(Load::Distributed {
+            then: Vec::new(),
             member: "2".into(),
             q1: 10.0.into(),
             q2: None,

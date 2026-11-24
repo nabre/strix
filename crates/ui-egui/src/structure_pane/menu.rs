@@ -42,6 +42,8 @@ enum Act {
     Reverse(usize),
     Angle(usize, f64),
     Whole(usize),
+    /// A distributed load laid over its whole run of aligned members.
+    WholeRun(usize),
     Uniform(usize),
     Triangular(usize),
     Perpendicular(usize),
@@ -222,6 +224,11 @@ fn items(ui: &mut Ui, st: &Structure, state: &State, t: &Target) -> Option<Act> 
                     item(ui, "Uniform", "", q2.is_none(), Act::Uniform(k));
                     item(ui, "Triangular", "", q2.is_some(), Act::Triangular(k));
                     item(ui, "On the whole member", "", from.value == 0.0 && to.is_none(), Act::Whole(k));
+                    if let Some((run, f, t)) = edits::on_run(st, k)
+                        && run.parts.len() > 1
+                    {
+                        item(ui, "On all the aligned members", "", f <= 1e-9 && t >= run.len - 1e-9, Act::WholeRun(k));
+                    }
                     let perp = *axes == LoadAxes::Local && angle.value == -90.0;
                     item(ui, "Perpendicular to the member", "", perp, Act::Perpendicular(k));
                     ui.menu_button(ts("Direction"), |ui| {
@@ -413,6 +420,11 @@ fn apply(app: &mut WordApp, src: &Structure, st: &Structure, state: &mut State, 
                 *to = None;
             }
             run_load(app, k, l);
+        }
+        Act::WholeRun(k) => {
+            if let Some((run, _)) = edits::run_of(st, k) {
+                run_load(app, k, edits::respread(src, st, k, 0.0, run.len, 0.0));
+            }
         }
         Act::Uniform(k) => {
             let mut l = src.loads.get(k).cloned();

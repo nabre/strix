@@ -380,6 +380,30 @@ fn moment_arms_are_written_from_the_dimensions() {
     assert!(has(&t, "V_B&=18.292 kN"), "{t}");
 }
 
+/// A reaction's arm the chains give as a sum (`2 m + 4 m`: C isn't the structure's end, so no
+/// overall dimension measures it) is worked out first like a load's,
+/// named after the support and the point (`d_(C,A)`); every arm is worked out before the
+/// moment's heading, so the equation is set up with them ready.
+#[test]
+fn a_reactions_arm_from_a_sum_is_worked_out_before_the_moment() {
+    let t = working_of(json!({
+        "nodes": [{"id": "A", "x": 0, "y": 0}, {"id": "B", "x": 2, "y": 0}, {"id": "C", "x": 6, "y": 0}, {"id": "D", "x": 8, "y": 0}],
+        "members": [{"id": "1", "a": "A", "b": "B"}, {"id": "2", "a": "B", "b": "C"}, {"id": "3", "a": "C", "b": "D"}],
+        "supports": [{"node": "A", "kind": "pin"}, {"node": "C", "kind": "roller"}],
+        "loads": [{"type": "distributed", "member": "1", "q1": 10}]
+    }))
+    .unwrap();
+    assert!(!t.contains('⚠'), "{t}");
+    assert!(has(&t, "d_(C,A)=2 m + 4 m=6 m") && has(&t, "d_(1,A)=(2 m)/2=1 m"), "{t}");
+    let about_a = t.lines().find(|l| l.contains("0 kN·m") && l.contains("V_C")).unwrap_or_default();
+    assert!(has(about_a, "V_C·d_(C,A)") && !has(about_a, "2 m + 4 m"), "{about_a}");
+    let line = |p: &str| t.lines().position(|l| has(l, p)).unwrap_or(usize::MAX);
+    let heading = line("ΣM_A = 0:");
+    assert!(line("d_(C,A)=") < heading && line("d_(1,A)=") < heading && heading < line("0 kN·m"), "{t}");
+    // 20 kN at 1 m: V_C·6 m = 20 kN·m.
+    assert!(has(&t, "V_C&=3.333 kN"), "{t}");
+}
+
 #[test]
 fn the_working_follows_the_document_decimal_comma() {
     let mut s = Session::new(Document::new());
@@ -702,7 +726,7 @@ fn the_reactions_working_draws_the_free_body() {
 }
 
 /// Before each moment equation the working draws its lever arms about the point, in the
-/// structure's group: the paragraph right before the equation's heading.
+/// structure's group: before the equation's heading, with only its arms worked out between.
 #[test]
 fn the_working_draws_the_lever_arms_before_each_moment_equation() {
     let mut s = Session::new(Document::new());
@@ -735,7 +759,11 @@ fn the_working_draws_the_lever_arms_before_each_moment_equation() {
     assert_eq!(arms.len(), 1, "one moment equation, one drawing");
     assert_eq!(moments.len(), 1);
     let (at, st) = &arms[0];
-    assert_eq!(*at + 1, moments[0]);
+    // Only the arms worked out between the drawing and the heading.
+    assert!(*at < moments[0], "{at} {moments:?}");
+    for b in s.doc.body.get(at + 1..moments[0]).unwrap_or_default() {
+        assert!(matches!(&**b, Block::Para(p) if linear_of(p).starts_with("d_")), "{b:?}");
+    }
     assert_eq!(st.pivot, Some(strix_structure::Pivot::whole("A")));
     assert_eq!(st.group, "structure-1");
 }
@@ -1242,4 +1270,28 @@ fn a_change_through_an_exercise_free_body_is_made_to_the_statement() {
 fn selected_view(s: &mut Session) -> strix_structure::View {
     let r = s.run("structure.get", &json!({})).unwrap();
     serde_json::from_value::<strix_structure::Structure>(r["structure"].clone()).unwrap().view
+}
+
+/// T changing sign over a support between two members in line (a beam's overhang): its values
+/// on both sides found, and the moment there worked out as a relative maximum, like under a
+/// concentrated load inside a member.
+#[test]
+fn the_shear_changing_sign_over_a_support_gives_a_relative_maximum() {
+    let mut s = Session::new(Document::new());
+    s.run(
+        "structure.exercise",
+        &json!({"structure": {
+            "nodes": [{"id": "A", "x": 0, "y": 0}, {"id": "B", "x": 4.5, "y": 0}, {"id": "C", "x": 5.5, "y": 0}],
+            "members": [{"id": "1", "a": "A", "b": "B"}, {"id": "2", "a": "B", "b": "C"}],
+            "supports": [{"node": "A", "kind": "pin"}, {"node": "B", "kind": "roller"}],
+            "loads": [{"type": "distributed", "member": "1", "q1": 10}, {"type": "distributed", "member": "2", "q1": 10}]
+        }}),
+    )
+    .unwrap();
+    let t = text_of(&s);
+    assert!(!t.contains('⚠'), "{t}");
+    assert!(has(&t, "Member 1 (A–B), x = 4.5 m: T changes sign at node B:"), "{t}");
+    let lines: Vec<&str> = t.lines().collect();
+    assert!(lines.contains(&"d) x_1 = 2.139 m; T_1(4.5 m) = -23.611 kN; T_2(0 m) = 10 kN"), "{t}");
+    assert!(lines.contains(&"e) M_1(x_1) = 22.874 kN·m; M_1(4.5 m) = -5 kN·m"), "{t}");
 }

@@ -4,8 +4,9 @@
 //! writes the equation: a vertical force (or part) by its horizontal distance from the point, in
 //! rows below the drawing; a horizontal one by its vertical distance, in columns at its right; an
 //! inclined reaction by its distance from the point to its line of action. A load's arm is named
-//! as the working names it (`d_(1,A)`, `d_(2,v,A)`), a reaction's (and an unnamed load's) written
-//! by its length (`6 m`). The shortest arms nearest the drawing. Each arm runs from a small ring
+//! as the working names it (`d_(1,A)`, `d_(2,v,A)`), and so is a reaction's the dimensions give
+//! only as a sum (`d_(D,A)`); any other reaction's (and an unnamed load's) is written by its
+//! length (`6 m`). The shortest arms nearest the drawing. Each arm runs from a small ring
 //! at the point to an arrowhead at the force's line.
 
 use super::annotate::{DIM, EXT_OVER, reading_angle};
@@ -141,19 +142,37 @@ impl Ctx<'_> {
             }
         }
 
-        // The reactions as unknowns, along the axes they count positive on.
-        for r in self.an.reactions.iter().filter(|r| pivot.has_node(st, &r.node)) {
+        // The reactions as unknowns, along the axes they count positive on; an arm the chains
+        // give as a sum of distances by its name, as the working works it out (`d_D,A`; a fixed
+        // end's or pin's parts `d_D,v,A`), a single distance by its length.
+        let chains = crate::chains(st);
+        for (k, r) in self.an.reactions.iter().enumerate().filter(|(_, r)| pivot.has_node(st, &r.node)) {
             let Some(n) = st.node(&r.node) else { continue };
+            let both = matches!(r.kind, SupportKind::Fixed | SupportKind::Pin);
+            let arm = |axis: usize, to: f64, from: f64, part: &str| -> (String, String) {
+                if chains.segments(axis, from, to).is_some_and(|s| s.len() > 1) {
+                    let mut i = vec![node_sub(&r.node, k + 1)];
+                    if both {
+                        i.push(part.to_string());
+                    }
+                    i.push(pv.clone());
+                    ("d".to_string(), i.join(","))
+                } else {
+                    (length(self, to - from), String::new())
+                }
+            };
             let at = (n.x.value, n.y.value);
             let phi = r.angle.to_radians();
             let normal = (-phi.sin(), phi.cos());
             let along_x = matches!(r.kind, SupportKind::Fixed | SupportKind::Pin) || normal.1.abs() < TOL;
             let along_y = matches!(r.kind, SupportKind::Fixed | SupportKind::Pin) || normal.0.abs() < TOL;
             if along_y && (at.0 - o.0).abs() > tol {
-                straight.push(Arm { axis: 0, to: at.0, base: length(self, at.0 - o.0), sub: String::new(), color: REACTION });
+                let (base, sub) = arm(0, at.0, o.0, "v");
+                straight.push(Arm { axis: 0, to: at.0, base, sub, color: REACTION });
             }
             if along_x && (at.1 - o.1).abs() > tol {
-                straight.push(Arm { axis: 1, to: at.1, base: length(self, at.1 - o.1), sub: String::new(), color: REACTION });
+                let (base, sub) = arm(1, at.1, o.1, "h");
+                straight.push(Arm { axis: 1, to: at.1, base, sub, color: REACTION });
             }
             if !along_x && !along_y {
                 // Its line through the node along the normal: the foot of the perpendicular.
@@ -284,6 +303,7 @@ mod tests {
             supports: vec![support("A", SupportKind::Pin), support("B", SupportKind::Roller)],
             loads: vec![
                 Load::Distributed {
+                    then: Vec::new(),
                     member: "1".into(),
                     q1: 10.0.into(),
                     q2: None,
@@ -316,6 +336,31 @@ mod tests {
         let mut out: Vec<String> = t.windows(2).map(|w| format!("{}_{}", w[0], w[1])).collect();
         out.extend(t);
         out
+    }
+
+    /// A reaction's arm the chains give as a sum (A–B–C, D beyond: `2 m + 4 m`) is named as the working
+    /// works it out (`d_C,A`), not drawn by its length.
+    #[test]
+    fn a_reactions_arm_from_a_sum_is_named() {
+        let mut st = beam(Some(Pivot::whole("A")));
+        st.nodes = vec![
+            Node { id: "A".into(), x: 0.0.into(), y: 0.0.into(), hinge: false },
+            Node { id: "B".into(), x: 2.0.into(), y: 0.0.into(), hinge: false },
+            Node { id: "C".into(), x: 6.0.into(), y: 0.0.into(), hinge: false },
+            Node { id: "D".into(), x: 8.0.into(), y: 0.0.into(), hinge: false },
+        ];
+        st.members = vec![
+            Member { id: "1".into(), a: "A".into(), b: "B".into(), ..Member::default() },
+            Member { id: "2".into(), a: "B".into(), b: "C".into(), ..Member::default() },
+            Member { id: "3".into(), a: "C".into(), b: "D".into(), ..Member::default() },
+        ];
+        st.supports = vec![
+            Support { node: "A".into(), kind: SupportKind::Pin, angle: Num::default() },
+            Support { node: "C".into(), kind: SupportKind::Roller, angle: Num::default() },
+        ];
+        st.loads = vec![Load::Force { node: Some("B".into()), member: None, at: Num::default(), value: 10.0.into(), angle: Num::new(-90.0) }];
+        let t = names(&st);
+        assert!(t.iter().any(|p| p == "d_C,A") && t.iter().any(|p| p == "d_1,A"), "{t:?}");
     }
 
     /// About A: the resultant's and the vertical part's arms by name, V_B's by its length; none

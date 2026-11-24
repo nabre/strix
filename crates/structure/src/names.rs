@@ -87,12 +87,12 @@ fn placed(st: &Structure, l: &Load) -> Option<(u8, f64, f64)> {
     match l {
         Load::Force { node, member, at, value, .. } if value.value != 0.0 => point(node, member, at.value).map(|(x, y)| (0, x, y)),
         Load::Moment { node, member, at, value } if value.value != 0.0 => point(node, member, at.value).map(|(x, y)| (2, x, y)),
-        Load::Distributed { member, q1, q2, from, to, .. } => {
+        Load::Distributed { member, then, q1, q2, from, to, .. } => {
             if q1.value == 0.0 && q2.as_ref().is_none_or(|q| q.value == 0.0) {
                 return None;
             }
-            let len = st.member(member).and_then(|m| st.length(m)).unwrap_or(0.0);
-            let (p, q) = (along(member, from.value)?, along(member, to.as_ref().map_or(len, |t| t.value))?);
+            let line = st.spread_line(member, then)?;
+            let (p, q) = (line.point(from.value), line.point(to.as_ref().map_or(line.len, |t| t.value)));
             // The stretch's leftmost end, the higher one on a vertical member.
             let first = if p.0 < q.0 || (p.0 == q.0 && p.1 >= q.1) { p } else { q };
             Some((1, first.0, first.1))

@@ -29,6 +29,7 @@ fn force_at(node: &str, value: f64, angle: f64) -> Load {
 
 fn uniform(member: &str, q: f64) -> Load {
     Load::Distributed {
+        then: Vec::new(),
         member: member.into(),
         q1: q.into(),
         q2: None,
@@ -317,6 +318,7 @@ fn a_change_of_units_keeps_the_structure() {
 fn triangular_load_on_a_simple_beam() {
     let mut st = simple_beam();
     st.loads = vec![Load::Distributed {
+        then: Vec::new(),
         member: "1".into(),
         q1: 0.0.into(),
         q2: Some(9.0.into()),
@@ -371,6 +373,7 @@ fn projected_load_on_a_rafter() {
         members: vec![member("1", "A", "B")],
         supports: vec![support("A", SupportKind::Pin, 0.0), support("B", SupportKind::Roller, 0.0)],
         loads: vec![Load::Distributed {
+            then: Vec::new(),
             member: "1".into(),
             q1: 5.0.into(),
             q2: None,
@@ -396,6 +399,7 @@ fn local_load_across_a_member() {
         members: vec![member("1", "A", "B")],
         supports: vec![support("A", SupportKind::Fixed, 0.0)],
         loads: vec![Load::Distributed {
+            then: Vec::new(),
             member: "1".into(),
             q1: 2.0.into(),
             q2: None,
@@ -423,6 +427,7 @@ fn expressions_follow_the_calculations() {
     let mut st = simple_beam();
     st.nodes[1].x = Num::expr("L");
     st.loads = vec![Load::Distributed {
+        then: Vec::new(),
         member: "1".into(),
         q1: Num::expr("q"),
         q2: None,
@@ -472,7 +477,10 @@ fn rendering_student_and_teacher_copies_have_the_same_size() {
     let text = |r: &crate::StructureRendered| -> Vec<String> { texts(r).into_iter().map(|(t, _)| t).collect() };
     let t = text(&teacher);
     assert!(t.iter().any(|s| s == "45"), "the maximum moment is written: {t:?}");
-    assert!(t.iter().any(|s| s == "30 kN"), "the reactions are written: {t:?}");
+    // Each reaction by its name, as the free body and the working name it: V_A = 30 kN.
+    for node in ["A", "B"] {
+        assert!(t.windows(3).any(|w| w[0] == "V" && w[1] == node && w[2] == " = 30 kN"), "V_{node} = 30 kN is written: {t:?}");
+    }
     assert!(t.iter().any(|s| s == "M [kN·m]"), "{t:?}");
     assert!(!text(&student).iter().any(|s| s == "45"));
     // Not an answer: the student sees everything.
@@ -548,6 +556,7 @@ fn hostile_input_never_panics() {
 fn resultants_and_laws_for_a_written_working() {
     let mut st = simple_beam();
     st.loads.push(Load::Distributed {
+        then: Vec::new(),
         member: "1".into(),
         q1: 2.0.into(),
         q2: Some(8.0.into()),
@@ -620,6 +629,7 @@ fn a_zero_close_to_a_load_has_its_station_and_a_nought_diagram_has_none() {
     // T goes from 0.708 to −14.292 over 4.2–5.2 m: nought at 4.247 m, 47 mm past the load's start.
     let mut st = simple_beam();
     let part = |q: f64, from: f64, to: f64| Load::Distributed {
+        then: Vec::new(),
         member: "1".into(),
         q1: q.into(),
         q2: None,
@@ -746,6 +756,7 @@ fn loads_are_numbered_together_by_place() {
     // A varying load keeps its number on both ends; the column's load starts at its top end.
     st.loads = vec![
         Load::Distributed {
+            then: Vec::new(),
             member: "3".into(),
             q1: Num::new(1.0),
             q2: Some(Num::new(3.0)),
@@ -769,6 +780,7 @@ fn the_free_body_names_the_unknowns_resultants_and_parts() {
     let mut st = simple_beam();
     st.loads.clear();
     st.loads.push(Load::Distributed {
+        then: Vec::new(),
         member: "1".into(),
         q1: 10.0.into(),
         q2: None,
@@ -832,6 +844,7 @@ fn upward_force_beam(roller: SupportKind) -> Structure {
     st.supports = vec![support("A", SupportKind::Pin, 0.0), support("B", roller, 0.0)];
     st.loads = vec![
         Load::Distributed {
+            then: Vec::new(),
             member: "1".into(),
             q1: 10.0.into(),
             q2: None,
@@ -907,6 +920,7 @@ fn the_axial_force_s_stations_are_only_where_it_changes() {
     st.loads = vec![
         force_on("1", 1.75, 10.0),
         Load::Distributed {
+            then: Vec::new(),
             member: "1".into(),
             q1: 0.0.into(),
             q2: Some(4.0.into()),
@@ -930,6 +944,7 @@ fn the_axial_force_s_stations_are_only_where_it_changes() {
 /// and a couple on it, a local load across member 3 drawn from C back to E.
 fn beam_drawn(two_backwards: bool, three_backwards: bool) -> Structure {
     let trap = |member: &str, q1: f64, q2: f64, from: f64, to: f64, angle: f64, axes: LoadAxes| Load::Distributed {
+        then: Vec::new(),
         member: member.into(),
         q1: q1.into(),
         q2: Some(q2.into()),

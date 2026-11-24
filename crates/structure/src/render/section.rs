@@ -52,6 +52,8 @@ impl Ctx<'_> {
         let at = |s: f64| f.p(geo.a.0 + geo.e.0 * s, geo.a.1 + geo.e.1 * s);
         let (pe, pn) = (pd(geo.e), pd(geo.n));
         let ps = at(geo.cut);
+        // The loads member by member: one over several is cut where the members meet.
+        let (split, _) = st.split_chains();
         let left = part_before(st, &geo.member, &geo.start, &geo.end);
         let in_left = |id: &str| left.as_ref().is_some_and(|l| l.iter().any(|x| x == id));
 
@@ -90,7 +92,7 @@ impl Ctx<'_> {
         let ghost_other = lighter(GREY, 0.52);
         self.ghost_rest(f, &geo, left_nodes, ps, pe, pn, rem_mm, resume_mm, ghost_member, ghost_other);
         let qmax = max_spread(st);
-        let after = geo.loads_after(st, cut_after, f.k);
+        let after = geo.loads_after(&split, cut_after, f.k);
         if !after.is_empty() {
             let faded = Structure { loads: after, ..st.clone() };
             let pen = std::mem::take(&mut self.pen);
@@ -131,7 +133,7 @@ impl Ctx<'_> {
 
         // Its loads, a distributed load the cut crosses up to it (named unless it varies: its far
         // end's name would be wrong).
-        let part = geo.loads_before(st, &in_left);
+        let part = geo.loads_before(&split, &in_left);
         let mine = Structure { loads: part.iter().map(|(l, _)| l.clone()).collect(), ..st.clone() };
         let picked: Vec<(bool, bool)> = part.iter().map(|(_, k)| (k.0, k.1)).collect();
         let pen = std::mem::take(&mut self.pen);
@@ -596,6 +598,7 @@ mod tests {
             members: vec![Member { id: "1".into(), a: "A".into(), b: "B".into(), ..Member::default() }],
             supports: vec![support("A", SupportKind::Pin), support("B", SupportKind::Roller)],
             loads: vec![Load::Distributed {
+                then: Vec::new(),
                 member: "1".into(),
                 q1: 10.0.into(),
                 q2: None,

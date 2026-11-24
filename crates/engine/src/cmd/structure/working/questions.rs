@@ -139,8 +139,10 @@ enum Point {
     /// Member `m`'s stretch `k`: T vanishes at these places inside it (at most two: T is a
     /// polynomial of degree two at most under the loads Strix knows).
     Zero { m: usize, k: usize, xs: [Option<f64>; 2] },
-    /// T changes sign between member `m`'s stretches `k` and `k + 1`, at `x`.
-    Jump { m: usize, k: usize, x: f64 },
+    /// T changes sign from member `m`'s stretch `k` (ending at `x`) to member `next.0`'s stretch
+    /// `next.1`: the next stretch of the same member, or the first of a member going on in line
+    /// from `m`'s end (a support or a node between two members).
+    Jump { m: usize, k: usize, x: f64, next: (usize, usize) },
 }
 
 fn points(members: &[(&MemberResult, Vec<Stretch>)]) -> Vec<Point> {
@@ -150,6 +152,7 @@ fn points(members: &[(&MemberResult, Vec<Stretch>)]) -> Vec<Point> {
         let zeros: Vec<f64> = notables(m, Action::Shear).into_iter().filter(|n| n.kind == NotableKind::Zero).map(|n| n.x).collect();
         let scale = parts.iter().flat_map(|s| [value(&s.v, s.x0).abs(), value(&s.v, s.x1).abs()]).fold(0.0_f64, f64::max);
         let tol = 1e-9 * scale.max(1e-12);
+        let last = parts.len().saturating_sub(1);
         for (k, s) in parts.iter().enumerate() {
             let inside: Vec<f64> = zeros.iter().copied().filter(|x| *x > s.x0 + eps && *x < s.x1 - eps).take(2).collect();
             if !inside.is_empty() {
@@ -159,12 +162,34 @@ fn points(members: &[(&MemberResult, Vec<Stretch>)]) -> Vec<Point> {
                 let (before, after) = (value(&s.v, s.x1), value(&next.v, next.x0));
                 // A sign change, or T vanishing at the stretch's end from one side only.
                 if (before > tol && after < -tol) || (before < -tol && after > tol) {
-                    out.push(Point::Jump { m: mi, k, x: s.x1 });
+                    out.push(Point::Jump { m: mi, k, x: s.x1, next: (mi, k + 1) });
+                }
+            } else if k == last
+                && let Some((ni, after)) = going_on(members, mi)
+            {
+                let before = value(&s.v, s.x1);
+                if (before > tol && after < -tol) || (before < -tol && after > tol) {
+                    out.push(Point::Jump { m: mi, k, x: s.x1, next: (ni, 0) });
                 }
             }
         }
     }
     out
+}
+
+/// The member going on in line from member `m`'s `b` end, starting there (its `a` end), with
+/// T just past the node: the beam's next span over a support or a node between two members.
+fn going_on(members: &[(&MemberResult, Vec<Stretch>)], m: usize) -> Option<(usize, f64)> {
+    let (mr, _) = members.get(m)?;
+    let d = mr.dir();
+    let tol = 1e-9 * (1.0 + mr.length);
+    members.iter().enumerate().find_map(|(ni, (n, parts))| {
+        let e = n.dir();
+        let joined = ni != m && (n.a.0 - mr.b.0).abs() <= tol && (n.a.1 - mr.b.1).abs() <= tol;
+        let in_line = (d.0 * e.1 - d.1 * e.0).abs() <= 1e-9 && d.0 * e.0 + d.1 * e.1 > 0.0;
+        let first = parts.first()?;
+        (joined && in_line).then(|| (ni, value(&first.v, first.x0)))
+    })
 }
 
 struct Writer<'a> {
@@ -313,16 +338,21 @@ impl Writer<'_> {
                         }
                     }
                 }
-                Point::Jump { m, k, x } => {
+                Point::Jump { m, k, x, next } => {
                     let Some((mr, parts)) = members.get(m) else { continue };
-                    let Some(src) = self.st.member(&mr.id) else { continue };
+                    let Some((nr, nparts)) = members.get(next.0) else { continue };
+                    let (Some(src), Some(ns)) = (self.st.member(&mr.id), nparts.get(next.1)) else { continue };
                     let (before, _) = self.names(mr, k, parts.len());
-                    let (after, _) = self.names(mr, k + 1, parts.len());
-                    let jump = self.labels.jump.replace("{T}", &self.shear);
+                    let (after, _) = self.names(nr, next.1, nparts.len());
+                    let jump = if next.0 == m {
+                        self.labels.jump.replace("{T}", &self.shear)
+                    } else {
+                        self.labels.jump_node.replace("{T}", &self.shear).replace("{node}", &src.b)
+                    };
                     let place = format!("x = {} {}", num(x, self.u.comma), self.u.l);
                     out.push((Line::words(format!("{} {} ({}–{}), {place}: {jump}:", self.labels.member, src.id, src.a, src.b)), false));
                     out.push((Line::eqs(vec![self.at(&before, Action::Shear, x)], false), true));
-                    out.push((Line::eqs(vec![self.at(&after, Action::Shear, x)], false), true));
+                    out.push((Line::eqs(vec![self.at(&after, Action::Shear, ns.x0)], false), true));
                 }
             }
         }
@@ -361,7 +391,7 @@ impl Writer<'_> {
                     let eqs = names.iter().map(|n| format!("M_{tag}({n}) = {unit}")).collect();
                     out.push((Line::eqs(eqs, false), true));
                 }
-                Point::Jump { m, k, x } => {
+                Point::Jump { m, k, x, .. } => {
                     let Some(tag) = define(m, k, &mut out) else { continue };
                     out.push((Line::eqs(vec![self.at(&tag, Action::Moment, x)], false), true));
                 }

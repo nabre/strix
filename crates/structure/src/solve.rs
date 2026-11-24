@@ -435,9 +435,10 @@ fn elem_of<'m>(st: &Structure, md: &'m mut Model, id: &str, what: &str, warnings
     md.elems.get_mut(k?)
 }
 
-/// Puts the loads on the nodes and members.
+/// Puts the loads on the nodes and members (a distributed load over several, a piece on each).
 fn place_loads(st: &Structure, md: &mut Model, warnings: &mut Vec<String>) {
-    for l in &st.loads {
+    let pieces: Vec<Load> = st.loads.iter().flat_map(|l| st.spread_pieces(l)).collect();
+    for l in &pieces {
         match l {
             Load::Force { node: Some(id), member: None, value, angle, .. } => match st.node_index(id).filter(|n| md.is_used(*n)) {
                 Some(n) => {
@@ -466,7 +467,7 @@ fn place_loads(st: &Structure, md: &mut Model, warnings: &mut Vec<String>) {
                 e.loads.push(LocalLoad::Couple { at: pos, c: value.value });
             }
             Load::Force { .. } | Load::Moment { .. } => warnings.push("a concentrated load needs a node or a member: left out".to_string()),
-            Load::Distributed { member, q1, q2, from, to, angle, axes, per } => {
+            Load::Distributed { member, q1, q2, from, to, angle, axes, per, .. } => {
                 let Some(e) = elem_of(st, md, member, "distributed load", warnings) else { continue };
                 let a = clamp_pos(from.value, e.length, member, warnings);
                 let b = clamp_pos(to.as_ref().map_or(e.length, |t| t.value), e.length, member, warnings);

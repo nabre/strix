@@ -150,10 +150,15 @@ fn measures_with(st: &Structure, extra: &[(String, f64)]) -> Measures {
     for l in &st.loads {
         match l {
             Load::Force { member: Some(m), at, .. } | Load::Moment { member: Some(m), at, .. } => add_at(&mut out, m, at.value),
-            Load::Distributed { member, from, to, .. } => {
-                add_at(&mut out, member, from.value);
-                if let Some(len) = st.member(member).and_then(|m| st.length(m)) {
-                    add_at(&mut out, member, to.as_ref().map_or(len, |t| t.value));
+            Load::Distributed { .. } => {
+                // Over several members, where it starts and stops on each.
+                for piece in st.spread_pieces(l) {
+                    if let Load::Distributed { member, from, to, .. } = &piece {
+                        add_at(&mut out, member, from.value);
+                        if let Some(len) = st.member(member).and_then(|m| st.length(m)) {
+                            add_at(&mut out, member, to.as_ref().map_or(len, |t| t.value));
+                        }
+                    }
                 }
             }
             _ => {}
@@ -204,6 +209,57 @@ pub struct Chains {
     pub y: Vec<Vec<f64>>,
     /// Two stations closer than this are the same.
     pub tol: f64,
+}
+
+impl Chains {
+    /// The chain's segments from `a` to `b` along `axis` (0: x, 1: y), as few as the chains
+    /// allow: empty when `a` is `b`, `None` when either is not a station.
+    pub fn segments(&self, axis: usize, a: f64, b: f64) -> Option<Vec<f64>> {
+        let tol = self.tol.max(1e-12);
+        if (a - b).abs() <= tol {
+            return Some(Vec::new());
+        }
+        let rows = if axis == 0 { &self.x } else { &self.y };
+        let (lo, hi) = if a < b { (a, b) } else { (b, a) };
+        let mut stops: Vec<f64> = rows.iter().flatten().copied().filter(|x| *x >= lo - tol && *x <= hi + tol).collect();
+        stops.sort_by(f64::total_cmp);
+        stops.dedup_by(|x, y| (*x - *y).abs() <= tol);
+        let at = |v: f64| stops.iter().position(|s| (s - v).abs() <= tol);
+        let (start, end) = (at(lo)?, at(hi)?);
+        // Fewest segments from `lo` to each stop (stops sorted, segments go forward).
+        let n = stops.len();
+        let mut best: Vec<Option<(usize, usize)>> = vec![None; n];
+        if let Some(b) = best.get_mut(start) {
+            *b = Some((0, start));
+        }
+        for i in start..n {
+            let Some((count, _)) = best.get(i).copied().flatten() else { continue };
+            let from = stops.get(i).copied().unwrap_or(0.0);
+            for row in rows {
+                for w in row.windows(2) {
+                    if (w[0] - from).abs() > tol {
+                        continue;
+                    }
+                    let Some(j) = at(w[1]) else { continue };
+                    if j > i
+                        && best.get(j).copied().flatten().is_none_or(|(c, _)| c > count + 1)
+                        && let Some(b) = best.get_mut(j)
+                    {
+                        *b = Some((count + 1, i));
+                    }
+                }
+            }
+        }
+        let mut out = Vec::new();
+        let mut j = end;
+        while j != start {
+            let (_, i) = best.get(j).copied().flatten()?;
+            out.push(stops.get(j).copied().unwrap_or(0.0) - stops.get(i).copied().unwrap_or(0.0));
+            j = i;
+        }
+        out.reverse();
+        Some(out)
+    }
 }
 
 /// The chains [`Ctx::dimensions`] draws (whether or not the drawing shows them).
@@ -383,21 +439,20 @@ impl Ctx<'_> {
                     let halves = self.half_lines(f, node.as_deref(), member.as_deref(), at.value);
                     self.angle_mark(p, tail, &halves, 6.0);
                 }
-                Load::Distributed { member, q1, q2, from, angle, axes, .. } => {
+                Load::Distributed { member, then, q1, q2, from, angle, axes, .. } => {
                     if *axes == LoadAxes::Local && square(angle.value.rem_euclid(180.0)) {
                         continue;
                     }
-                    let Some(m) = st.member(member) else { continue };
-                    let (Some(na), Some(nb)) = (st.node(&m.a), st.node(&m.b)) else { continue };
-                    let Some(len) = st.length(m).filter(|l| *l > 0.0) else { continue };
-                    let (c, s) = ((nb.x.value - na.x.value) / len, (nb.y.value - na.y.value) / len);
+                    let Some(line) = st.spread_line(member, then) else { continue };
+                    let (len, (c, s)) = (line.len, line.dir);
                     let th = angle.value.to_radians();
                     let g = match axes {
                         LoadAxes::Global => (th.cos(), th.sin()),
                         LoadAxes::Local => (c * th.cos() - s * th.sin(), s * th.cos() + c * th.sin()),
                     };
                     let x0 = from.value.clamp(0.0, len);
-                    let p = f.p(na.x.value + c * x0, na.y.value + s * x0);
+                    let (wx, wy) = line.point(x0);
+                    let p = f.p(wx, wy);
                     let q = if q1.value != 0.0 { q1.value } else { q2.as_ref().map_or(1.0, |q| q.value) };
                     let tail = mul(pd(g), if q < 0.0 { 1.0 } else { -1.0 });
                     // The member's side the load lies along, from its start.
