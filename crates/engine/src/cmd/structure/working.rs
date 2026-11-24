@@ -1174,8 +1174,9 @@ fn lines(st: &Structure, an: &strix_structure::Analysis, labels: &Labels, comma:
     // In the names' order (a trapezoid's rectangle before its triangle: the sort is stable).
     rs.sort_by_key(|r| u.names.get(r.load).copied().flatten().map_or(usize::MAX, |n| n.number));
     // The distributed loads' resultants and the askew forces' parts, which the equations use.
-    for chunk in u.derived(&rs).chunks(3) {
-        out.push(Line::eqs(chunk.to_vec(), false));
+    // Each worked out on its own line.
+    for d in u.derived(&rs) {
+        out.push(Line::eqs(vec![d], false));
     }
     out.push(Line::words(format!("{}:", labels.reactions)));
     let us = unknowns(st, an);
@@ -1243,10 +1244,12 @@ fn lines(st: &Structure, an: &strix_structure::Analysis, labels: &Labels, comma:
                 out.push(Line::figure(Figure::Arms(p.clone())));
             }
             out.push(Line::noted(String::new(), e.label.clone(), e.after.clone()));
-            // Its arms first, each once (a hinge's part may share an arm with its support's).
-            let new: Vec<String> = e.arms.iter().filter(|(n, _)| defined.insert(n.clone())).map(|(_, d)| d.clone()).collect();
-            for chunk in new.chunks(3) {
-                out.push(Line::eqs(chunk.to_vec(), false));
+            // Its arms first, each once (a hinge's part may share an arm with its support's) and
+            // each worked out on its own line.
+            for (n, d) in &e.arms {
+                if defined.insert(n.clone()) {
+                    out.push(Line::eqs(vec![d.clone()], false));
+                }
             }
             out.push(Line { stepped: true, ..Line::eqs(vec![e.text(&us, &u)], true) });
             continue;

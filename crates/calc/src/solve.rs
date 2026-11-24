@@ -426,18 +426,33 @@ fn move_add(a: Expr, b: Expr) -> Expr {
     }
 }
 
-/// `−e` for a side crossing a minus over: a leading minus inside a product or quotient goes
-/// instead of a second one in front (`−V = −F·d/(6 m)` gives `V = F·d/(6 m)`, not `V = −−F·…`).
+/// `−e` for a side crossing a minus over, the minus worked into it rather than left in front:
+/// a leading minus inside a product or quotient goes instead of a second one
+/// (`−V = −F·d/(6 m)` gives `V = F·d/(6 m)`, not `V = −−F·…`), and a sum or difference — alone
+/// or as a numerator — takes it on each of its monomials
+/// (`−V = (−F₂·d₂ − F₁·d₁)/(6 m)` gives `V = (F₂·d₂ + F₁·d₁)/(6 m)`, not `V = −(…)/(6 m)`).
 fn negate(e: Expr) -> Expr {
-    /// `e` without its leading minus, when it has one.
-    fn strip(e: &Expr) -> Option<Expr> {
-        match e {
-            Expr::Neg(inner) => Some((**inner).clone()),
-            Expr::Bin(op @ (BinOp::Mul | BinOp::Div), a, b) => strip(a).map(|a| bin(*op, a, (**b).clone())),
-            _ => None,
-        }
+    match e {
+        Expr::Neg(inner) => *inner,
+        // `−(a + b) = −a − b`, `−(a − b) = −a + b`.
+        Expr::Bin(BinOp::Add, a, b) => add_expr(negate(*a), negate(*b)),
+        Expr::Bin(BinOp::Sub, a, b) => match negate(*a) {
+            // `F − G`, not `−G + F`.
+            Expr::Neg(a) => bin(BinOp::Sub, *b, *a),
+            a => add_expr(a, *b),
+        },
+        Expr::Bin(op @ (BinOp::Mul | BinOp::Div), a, b) if leads_with_minus(&a) || is_additive(&a) => bin(op, negate(*a), *b),
+        other => neg_expr(other),
     }
-    strip(&e).unwrap_or_else(|| neg_expr(e))
+}
+
+/// `e` reads with a minus in front (`−F`, `−F·d`, `−F·d/a`).
+fn leads_with_minus(e: &Expr) -> bool {
+    match e {
+        Expr::Neg(_) => true,
+        Expr::Bin(BinOp::Mul | BinOp::Div, a, _) => leads_with_minus(a),
+        _ => false,
+    }
 }
 
 fn neg_expr(e: Expr) -> Expr {

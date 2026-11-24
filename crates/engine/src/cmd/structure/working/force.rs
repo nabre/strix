@@ -289,8 +289,9 @@ impl Writer<'_> {
                     defs.push(format!("EA_{id} = {modulus}·{area} = {}", u.f));
                 }
             }
-            for chunk in defs.chunks(2) {
-                out.push(Line::eqs(chunk.to_vec(), false));
+            // Each worked out on its own line.
+            for d in defs {
+                out.push(Line::eqs(vec![d], false));
             }
         }
         let n = self.reds.len();

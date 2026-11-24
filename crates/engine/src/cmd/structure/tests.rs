@@ -369,6 +369,11 @@ fn moment_arms_are_written_from_the_dimensions() {
     assert!(has(&t, "d_(3,A)=6 m - (1.5 m)/3=5.5 m"), "{t}");
     let first = t.lines().find(|l| l.contains("0 kN·m") && l.contains("V_B")).unwrap_or_default();
     assert!(has(first, "F_1·d_(1,A)") && has(first, "F_2·d_(2,A)") && has(first, "F_3·d_(3,A)"), "{first}");
+    // Each arm worked out on its own line.
+    for d in ["d_(1,A)=", "d_(2,A)=", "d_(3,A)="] {
+        let line = t.lines().find(|l| has(l, d)).unwrap_or_default();
+        assert_eq!(line.matches("d_(").count(), 1, "{line}");
+    }
     // V_A from the vertical forces, not from the rotation about B: no arm about B.
     assert!(has(&t, "ΣF_y = 0:") && !t.contains("d_(1,B)"), "{t}");
     // q·3·1.5 + q·1·4 + 3·1.5/2·(4.5+1) = 45 + 40 + 24.75 = 109.75 → V_B = 18.2917.
@@ -780,8 +785,15 @@ fn page_breaks_never_split_a_block_of_the_working() {
         let l = s.layout();
         let page = |i: usize| l.caret(&Pos::body(i, 0)).map(|c| c.page);
         assert!(l.pages.len() > 1 || filler == 0, "the working runs over a page ({filler})");
-        for i in kept {
-            assert_eq!(page(i), page(i + 1), "paragraph {i} is kept with the next ({filler} lines above)");
+        let top = |i: usize| l.caret(&Pos::body(i, 0)).map(|c| c.top);
+        for &i in &kept {
+            if page(i) == page(i + 1) {
+                continue;
+            }
+            // Only a block taller than a page breaks: it starts at the top of its page.
+            let start = (0..=i).rev().find(|&j| j == 0 || !kept.contains(&(j - 1))).unwrap_or(i);
+            let first_on_page = (0..n).find(|&j| page(j) == page(start)).unwrap_or(start);
+            assert_eq!(top(start), top(first_on_page), "paragraph {i} is kept with the next ({filler} lines above)");
         }
     }
 }

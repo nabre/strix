@@ -19,6 +19,8 @@ pub(super) struct Ctx {
     pub(super) row_spacing: f32,
     /// Strix: a calculation's wrapped lines line up under its first relation (`breaks.rs`).
     pub(super) align_relations: bool,
+    /// Strix: the width a row's fractions may take before they break inside (`frac_wrap.rs`).
+    pub(super) frac_wrap: Option<super::frac_wrap::FracWrap>,
 }
 
 pub(super) const MAX_NODES: usize = 200_000;

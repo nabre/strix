@@ -185,7 +185,8 @@ impl Ctx {
     /// `m:wrapRight`, or aligned at an operator of the first line (`m:alnAt`).
     pub(super) fn wrapped(&mut self, a: &[MNode], st: St, avail: f32, mp: &MathProps) -> Bx {
         let em = self.em(st);
-        let atoms: Vec<Bx> = self.row(a, st, 0, 0).into_iter().map(|(b, _)| b).collect();
+        // Strix: a calculation's fraction too wide for the line breaks inside (`frac_wrap.rs`).
+        let atoms: Vec<Bx> = self.wrapped_atoms(a, st, avail, mp);
         let gaps = gaps_between(&atoms, st, em);
         let total: f32 = atoms.iter().map(|b| b.w).sum::<f32>() + gaps.iter().sum::<f32>();
         let manual = atoms.iter().skip(1).any(|b| b.brk.is_some());
@@ -270,6 +271,7 @@ impl Ctx {
                     copy_w: info.and_then(|v| v.1).and_then(|i| repeats.get(&i)).map_or(0.0, |r| r.1.w + lead),
                     forced: info.is_some_and(|v| v.0.is_some()),
                     rel: c > 0 && is_op(op_i) && cls.get(op_i).is_some_and(|k| k.0 == Cls::Rel),
+                    weak: self.align_relations && c > 0 && is_op(op_i) && atoms.get(op_i).and_then(op_char).is_some_and(super::breaks::is_product),
                 }
             })
             .collect();

@@ -128,6 +128,8 @@ impl Ctx {
                 let cs = st.frac();
                 let n = self.sub(0, num, St { cramped: st.cramped, ..cs }, d);
                 let dn = self.sub(1, den, cs.cramp(), d);
+                // Strix: broken into lines when too wide for a calculation's line (`frac_wrap.rs`).
+                let (n, dn) = self.wrap_frac_parts(num, den, (n, dn), (St { cramped: st.cramped, ..cs }, cs.cramp()));
                 let axis = self.axis(st);
                 let (u, v) = if kind == FracKind::Bar {
                     let t = self.k(C::FractionRuleThickness, st);
