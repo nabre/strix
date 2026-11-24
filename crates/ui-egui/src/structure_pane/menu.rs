@@ -108,7 +108,9 @@ fn items(ui: &mut Ui, st: &Structure, state: &State, t: &Target) -> Option<Act> 
         ui.close();
     };
     let item = |ui: &mut Ui, label: &str, keys: &str, checked: bool, a: Act| {
-        if ui.add(egui::Button::new(ts(label)).shortcut_text(ts(keys)).selected(checked)).clicked() {
+        let text = egui::RichText::new(ts(label));
+        let text = if matches!(&a, Act::Delete) { text.color(ui.visuals().error_fg_color) } else { text };
+        if ui.add(egui::Button::new(text).shortcut_text(ts(keys)).selected(checked)).clicked() {
             pick(ui, a);
         }
     };
@@ -159,6 +161,7 @@ fn items(ui: &mut Ui, st: &Structure, state: &State, t: &Target) -> Option<Act> 
             ui.separator();
             item(ui, "Select its loads", "", false, Act::SelectLoads);
             item(ui, "Select the connected part", "Double-click", false, Act::Connected(Sel::Node(id.clone())));
+            ui.separator();
             item(ui, "Delete", "Del", false, Act::Delete);
         }
         (_, Some(Sel::Member(id))) => {
@@ -191,6 +194,7 @@ fn items(ui: &mut Ui, st: &Structure, state: &State, t: &Target) -> Option<Act> 
             item(ui, "Select its ends", "", false, Act::SelectEnds(id.clone()));
             item(ui, "Select its loads", "", false, Act::SelectLoads);
             item(ui, "Select the connected part", "Double-click", false, Act::Connected(Sel::Member(id.clone())));
+            ui.separator();
             item(ui, "Delete", "Del", false, Act::Delete);
         }
         (_, Some(Sel::Load(k))) => {
@@ -232,7 +236,6 @@ fn items(ui: &mut Ui, st: &Structure, state: &State, t: &Target) -> Option<Act> 
                         item(ui, "On all the aligned members", "", f <= 1e-9 && t >= run.len - 1e-9, Act::WholeRun(k));
                     }
                     let perp = *axes == LoadAxes::Local && angle.value == -90.0;
-                    item(ui, "Perpendicular to the member", "", perp, Act::Perpendicular(k));
                     ui.menu_button(ts("Direction"), |ui| {
                         item(ui, "Vertical", "", false, Act::Angle(k, -90.0));
                         item(ui, "Horizontal", "", false, Act::Angle(k, 0.0));
@@ -268,6 +271,7 @@ fn items(ui: &mut Ui, st: &Structure, state: &State, t: &Target) -> Option<Act> 
             }
             item(ui, "Select its loads", "", false, Act::SelectLoads);
             item(ui, "Deselect", "Esc", false, Act::Deselect);
+            ui.separator();
             item(ui, "Delete", "Del", false, Act::Delete);
         }
     }

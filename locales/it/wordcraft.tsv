@@ -3922,6 +3922,7 @@ structure	y	y
 	Draw the bending moment diagram	Disegna il diagramma del momento flettente
 	Positive Side	Lato positivo
 	Which side of each member a diagram's positive values are drawn on	Da che parte dell'asta si disegnano i valori positivi di ogni diagramma
+	Conventions	Convenzioni
 	Italian Convention	Convenzione italiana
 	N and T positive up, M on the stretched fibres (positive down)	N e T positivi in alto, M dalla parte delle fibre tese (positivo in basso)
 	Write the notable values: at the ends of each stretch, the jumps, the maxima	Scrivi i valori notevoli: agli estremi dei tratti, i salti, i massimi
