@@ -198,3 +198,23 @@ fn an_inline_value_reads_its_names_where_it_stands() {
     assert!(t.contains("prima 2 m e 25 m²"), "{t}");
     assert!(t.contains("dopo 5 m"), "{t}");
 }
+
+/// `exercise.goWorking` puts the caret in a question's working space, whatever the text.
+#[test]
+fn go_to_the_working_space_of_a_question() {
+    let mut s = Session::new(Document::new());
+    run(&mut s, "exercise.insert", json!({"title": "Due", "text": "Testo.", "questions": ["Area", "Volume"]}));
+    run(&mut s, "exercise.goWorking", json!({"exercise": 1, "question": 2}));
+    run(&mut s, "calc.insert", json!({"text": "V = 2 m³"}));
+    run(&mut s, "exercise.goWorking", json!({"exercise": 1, "question": 1}));
+    run(&mut s, "calc.insert", json!({"text": "A = 3 m²"}));
+    let t = text(&s);
+    let solution = t.rfind("Area").unwrap();
+    let (a, v, vol) = (t.find("A=3").unwrap(), t.find("V=2").unwrap(), t.rfind("Volume").unwrap());
+    assert!(solution < a && a < vol && vol < v, "{t}");
+    // Refused: no such question, no exercise, bad numbers.
+    assert!(s.run("exercise.goWorking", &json!({"exercise": 1, "question": 3})).is_err());
+    assert!(s.run("exercise.goWorking", &json!({"exercise": 1, "question": 0})).is_err());
+    assert!(s.run("exercise.goWorking", &json!({"exercise": 9, "question": 1})).is_err());
+    assert!(Session::new(Document::new()).run("exercise.goWorking", &json!({"question": 1})).is_err());
+}

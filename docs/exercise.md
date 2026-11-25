@@ -530,6 +530,7 @@ to the end.
 | `exercise.questionPoints` | set or clear a question's points, in quizzes and problems |
 | `exercise.blank` | Hide Words: an inline completion's hidden word ([question-modes.md](question-modes.md)) |
 | `exercise.insertExpr` | insert an inline value (`{{expr}}`) at the caret |
+| `exercise.goWorking` | the caret at the end of question n's working space in the solution (`{"question", "exercise"?}`; an empty paragraph is made when there is none) |
 | `exercise.generateVariants` | generate clean variants from domains and constraints (below) |
 | `exercise.totalScore` | the total score line (`{"on"?, "points"?}`) |
 | `exercise.grading` | the grading scale table and its settings (below) |
@@ -580,7 +581,7 @@ same commands the ribbon runs (`crates/engine/src/sample_calc.rs`), as the sampl
 
 ## Revision history
 
-- 2026-11-25: inline values read their names where they stand (they read the end of the document, so a name redefined later showed its later value), a name defined only further on still read there; the caret no longer lands inside a value when `{{…}}` is turned into one or a value is rewritten. `exercise.insertExpr` replaces the selection, puts the caret after the value (the next one went into it, changing its formula: "no inline value" after), reads math-italic names and returns `shown`/`error`; a datum given in °C is recalled in °C, units like `1/K` and `1/m³` work in the data.
+- 2026-11-25: `exercise.goWorking {question}` puts the caret in a question's working space (scripts couldn't find it: the repeated question is read-only and its text appears twice). Inline values read their names where they stand (they read the end of the document, so a name redefined later showed its later value), a name defined only further on still read there; the caret no longer lands inside a value when `{{…}}` is turned into one or a value is rewritten. `exercise.insertExpr` replaces the selection, puts the caret after the value (the next one went into it, changing its formula: "no inline value" after), reads math-italic names and returns `shown`/`error`; a datum given in °C is recalled in °C, units like `1/K` and `1/m³` work in the data.
 
 - 2026-11-17: Docs brought up to date with the code: the status line, the Teaching tab's groups (Exercise with Exercise Tools, Archive, Scores, Assessment, Graph Paper), the commands table completed (`exercise.titleLine`, `questionPoints`, `blank`, `insertExpr`, `generateVariants`, `totalScore`, `grading`, `check`, `file.exportPack`, `view.gradingPane`, `view.checkPane`), the Next list (worked steps are calc's).
 

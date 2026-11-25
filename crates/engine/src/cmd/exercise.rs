@@ -46,6 +46,7 @@ mod dsa;
 mod dsa_runs;
 pub(crate) mod expr;
 mod front;
+mod go_working;
 pub(crate) mod grading;
 mod guard;
 mod items;
@@ -149,6 +150,9 @@ pub fn specs() -> Vec<CommandSpec> {
         CommandSpec::new("exercise.addQuestion", "Add Question", "Teaching › Exercise", add_question)
             .when(|s| if exercise_at_caret(s).is_some() { None } else { Some("the cursor isn't in an exercise") })
             .params(r#"{"text"?: string, "level"?: 0–2, "sub"?: bool (one level below the last question); in a quiz "type"?: "open" | "choice" | "trueFalse" | "calc" | "drawing", "points"?, "height"?, "grid"?, "spacing"?, "choices"?, "trueFalse"?: bool, "correct"?, "drawing"? as exercise.insert (default: like the last question)} → adds a question at the end of the questions of the exercise at the caret"#),
+        CommandSpec::new("exercise.goWorking", "Go to Working", "Teaching › Exercise", go_working::command)
+            .when(|s| if scan(s).exercises.is_empty() { Some("the document has no exercise") } else { None })
+            .params(r#"{"question": n (1-based), "exercise"?: n (1-based; default: at the caret)} → {"exercise", "question", "block"}: the caret at the end of the question's working space (the blocks under its repeated question in the solution; an empty paragraph is made when there is none)"#),
         CommandSpec::new("exercise.addNote", "Add Note", "Teaching › Exercise", add_note)
             .when(|s| match exercise_at_caret(s) {
                 None => Some("the cursor isn't in an exercise"),
