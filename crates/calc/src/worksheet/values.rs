@@ -63,7 +63,7 @@ impl Worksheet {
             let end_pos = tokens.get(end).map_or(len, |t| t.pos);
             let is_func = |n: &str| self.scope.function(n).is_some();
             let is_vec = |n: &str| matches!(self.scope.get(n), Some(Value::Vector(_)));
-            let Ok((_, names)) = parse_names(seg, end_pos, &is_func, &is_vec) else { continue };
+            let Ok((_, names)) = parse_names(seg, end_pos, &is_func, &is_vec, &|n| self.scope.get(n).is_some()) else { continue };
             for i in names {
                 let Some(Token { tok: Tok::Ident(name), byte, .. }) = seg.get(i) else { continue };
                 if !value_only(name) || replace.len() >= MAX_REPLACED {

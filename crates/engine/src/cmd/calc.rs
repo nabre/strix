@@ -16,6 +16,8 @@ use wordcraft_doc::{Block, InlineObject, Paragraph, Table};
 
 use crate::{CmdError, CmdResult, CommandSpec, Session, p};
 
+mod hide;
+mod typed;
 mod values;
 
 /// Deepest table nesting searched for regions.
@@ -48,8 +50,11 @@ pub fn specs() -> Vec<CommandSpec> {
             .params(r#"{"value"?: bool (default: toggle), "scope"?: "equation"|"exercise"|"document"|"prefs", "exercise"?: 1-based, "reset"?: bool} → formulas, solved equations and checks show their solution steps, laid out as calc.layout says"#),
         CommandSpec::new("calc.layout", "Result Layout", "Math › Number Display", set_layout)
             .params(r#"{"value"?: "inline" | "lines" (default: toggle), "scope"?: "equation"|"exercise"|"document"|"prefs", "exercise"?: 1-based, "reset"?: bool} → where results and steps go: inline (after ⇒ and = on the statement's line) or lines (one line each under the statement aligned at =); then recalculates"#),
+        CommandSpec::new("calc.hide", "Hide Calculation", "Math › Calculation", hide::command)
+            .when(|s| if super::equation::equation_at_caret(s).is_none() { Some("no equation at the caret") } else { hide::disabled(s) })
+            .params(r#"{"value"?: bool (default: toggle)} → {"hidden", "recalculated"}: the calculation at the caret stays in the calculation but isn't printed (hidden text on it, and on its paragraph when it is alone there; Show All shows it)"#),
         CommandSpec::new("calc.options", "Number Format", "Math › Number Display", set_options)
-            .params(r#"{"digits"?: 0–15, "count"?: "auto|decimals|significant", "zeros"?: bool, "steps"?: bool, "layout"?: "inline|lines", "uncertainty"?: "max|rss", "scope"?: "equation"|"exercise"|"document"|"prefs", "exercise"?: 1-based, "reset"?: bool} → the format: how results are rounded and laid out (resolved as equation > exercise > document > prefs), then recalculates"#),
+            .params(r#"{"digits"?: 0–15, "count"?: "auto|decimals|significant", "zeros"?: bool, "steps"?: bool, "layout"?: "inline|lines", "uncertainty"?: "max|rss", "step"?: number|"none" (results rounded to a multiple of it in their shown unit, e.g. 0.05; not in prefs), "stepMode"?: "nearest|up|down" (up: per eccesso, down: per difetto), "scope"?: "equation"|"exercise"|"document"|"prefs", "exercise"?: 1-based, "reset"?: bool} → the format: how results are rounded and laid out (resolved as equation > exercise > document > prefs), then recalculates"#),
         CommandSpec::new("table.calc", "Calculated Table", "Calculated Table › Calculation", toggle_table)
             .when(|s| match calc_table_place(s) {
                 Some(_) if caret_table_is_calc(s) => None,
@@ -80,7 +85,7 @@ pub fn specs() -> Vec<CommandSpec> {
                     None
                 }
             })
-            .params(r#"{"rows"?: n (default 4), "cols"?: n (default 3)} → inserts a table and makes it calculated (see table.calc)"#),
+            .params(r#"{"rows"?: n (default 4), "cols"?: n (default 3), "cells"?: [[string]] (row by row, the header first: "L [m]", "q = 2*L"; sets rows and cols)} → inserts a table and makes it calculated (see table.calc); with cells, fills it, leaves the caret after the table and returns {"calc", "cells": [[string]] as calculated, "recalculated"}"#),
         CommandSpec::new("calc.tableInfo", "Calculated Table Info", "Math › Tables", |s, _| {
             let table = s.sel.focus.path.cell().and_then(|(tp, _, _)| s.doc.table(s.sel.focus.story, &tp));
             let calc = table.is_some_and(|t| t.props.calc);
@@ -123,6 +128,16 @@ pub struct CalcOverrides {
     /// written by every later calculation. Document scope only.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub decimal_comma: Option<bool>,
+    /// Results rounded to this step (`"0.05"`) in their shown unit, or `"none"` to cancel a wider
+    /// scope's step ([`strix_calc::Step`]).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub step: Option<String>,
+    /// Which way the step rounds: `nearest`, `up` (per eccesso), `down` (per difetto).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub step_mode: Option<String>,
+    /// The calculation stays in the calculation but isn't printed (`calc.hide`; equation scope).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub hidden: Option<bool>,
 }
 
 impl CalcOverrides {
@@ -134,9 +149,18 @@ impl CalcOverrides {
             && self.layout.is_none()
             && self.uncertainty.is_none()
             && self.decimal_comma.is_none()
+            && self.step.is_none()
+            && self.step_mode.is_none()
+            && self.hidden.is_none()
     }
 
     pub fn sanitize(&mut self) {
+        if self.step.as_deref().is_some_and(|st| st != "none" && strix_calc::Step::parse(st, strix_calc::StepMode::Nearest).is_none()) {
+            self.step = None;
+        }
+        if self.step_mode.as_deref().is_some_and(|m| strix_calc::StepMode::from_name(m).is_none()) {
+            self.step_mode = None;
+        }
         if self.uncertainty.as_deref().is_some_and(|u| strix_calc::UncertaintyMode::from_name(u).is_none()) {
             self.uncertainty = None;
         }
@@ -163,6 +187,9 @@ impl CalcOverrides {
             steps: Some(prefs.calc_steps),
             layout: Some(Layout::from_name(&prefs.calc_layout).unwrap_or_default().name().to_string()),
             decimal_comma: None,
+            step: None,
+            step_mode: None,
+            hidden: None,
         }
     }
 
@@ -174,6 +201,7 @@ impl CalcOverrides {
             && self.layout.as_deref().unwrap_or("inline") == "inline"
             && self.uncertainty.as_deref().unwrap_or("max") == "max"
             && self.decimal_comma.is_none()
+            && self.step.as_deref().is_none_or(|st| st == "none")
     }
 
     pub fn apply_to(&self, o: &mut Options) {
@@ -197,6 +225,23 @@ impl CalcOverrides {
         }
         if let Some(c) = self.decimal_comma {
             o.decimal_comma = c;
+        }
+        // The mode alone changes a wider scope's step's direction; a step takes this scope's
+        // mode, else the wider one's.
+        let mode = self.step_mode.as_deref().and_then(strix_calc::StepMode::from_name);
+        match self.step.as_deref() {
+            Some("none") => o.step = None,
+            Some(st) => {
+                let mode = mode.or(o.step.map(|w| w.mode)).unwrap_or_default();
+                if let Some(step) = strix_calc::Step::parse(st, mode) {
+                    o.step = Some(step);
+                }
+            }
+            None => {
+                if let (Some(m), Some(step)) = (mode, o.step.as_mut()) {
+                    step.mode = m;
+                }
+            }
         }
     }
 }
@@ -288,6 +333,11 @@ fn call_overrides(v: &Value) -> CalcOverrides {
         layout: p::str(v, "layout").and_then(Layout::from_name).map(|l| l.name().to_string()),
         // Never for one call only: what is written with commas is read with them afterwards.
         decimal_comma: None,
+        // A step changes the values defined: it is set on an equation, an exercise or the
+        // document (`calc.options`), so it stays with them.
+        step: None,
+        step_mode: None,
+        hidden: None,
     }
 }
 
@@ -440,6 +490,34 @@ fn set_options(s: &mut Session, v: &Value) -> CmdResult {
     };
     let zeros = p::bool(v, "zeros");
     let steps = p::bool(v, "steps");
+    // A step: a positive number (or its text), or "none"/null/0 to take a wider scope's off.
+    let step = match v.get("step") {
+        None => None,
+        Some(Value::Null) => Some("none".to_string()),
+        Some(Value::String(t)) if t.trim() == "none" => Some("none".to_string()),
+        Some(value) => {
+            let text = match value {
+                Value::Number(n) => n.to_string(),
+                Value::String(t) => t.trim().to_string(),
+                _ => String::new(),
+            };
+            if text == "0" {
+                Some("none".to_string())
+            } else {
+                let parsed = strix_calc::Step::parse(&text, strix_calc::StepMode::Nearest).ok_or_else(|| {
+                    CmdError::Params("step: a positive number such as 0.05 (at most 6 significant digits, 1e-9 to 1e9), or none".into())
+                })?;
+                Some(parsed.text())
+            }
+        }
+    };
+    let step_mode = match p::str(v, "stepMode") {
+        Some(m) => Some(strix_calc::StepMode::from_name(m).ok_or_else(|| CmdError::Params("stepMode is nearest, up or down".into()))?),
+        None => None,
+    };
+    if (step.is_some() || step_mode.is_some()) && p::str(v, "scope") == Some("prefs") {
+        return Err(CmdError::Params("a rounding step is set for an equation, an exercise or the document, not in preferences".into()));
+    }
     let layout = match p::str(v, "layout") {
         Some(name) => Some(Layout::from_name(name).ok_or_else(|| CmdError::Params("layout is inline or lines".into()))?),
         None => None,
@@ -465,6 +543,12 @@ fn set_options(s: &mut Session, v: &Value) -> CmdResult {
             }
             if let Some(l) = layout {
                 c.layout = Some(l.name().to_string());
+            }
+            if let Some(st) = &step {
+                c.step = Some(st.clone());
+            }
+            if let Some(m) = step_mode {
+                c.step_mode = Some(m.name().to_string());
             }
         },
         |pr, _| {
@@ -497,6 +581,8 @@ fn set_options(s: &mut Session, v: &Value) -> CmdResult {
         "zeros": eff.zeros,
         "steps": eff.steps,
         "layout": eff.layout.name(),
+        "step": eff.step.map(strix_calc::Step::text),
+        "stepMode": eff.step.map(|st| st.mode.name()),
         "scope": scope,
         "recalculated": report
     }))
@@ -974,6 +1060,9 @@ enum Outcome {
 struct Sheets {
     main: Worksheet,
     exercises: std::collections::BTreeMap<usize, Worksheet>,
+    /// The worksheet of a top-level block holding inline values, as it stands after that block:
+    /// what the values there are worth where they are ([`MAX_VALUE_SNAPSHOTS`] at most).
+    at: std::collections::BTreeMap<usize, Worksheet>,
     /// The drawings with an id as another drawing's underlay shows them: worked out, their
     /// labels written out with their worksheet ([`strix_cad::Drawing::freeze_labels`]).
     cads: CadsById,
@@ -997,8 +1086,9 @@ fn run_sheet(
     ex_calc: &std::collections::BTreeMap<usize, CalcOverrides>,
     call_opts: &CalcOverrides,
     hidden_solutions: Option<&(std::collections::BTreeSet<usize>, bool)>,
+    value_tops: &[usize],
 ) -> (Sheets, Vec<Outcome>) {
-    let first = run_sheet_with(found, opts, zones, seeds, ex_calc, call_opts, hidden_solutions, &CadsById::new());
+    let first = run_sheet_with(found, opts, zones, seeds, ex_calc, call_opts, hidden_solutions, &CadsById::new(), value_tops);
     let all = first.0.cads.clone();
     // An underlay printed whose source came after its drawing: worked out again with it.
     let forward = first.1.iter().any(|o| match o {
@@ -1009,7 +1099,7 @@ fn run_sheet(
         }
         _ => false,
     });
-    if forward { run_sheet_with(found, opts, zones, seeds, ex_calc, call_opts, hidden_solutions, &all) } else { first }
+    if forward { run_sheet_with(found, opts, zones, seeds, ex_calc, call_opts, hidden_solutions, &all, value_tops) } else { first }
 }
 
 /// [`run_sheet`] with the drawings of an earlier pass (`prior`) for underlays whose source comes
@@ -1024,6 +1114,7 @@ fn run_sheet_with(
     call_opts: &CalcOverrides,
     hidden_solutions: Option<&(std::collections::BTreeSet<usize>, bool)>,
     prior: &CadsById,
+    value_tops: &[usize],
 ) -> (Sheets, Vec<Outcome>) {
     // The drawings worked out so far in this pass.
     let mut done = CadsById::new();
@@ -1038,7 +1129,10 @@ fn run_sheet_with(
         o
     };
     let main_opts = zone_options(None);
-    let mut sheets = Sheets { main: Worksheet::new(main_opts), exercises: Default::default(), cads: CadsById::new() };
+    let mut sheets = Sheets { main: Worksheet::new(main_opts), exercises: Default::default(), at: Default::default(), cads: CadsById::new() };
+    // The blocks holding inline values, in order: each takes the worksheet as it stands once the
+    // items before it are worked out.
+    let mut pending = value_tops.iter().copied().take(MAX_VALUE_SNAPSHOTS).peekable();
     // Each exercise's sandbox starts with its data (the active variant's values).
     // The data count against the same step budget as everything else.
     let mut spent = 0usize;
@@ -1057,6 +1151,9 @@ fn run_sheet_with(
             let top = match item {
                 Item::Equation { top, .. } | Item::Table { top, .. } | Item::Cad { top, .. } | Item::Plot { top, .. } => *top,
             };
+            while let Some(at) = pending.next_if(|&at| at < top) {
+                snapshot(&mut sheets, zones, at);
+            }
             let zone = zones.get(top).copied().flatten();
             let show_sol = match (hidden_solutions, zone) {
                 (None, _) => true,
@@ -1168,7 +1265,23 @@ fn run_sheet_with(
         })
         .collect();
     sheets.cads = done;
+    // Blocks after the last item see the whole worksheet: no copy for them.
     (sheets, outcomes)
+}
+
+/// Most worksheet copies one recalculation keeps for inline values; past them, values read the
+/// worksheet as it ends.
+const MAX_VALUE_SNAPSHOTS: usize = 256;
+
+/// Keeps the worksheet of block `at`'s zone as it stands now, for the inline values there.
+fn snapshot(sheets: &mut Sheets, zones: &[Option<usize>], at: usize) {
+    let ws = match zones.get(at).copied().flatten() {
+        Some(e) => sheets.exercises.get(&e),
+        None => Some(&sheets.main),
+    };
+    if let Some(ws) = ws.cloned() {
+        sheets.at.insert(at, ws);
+    }
 }
 
 /// The sign the total row shows in its first column: the row's label (`docs/calc.md`).
@@ -1344,6 +1457,10 @@ pub(crate) fn recalculate(s: &mut Session, opts: &Options) -> Value {
 
 /// `from_commas`: the document was calculated with decimal commas until now and no longer is.
 fn recalculate_scoped(s: &mut Session, opts: &Options, call_opts: &CalcOverrides, from_commas: bool) -> Value {
+    // Hidden calculations take their hidden text back (a saved file may have lost it).
+    if hide::apply(s) {
+        s.touch();
+    }
     let converted_templates = super::exercise::expr::convert_all_templates(s);
     let mut found = items(&s.doc.body);
     if from_commas {
@@ -1373,7 +1490,10 @@ fn recalculate_scoped(s: &mut Session, opts: &Options, call_opts: &CalcOverrides
     let zones = super::exercise::zones(s);
     let ex_calc = super::exercise::exercise_calc(s);
     let hidden = super::exercise::hidden_solutions(s);
-    let (sheets, outcomes) = run_sheet(&found, opts, &zones, &super::exercise::seeds(s), &ex_calc, call_opts, Some(&hidden));
+    // Inline values show what their names are worth where they stand.
+    let mut value_tops: Vec<usize> = super::exercise::expr::collect_exprs(&s.doc.body).into_iter().map(|(top, _)| top).collect();
+    value_tops.dedup();
+    let (sheets, outcomes) = run_sheet(&found, opts, &zones, &super::exercise::seeds(s), &ex_calc, call_opts, Some(&hidden), &value_tops);
     // Exercise data the reader only sees as values are written as values (docs/calc.md).
     let value_only = super::exercise::value_only(s);
     let mut sources: Vec<Option<String>> = Vec::new();
@@ -1491,7 +1611,7 @@ fn recalculate_scoped(s: &mut Session, opts: &Options, call_opts: &CalcOverrides
     for top in plain_tables {
         changed += hide_header_equals(s, top);
     }
-    let (expr_changed, expr_errors) = super::exercise::expr::apply_sheets(s, &zones, &sheets.main, &sheets.exercises);
+    let (expr_changed, expr_errors) = super::exercise::expr::apply_sheets(s, &zones, &sheets.main, &sheets.exercises, &sheets.at);
     changed += usize::from(converted_templates) + expr_changed;
     errors.extend(expr_errors);
     json!({"regions": calc_regions, "tables": tables, "changed": changed, "errors": errors})
@@ -1579,7 +1699,7 @@ pub(crate) fn answers(s: &Session, opts: &Options) -> Vec<(usize, u32, String)> 
     }
     let zones = super::exercise::zones(s);
     let ex_calc = super::exercise::exercise_calc(s);
-    let (sheets, outcomes) = run_sheet(&found, opts, &zones, &super::exercise::seeds(s), &ex_calc, &CalcOverrides::default(), None);
+    let (sheets, outcomes) = run_sheet(&found, opts, &zones, &super::exercise::seeds(s), &ex_calc, &CalcOverrides::default(), None, &[]);
     found
         .iter()
         .zip(&outcomes)
@@ -1869,7 +1989,7 @@ pub(crate) fn underlay_source(s: &Session, source: &Arc<str>) -> Option<Arc<stri
     let at = found.iter().position(|i| matches!(i, Item::Cad { source: src, .. } if Arc::ptr_eq(src, source)))?;
     found.truncate(at + 1);
     let (zones, seeds, ex_calc) = (super::exercise::zones(s), super::exercise::seeds(s), super::exercise::exercise_calc(s));
-    let (sheets, outcomes) = run_sheet(&found, &options_now(s), &zones, &seeds, &ex_calc, &CalcOverrides::default(), None);
+    let (sheets, outcomes) = run_sheet(&found, &options_now(s), &zones, &seeds, &ex_calc, &CalcOverrides::default(), None, &[]);
     let id = match outcomes.into_iter().nth(at) {
         Some(Outcome::Cad(_, _, Some(r))) => r.0.id.clone()?,
         _ => return None,
@@ -1901,7 +2021,7 @@ fn resolved_cad_as(s: &Session, source: &Arc<str>, in_mm: bool) -> Option<Resolv
     if let Some(hit) = CAD_MEMO.with(|m| m.borrow().get(slot).and_then(Option::as_ref).filter(|(k, _)| *k == key).map(|(_, v)| v.clone())) {
         return hit;
     }
-    let (mut sheets, outcomes) = run_sheet(&found, &opts, &zones, &seeds, &ex_calc, &CalcOverrides::default(), None);
+    let (mut sheets, outcomes) = run_sheet(&found, &opts, &zones, &seeds, &ex_calc, &CalcOverrides::default(), None, &[]);
     let resolved = match (found.get(at), outcomes.into_iter().nth(at)) {
         (Some(Item::Cad { top, source }), Some(Outcome::Cad(Some(r), _, Some(resolved)))) => {
             let (d, names, screen) = *resolved;
@@ -1941,7 +2061,7 @@ pub(crate) fn cad_errors(s: &Session, source: &Arc<str>) -> Option<Vec<(String, 
     let at = found.iter().position(|i| matches!(i, Item::Cad { source: src, .. } if Arc::ptr_eq(src, source)))?;
     found.truncate(at + 1);
     let (zones, seeds, ex_calc) = (super::exercise::zones(s), super::exercise::seeds(s), super::exercise::exercise_calc(s));
-    let (_, outcomes) = run_sheet(&found, &options_now(s), &zones, &seeds, &ex_calc, &CalcOverrides::default(), None);
+    let (_, outcomes) = run_sheet(&found, &options_now(s), &zones, &seeds, &ex_calc, &CalcOverrides::default(), None, &[]);
     match outcomes.into_iter().last() {
         Some(Outcome::Cad(_, errors, _)) => Some(errors),
         _ => None,
@@ -1954,7 +2074,7 @@ pub(crate) fn resolved_plot(s: &Session, source: &Arc<str>) -> Option<strix_plot
     let at = found.iter().position(|i| matches!(i, Item::Plot { source: src, .. } if Arc::ptr_eq(src, source)))?;
     found.truncate(at + 1);
     let (zones, seeds, ex_calc) = (super::exercise::zones(s), super::exercise::seeds(s), super::exercise::exercise_calc(s));
-    let (_, outcomes) = run_sheet(&found, &options_now(s), &zones, &seeds, &ex_calc, &CalcOverrides::default(), None);
+    let (_, outcomes) = run_sheet(&found, &options_now(s), &zones, &seeds, &ex_calc, &CalcOverrides::default(), None, &[]);
     match outcomes.into_iter().last() {
         Some(Outcome::Plot(rendered, _)) => rendered,
         _ => None,
@@ -1980,7 +2100,7 @@ pub(crate) fn worksheet_at(s: &Session, source: &Arc<str>) -> Option<Worksheet> 
     found.truncate(at);
     let (zones, seeds, ex_calc) = (super::exercise::zones(s), super::exercise::seeds(s), super::exercise::exercise_calc(s));
     let opts = options_now(s);
-    let (mut sheets, _) = run_sheet(&found, &opts, &zones, &seeds, &ex_calc, &CalcOverrides::default(), None);
+    let (mut sheets, _) = run_sheet(&found, &opts, &zones, &seeds, &ex_calc, &CalcOverrides::default(), None, &[]);
     Some(match zones.get(top).copied().flatten() {
         Some(e) => sheets.exercises.remove(&e).unwrap_or_else(|| Worksheet::new(opts)),
         None => sheets.main,
@@ -2662,13 +2782,27 @@ fn insert(s: &mut Session, v: &Value) -> CmdResult {
     if text.chars().count() > strix_calc::MAX_INPUT_CHARS {
         return Err(CmdError::Params(format!("a statement is at most {} characters", strix_calc::MAX_INPUT_CHARS)));
     }
+    let text = typed::tidy(&text);
     let mut eq = json!({"linear": text, "edit": false, "calc": true});
     if let Some(d) = p::bool(v, "display") {
         eq["display"] = json!(d);
     }
     s.run("insert.equation", &eq).map_err(|e| CmdError::Failed(e.to_string()))?;
     let report = recalculate(s, &options(s, v));
-    Ok(json!({"inserted": true, "recalculated": report}))
+    // What the statement shows once calculated (its result or `⚠`), at once.
+    let shown = equation_before_caret(s);
+    Ok(json!({"inserted": true, "shown": shown, "recalculated": report}))
+}
+
+/// The linear text of the equation just before the caret (the one just inserted).
+fn equation_before_caret(s: &Session) -> Option<String> {
+    let focus = &s.sel.focus;
+    let para = s.doc.para(focus.story, &focus.path)?;
+    let (_, o) = para.objects_with_offsets().filter(|(at, _)| *at < focus.off).last()?;
+    match o {
+        InlineObject::Equation { math, .. } => Some(to_linear(&math.nodes)),
+        _ => None,
+    }
 }
 
 /// Turns the equation at the caret into a calculation region or back, then recalculates.
@@ -3045,10 +3179,84 @@ fn insert_table(s: &mut Session, v: &Value) -> CmdResult {
     if s.sel.focus.path.cell().is_some() {
         return Err(CmdError::Disabled(NESTED_TABLE.into()));
     }
-    let rows = p::u64(v, "rows").unwrap_or(4).clamp(2, 1000);
-    let cols = p::u64(v, "cols").unwrap_or(3).clamp(1, 63);
+    let cells = given_cells(v)?;
+    let rows = cells.as_ref().map_or_else(|| p::u64(v, "rows").unwrap_or(4), |c| c.len() as u64).clamp(2, MAX_TABLE_ROWS);
+    let cols =
+        cells.as_ref().map_or_else(|| p::u64(v, "cols").unwrap_or(3), |c| c.iter().map(Vec::len).max().unwrap_or(1) as u64).clamp(1, MAX_TABLE_COLS);
     s.run("insert.table", &json!({"rows": rows, "cols": cols})).map_err(|e| CmdError::Failed(e.to_string()))?;
-    toggle_table(s, &json!({"value": true}))
+    let Some(cells) = cells else {
+        return toggle_table(s, &json!({"value": true}));
+    };
+    let (tp, _, _) = s.sel.focus.path.cell().ok_or_else(|| CmdError::Failed("the table was not inserted".into()))?;
+    let story = s.sel.focus.story;
+    {
+        let t = s.doc.table_mut(story, &tp)?;
+        for (row, texts) in t.rows.iter_mut().zip(&cells) {
+            for (cell, text) in row.cells.iter_mut().zip(texts) {
+                if let Some(Block::Para(para)) = cell.blocks.first_mut().map(Arc::make_mut)
+                    && !text.is_empty()
+                {
+                    let props = para.props_of_char(0).clone();
+                    para.insert_text(0, text, &props).map_err(|e| CmdError::Failed(e.to_string()))?;
+                }
+            }
+        }
+    }
+    super::table::touch_cells(s, &tp)?;
+    let report = toggle_table(s, &json!({"value": true}))?;
+    // The cells as calculated, then the caret after the table, where the next statement goes.
+    let shown: Vec<Vec<String>> = s
+        .doc
+        .table(story, &tp)
+        .map(|t| {
+            t.rows
+                .iter()
+                .map(|r| r.cells.iter().map(|c| c.blocks.first().and_then(|b| b.as_para()).map(|p| p.plain_text()).unwrap_or_default()).collect())
+                .collect()
+        })
+        .unwrap_or_default();
+    let top = tp.0.first().copied().unwrap_or(0) as usize;
+    if top + 1 >= s.doc.body.len() {
+        s.doc.body.push(Arc::new(Block::Para(wordcraft_doc::Paragraph::default())));
+    }
+    s.sel = crate::Selection::caret(wordcraft_doc::Pos::new(story, wordcraft_doc::Path::top(top + 1), 0));
+    s.touch();
+    Ok(json!({"calc": true, "cells": shown, "recalculated": report["recalculated"]}))
+}
+
+/// Most rows and columns `calc.insertTable` makes.
+const MAX_TABLE_ROWS: u64 = 1000;
+const MAX_TABLE_COLS: u64 = 63;
+/// Longest text of one cell given to `calc.insertTable`.
+const MAX_CELL_CHARS: usize = 1000;
+
+/// The `cells` of `calc.insertTable`: rows of strings (numbers are taken as their text), at most
+/// [`MAX_TABLE_ROWS`] × [`MAX_TABLE_COLS`]. `None` when not given.
+fn given_cells(v: &Value) -> Result<Option<Vec<Vec<String>>>, CmdError> {
+    let Some(rows) = v.get("cells") else { return Ok(None) };
+    let bad = || CmdError::Params("cells: rows of strings, [[\"L [m]\", \"q = 2*L\"], [\"3\", \"\"]]".into());
+    let rows = rows.as_array().ok_or_else(bad)?;
+    if rows.is_empty() || rows.len() as u64 > MAX_TABLE_ROWS {
+        return Err(CmdError::Params(format!("cells: 1 to {MAX_TABLE_ROWS} rows")));
+    }
+    let mut out = Vec::with_capacity(rows.len());
+    for row in rows {
+        let row = row.as_array().ok_or_else(bad)?;
+        if row.len() as u64 > MAX_TABLE_COLS {
+            return Err(CmdError::Params(format!("cells: at most {MAX_TABLE_COLS} columns")));
+        }
+        let texts = row
+            .iter()
+            .map(|c| match c {
+                Value::String(t) => Ok(t.chars().filter(|c| !c.is_control()).take(MAX_CELL_CHARS).collect()),
+                Value::Number(n) => Ok(n.to_string()),
+                Value::Null => Ok(String::new()),
+                _ => Err(bad()),
+            })
+            .collect::<Result<Vec<String>, CmdError>>()?;
+        out.push(texts);
+    }
+    Ok(Some(out))
 }
 
 fn item_positions(blocks: &[Arc<Block>]) -> Vec<wordcraft_doc::Pos> {
@@ -3189,7 +3397,7 @@ fn variables(s: &mut Session, v: &Value) -> CmdResult {
     let zones = super::exercise::zones(s);
     let ex_calc = super::exercise::exercise_calc(s);
     let meta = super::exercise::sandbox_meta(s);
-    let (sheets, outcomes) = run_sheet(&found, &opts, &zones, &super::exercise::seeds(s), &ex_calc, &call_c, None);
+    let (sheets, outcomes) = run_sheet(&found, &opts, &zones, &super::exercise::seeds(s), &ex_calc, &call_c, None, &[]);
     let main_defined = defined_regions(&found, &outcomes, &zones, None);
     let list: Vec<Value> = sheets
         .main

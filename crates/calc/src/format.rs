@@ -263,11 +263,11 @@ pub(crate) fn render_nodes(expr: &Expr, sub: &dyn Fn(&Expr) -> Option<String>) -
                 args.iter().enumerate().map(|(i, a)| if func.is_rounding() && i == 2 { crate::format::render(a) } else { render(a) }).collect();
             match (func, args.as_slice()) {
                 (Func::Sqrt, [a]) => format!("√({a})"),
-                // As the Equation tab builds them: the degree first, the inverse as a power on
-                // the name, bars, a base under the logarithm.
+                // As the Equation tab builds them: the degree first, bars, a base under the
+                // logarithm; an inverse named with its `a` (`asin`), applied to its argument.
                 (Func::Cbrt, [a]) => format!("√(3&{a})"),
                 (Func::Root, [a, n]) => format!("√({n}&{a})"),
-                (f, [a]) if let Some(direct) = f.inverse_of() => format!("{}^(−1)\u{2061}({a})", direct.name()),
+                (f, [a]) if f.inverse_of().is_some() => format!("{}\u{2061}({a})", f.name()),
                 (Func::Norm, [a]) => format!("├‖{a}‖┤"),
                 (Func::Log, [a, base]) => {
                     let plain = base.chars().all(|c| c.is_alphanumeric() || c == '.');

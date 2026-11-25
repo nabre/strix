@@ -56,7 +56,7 @@ pub use format::format_number;
 pub use quantity::{BASE_SYMBOLS, Dim, Quantity};
 pub use table::{CellNames, TableResult, is_blank, ordinals};
 pub use units::{auto_unit, compatible_units, constant, display_unit, unit};
-pub use worksheet::{Count, Layout, Options, RegionKind, RegionResult, Worksheet, evaluate, format_value, format_value_in};
+pub use worksheet::{Count, Layout, Options, RegionKind, RegionResult, Step, StepMode, Worksheet, evaluate, format_value, format_value_in};
 
 /// Longest statement accepted, in characters; longer text is a [`CalcError::TooLong`].
 pub const MAX_INPUT_CHARS: usize = 4096;
