@@ -3481,6 +3481,7 @@ mark	Grade	Note
 	Islands	Inseln
 	ISO 690 (author-date)	ISO 690 (Autor-Jahr)
 	ISO 690 (numerical)	ISO 690 (numerisch)
+	Conventions	Konventionen
 	Italian Convention	Italienische Konvention
 	It will be installed when you restart Strix Writer.	Sie wird beim nächsten Neustart von Strix Writer installiert.
 	Join: objects that meet end to end into a polyline	Verbinden: Objekte, die Ende an Ende liegen, zu einer Polylinie
@@ -3980,6 +3981,10 @@ structure	Add a distributed load	Streckenlast hinzufügen
 structure	Split here	Hier teilen
 structure	Split in half	In der Mitte teilen
 structure	Join the members	Stäbe verbinden
+structure	Rename in Order	Der Reihe nach benennen
+structure	The names don't follow the structure from left to right.	Die Namen folgen der Struktur nicht von links nach rechts.
+structure	Name the members 1, 2, 3… from left to right and the nodes A, B, C… in the same order, so the drawing and the working read in order	Die Stäbe von links nach rechts 1, 2, 3… und die Knoten in derselben Reihenfolge A, B, C… nennen, damit Zeichnung und Lösungsweg der Reihe nach gelesen werden
+	Rename in Order	Der Reihe nach benennen
 structure	The node must join exactly two members	Der Knoten muss genau zwei Stäbe verbinden
 structure	The two members are not aligned	Die beiden Stäbe liegen nicht auf einer Linie
 structure	The node has a support	Der Knoten hat ein Auflager

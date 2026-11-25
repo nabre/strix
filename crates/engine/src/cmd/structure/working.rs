@@ -1166,6 +1166,21 @@ pub(super) fn renamed_symbol(text: &str, old: &str, new: &str) -> String {
     out
 }
 
+/// The members' results in the order the working takes them: the structure's geometry's, left
+/// to right then bottom to top, whatever their names ([`strix_structure::member_order`]).
+pub(super) fn in_order<'a>(st: &Structure, members: &'a [MemberResult]) -> Vec<&'a MemberResult> {
+    let order: Vec<&str> = strix_structure::member_order(st).into_iter().filter_map(|k| st.members.get(k).map(|m| m.id.as_str())).collect();
+    let mut out: Vec<&MemberResult> = members.iter().collect();
+    out.sort_by_key(|m| order.iter().position(|id| *id == m.id).unwrap_or(usize::MAX));
+    out
+}
+
+/// A member's tag in its stretches' names: its place in the working's order (`1` for the
+/// leftmost), so the stretches are numbered as they are read whatever the members' names.
+pub(super) fn member_tag(st: &Structure, id: &str) -> String {
+    strix_structure::member_rank(st, id).map_or_else(|| sub(id, 0), |r| r.to_string())
+}
+
 /// A stretch's tag in the laws' names: the member's (`1`), with a letter when the member has
 /// several stretches (`1a`, `1b`…).
 fn stretch_tag(id: &str, k: usize, count: usize) -> String {
@@ -1294,9 +1309,8 @@ fn lines(st: &Structure, an: &strix_structure::Analysis, labels: &Labels, comma:
     out.push(Line::words(labels.signs.clone()));
     if an.truss {
         out.push(Line::words(format!("{}:", labels.axial)));
-        let defs: Vec<String> = an
-            .members
-            .iter()
+        let defs: Vec<String> = in_order(st, &an.members)
+            .into_iter()
             .map(|m| {
                 let n = m.forces(m.length * 0.5, true).n;
                 format!("N_{} = {}", sub(&m.id, 0), bare(&signed(n, &u.f, comma)))
@@ -1309,7 +1323,7 @@ fn lines(st: &Structure, an: &strix_structure::Analysis, labels: &Labels, comma:
     }
     let shear = shear_name(st);
     out.push(Line::heading(format!("{}: {}", labels.forces, renamed_symbol(&labels.conventions, "T", &shear))));
-    for m in &an.members {
+    for m in in_order(st, &an.members) {
         if out.len() >= MAX_LINES {
             break;
         }
@@ -1348,7 +1362,7 @@ fn law(c: &[f64; 4], units: [&str; 4], comma: bool) -> String {
 fn member_lines(st: &Structure, us: &[Unknown], m: &MemberResult, u: &Units, labels: &Labels, shear: &str, out: &mut Vec<Line>) {
     let Some(src) = st.member(&m.id) else { return };
     let parts = stretches(m);
-    let id = sub(&m.id, 0);
+    let id = member_tag(st, &m.id);
     let (f, l) = (u.f.as_str(), u.l.as_str());
     let fl = format!("{f}/{l}");
     let fl2 = format!("{f}/{l}^2");

@@ -247,7 +247,7 @@ dependencies = [
  "objc2-foundation 0.3.2",
  "parking_lot",
  "percent-encoding",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
  "wl-clipboard-rs",
  "x11rb 0.13.2",
 ]
@@ -1870,7 +1870,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -3974,7 +3974,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7d8fae84b431384b68627d0f9b3b1245fcf9f46f6c0e3dc902e9dce64edd1967"
 dependencies = [
  "libc",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -4249,9 +4249,9 @@ dependencies = [
 
 [[package]]
 name = "pollster"
-version = "1.0.1"
+version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bc6355899e1c9462875b6757c79f3caa011a1fdae12bbb1a2e72dd1f234f8336"
+checksum = "7e9b9cf600136f5b976fbc5727d58c26e1ecab8ee23088d44ef1c7af793550ab"
 
 [[package]]
 name = "polycool"
@@ -4477,7 +4477,7 @@ dependencies = [
  "once_cell",
  "socket2",
  "tracing",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -4658,9 +4658,9 @@ dependencies = [
 
 [[package]]
 name = "regex"
-version = "1.13.1"
+version = "1.13.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f020237b6c8eed93db2e2cb53c00c60a8e1bc73da7d073199a1180401450218d"
+checksum = "9807af0e638c12e753aa1b4e601791bf2a8f71274023c8bbeec12fc149950857"
 dependencies = [
  "aho-corasick",
  "memchr",
@@ -4670,9 +4670,9 @@ dependencies = [
 
 [[package]]
 name = "regex-automata"
-version = "0.4.18"
+version = "0.4.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ad8553b9b26413251cbf30e620595c7a41b3887f03da04579c0e6b0d6a06b4b2"
+checksum = "41d60ef07df457506a0a1a2073112eb4aae5733dbd2813c3da77d1b0fd441158"
 dependencies = [
  "aho-corasick",
  "memchr",
@@ -4681,9 +4681,9 @@ dependencies = [
 
 [[package]]
 name = "regex-syntax"
-version = "0.8.11"
+version = "0.8.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d6f6ff9a378485b298a5286656da665ba74413d36db0979633275d2e708145d4"
+checksum = "d902046e6a28a1e4c3cab97258a0ce11e994903f01c2d97a9447a0b3df85f4f6"
 
 [[package]]
 name = "renderdoc-sys"
@@ -4835,7 +4835,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys 0.12.1",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -4904,7 +4904,7 @@ dependencies = [
  "security-framework",
  "security-framework-sys",
  "webpki-root-certs",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -5554,7 +5554,7 @@ checksum = "6637bab7722d379c8b41ba849228d680cc12d0a45ba1fa2b48f2a30577a06731"
 
 [[package]]
 name = "strix"
-version = "0.28.1"
+version = "0.29.0"
 dependencies = [
  "arboard",
  "chrono",
@@ -5594,7 +5594,7 @@ dependencies = [
 
 [[package]]
 name = "strix-cad"
-version = "0.28.1"
+version = "0.29.0"
 dependencies = [
  "robust",
  "serde",
@@ -5604,11 +5604,11 @@ dependencies = [
 
 [[package]]
 name = "strix-calc"
-version = "0.28.1"
+version = "0.29.0"
 
 [[package]]
 name = "strix-cli"
-version = "0.28.1"
+version = "0.29.0"
 dependencies = [
  "craft-zip",
  "image",
@@ -5625,7 +5625,7 @@ dependencies = [
 
 [[package]]
 name = "strix-dictionaries"
-version = "0.28.1"
+version = "0.29.0"
 dependencies = [
  "craft-proof",
  "encoding_rs",
@@ -5635,7 +5635,7 @@ dependencies = [
 
 [[package]]
 name = "strix-plot"
-version = "0.28.1"
+version = "0.29.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -5644,7 +5644,7 @@ dependencies = [
 
 [[package]]
 name = "strix-structure"
-version = "0.28.1"
+version = "0.29.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -5654,7 +5654,7 @@ dependencies = [
 
 [[package]]
 name = "strix-web"
-version = "0.28.1"
+version = "0.29.0"
 dependencies = [
  "craft-web-api",
  "craft-web-host",
@@ -5820,10 +5820,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32497e9a4c7b38532efcdebeef879707aa9f794296a4f0244f6f69e9bc8574bd"
 dependencies = [
  "fastrand",
- "getrandom 0.3.4",
+ "getrandom 0.4.3",
  "once_cell",
  "rustix 1.1.6",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -6870,7 +6870,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -7228,11 +7228,11 @@ dependencies = [
 
 [[package]]
 name = "wordcraft-control-key"
-version = "0.28.1"
+version = "0.29.0"
 
 [[package]]
 name = "wordcraft-doc"
-version = "0.28.1"
+version = "0.29.0"
 dependencies = [
  "base64 0.23.1",
  "craft-codepage",
@@ -7248,7 +7248,7 @@ dependencies = [
 
 [[package]]
 name = "wordcraft-docbin"
-version = "0.28.1"
+version = "0.29.0"
 dependencies = [
  "cfb",
  "chrono",
@@ -7265,7 +7265,7 @@ dependencies = [
 
 [[package]]
 name = "wordcraft-docx"
-version = "0.28.1"
+version = "0.29.0"
 dependencies = [
  "aes",
  "base64 0.23.1",
@@ -7290,7 +7290,7 @@ dependencies = [
 
 [[package]]
 name = "wordcraft-engine"
-version = "0.28.1"
+version = "0.29.0"
 dependencies = [
  "cfb",
  "chrono",
@@ -7332,7 +7332,7 @@ dependencies = [
 
 [[package]]
 name = "wordcraft-fonts"
-version = "0.28.1"
+version = "0.29.0"
 dependencies = [
  "brotli-decompressor 5.0.3",
  "harfrust 0.13.3",
@@ -7347,7 +7347,7 @@ dependencies = [
 
 [[package]]
 name = "wordcraft-formats"
-version = "0.28.1"
+version = "0.29.0"
 dependencies = [
  "aes",
  "base64 0.23.1",
@@ -7375,7 +7375,7 @@ dependencies = [
 
 [[package]]
 name = "wordcraft-geom"
-version = "0.28.1"
+version = "0.29.0"
 dependencies = [
  "craft-image-codecs",
  "craft-tiff",
@@ -7385,7 +7385,7 @@ dependencies = [
 
 [[package]]
 name = "wordcraft-layout"
-version = "0.28.1"
+version = "0.29.0"
 dependencies = [
  "craft-metafile",
  "craft-proof",
@@ -7404,7 +7404,7 @@ dependencies = [
 
 [[package]]
 name = "wordcraft-mcp"
-version = "0.28.1"
+version = "0.29.0"
 dependencies = [
  "craft-mcp-server",
  "log",
@@ -7417,7 +7417,7 @@ dependencies = [
 
 [[package]]
 name = "wordcraft-pdf"
-version = "0.28.1"
+version = "0.29.0"
 dependencies = [
  "chrono",
  "craft-metafile",
@@ -7438,7 +7438,7 @@ dependencies = [
 
 [[package]]
 name = "wordcraft-render"
-version = "0.28.1"
+version = "0.29.0"
 dependencies = [
  "craft-metafile",
  "image",
@@ -7452,7 +7452,7 @@ dependencies = [
 
 [[package]]
 name = "wordcraft-ui-egui"
-version = "0.28.1"
+version = "0.29.0"
 dependencies = [
  "accesskit_consumer",
  "cfb",
@@ -7489,7 +7489,7 @@ dependencies = [
 
 [[package]]
 name = "wordcraft-zotero"
-version = "0.28.1"
+version = "0.29.0"
 dependencies = [
  "log",
  "proptest",
@@ -7669,7 +7669,7 @@ checksum = "9440ea3e5aeabb0ac63af70daf835274065238cdd0cec83418f417eae38bacee"
 
 [[package]]
 name = "xtask"
-version = "0.28.1"
+version = "0.29.0"
 dependencies = [
  "serde_json",
 ]
@@ -7857,9 +7857,9 @@ dependencies = [
 
 [[package]]
 name = "zeroize"
-version = "1.9.1"
+version = "1.9.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e13084392c5e4bc371903e2935a5eaeed24905a7511356b883835e18a78f6879"
+checksum = "85ccff8a4805aba1eaa4cd4afcd49f7557dd2cf5fd79ffc37f8959466effc5aa"
 dependencies = [
  "zeroize_derive",
 ]
@@ -7914,9 +7914,9 @@ dependencies = [
 
 [[package]]
 name = "zip"
-version = "9.7.0"
+version = "9.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "08687262e7c0f1284b259686f322805a8adaa8ef4d7210e76448950b3f083bf7"
+checksum = "2d8dbe089cf6b0448b78f5fc50139ab5aaa40d08ac07cdc1baf2c13add35fcce"
 dependencies = [
  "constant_time_eq",
  "crc32fast",

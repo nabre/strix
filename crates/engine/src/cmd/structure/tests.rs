@@ -1295,3 +1295,57 @@ fn the_shear_changing_sign_over_a_support_gives_a_relative_maximum() {
     assert!(lines.contains(&"d) x_1 = 2.139 m; T_1(4.5 m) = -23.611 kN; T_2(0 m) = 10 kN"), "{t}");
     assert!(lines.contains(&"e) M_1(x_1) = 22.874 kN·m; M_1(4.5 m) = -5 kN·m"), "{t}");
 }
+
+/// The owner's beam (fixed at D, pin at A, roller at B, overhang to C) drawn with its members
+/// named out of order: 1 = A–B, 2 = B–C, 3 = D–A, one load over all three.
+fn scattered_beam() -> serde_json::Value {
+    json!({
+        "nodes": [{"id": "D", "x": 0, "y": 0}, {"id": "A", "x": 3, "y": 0}, {"id": "B", "x": 4.5, "y": 0}, {"id": "C", "x": 5.5, "y": 0}],
+        "members": [{"id": "1", "a": "A", "b": "B"}, {"id": "2", "a": "B", "b": "C"}, {"id": "3", "a": "D", "b": "A"}],
+        "supports": [{"node": "D", "kind": "fixed"}, {"node": "A", "kind": "pin"}, {"node": "B", "kind": "roller"}],
+        "loads": [{"type": "distributed", "member": "3", "then": ["1", "2"], "q1": 10}]
+    })
+}
+
+/// The working goes through the members left to right whatever their names, its stretches
+/// numbered so (`Stretch 1: Member 3 (D–A)`), and a load over several members enters the laws
+/// past its start as one load from there (`q_1·(x + 3 m)`), never as its whole resultant once
+/// for each member it covers.
+#[test]
+fn the_working_goes_left_to_right_and_takes_a_load_over_members_whole() {
+    let mut s = Session::new(Document::new());
+    s.run("structure.exercise", &json!({"structure": scattered_beam()})).unwrap();
+    let t = text_of(&s);
+    assert!(!t.contains('⚠'), "{t}");
+    let first = |p: &str| t.find(p).unwrap_or_else(|| panic!("{p}: {t}"));
+    assert!(first("Stretch 1: Member 3 (D–A)") < first("Stretch 2: Member 1 (A–B)"), "{t}");
+    assert!(first("Stretch 2: Member 1 (A–B)") < first("Stretch 3: Member 2 (B–C)"), "{t}");
+    for law in
+        ["T_1(x)=V_D-q_1·x", "T_2(x)=V_D+V_A-q_1·(x+3 m)", "M_2(x)=V_D·(x+3 m)-M_D+V_A·x-q_1·((x+3 m)^2)/2", "T_3(x)=V_D+V_A+V_B-q_1·(x+4.5 m)"]
+    {
+        assert!(has(&t, law), "{law}: {t}");
+    }
+    assert!(!has(&t, "-F_1-F_1") && !has(&t, "V_A-F_1"), "{t}");
+    // T: 7.25 kN just past A, zero 0.725 m further, -7.75 kN before B; 10 kN past B.
+    let value = |call: &str, result: &str| t.lines().any(|l| has(l, &format!("{call}=V_")) && has(l, &format!("={result}")));
+    assert!(value("T_2(0 m)", "7.25 kN") && value("T_2(1.5 m)", "-7.75 kN") && value("T_3(0 m)", "10 kN"), "{t}");
+    assert!(t.lines().any(|l| l.starts_with("d) ") && l.contains("x_2 = 0.725 m")), "{t}");
+    assert!(t.lines().any(|l| l.starts_with("e) ") && l.contains("M_2(x_2) = -1.997 kN·m")), "{t}");
+}
+
+/// Rename in Order: the members 1, 2, 3 left to right, the nodes A, B, C, D as they meet them;
+/// supports and loads follow.
+#[test]
+fn rename_in_order_names_the_members_and_nodes_left_to_right() {
+    let mut s = Session::new(Document::new());
+    s.run("structure.insert", &json!({"structure": scattered_beam()})).unwrap();
+    let r = s.run("structure.renumber", &json!({})).unwrap();
+    let st: strix_structure::Structure = serde_json::from_value(r["structure"].clone()).unwrap();
+    let ids: Vec<(&str, &str, &str)> = st.members.iter().map(|m| (m.id.as_str(), m.a.as_str(), m.b.as_str())).collect();
+    assert_eq!(ids, [("2", "B", "C"), ("3", "C", "D"), ("1", "A", "B")]);
+    let supports: Vec<&str> = st.supports.iter().map(|s| s.node.as_str()).collect();
+    assert_eq!(supports, ["A", "B", "C"]);
+    assert!(matches!(&st.loads[0], strix_structure::Load::Distributed { member, then, .. } if member == "1" && then == &["2", "3"]));
+    assert!(st.names_in_order());
+    assert_eq!(r["status"], "hyperstatic", "{r}");
+}

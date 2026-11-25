@@ -10,7 +10,7 @@ use serde_json::{Value, json};
 use strix_plot::{PlotAnchor, PlotPrim};
 use strix_structure::{Load, Num, Structure, SupportKind};
 
-use crate::WordApp;
+use crate::{WordApp, theme::Tokens};
 
 mod edits;
 mod grips;
@@ -338,35 +338,34 @@ pub(crate) fn pane(app: &mut WordApp, ui: &mut Ui) {
     };
     let mut state = ui.data(|d| d.get_temp::<State>(state_id())).unwrap_or_default();
     state.prune(&st);
-    ui.horizontal(|ui| {
-        status_line(ui, &info);
-        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+    if ui
+        .horizontal_wrapped(|ui| {
             if ui
-                .button(ts("Edit in Full Page"))
+                .button(RichText::new(ts("Edit in Full Page")).strong())
                 .on_hover_text(ts("Open the structure in its editor, in place of the page (or double-click the structure)"))
                 .clicked()
             {
                 ui.data_mut(|d| d.insert_temp(state_id(), state.clone()));
                 let _ = app.run("ui.structureEdit", json!({}));
+                return true;
             }
-        });
-    });
+            if ui.button(ts("Write Working")).on_hover_text(ts(WORKING_TIP)).clicked() {
+                let _ = app.run("structure.working", working_labels());
+            }
+            false
+        })
+        .inner
+    {
+        return;
+    }
+    status_line(ui, &info);
     toolbar(ui, &mut state);
     active_command_bar(ui, &st, &mut state);
-    let h = (ui.available_height() * 0.45).clamp(220.0, 460.0);
+    let h = (ui.available_height() * 0.48).clamp(120.0, 440.0);
     sheet(app, ui, &src, &st, &mut state, h, false);
     typed_point(app, ui, &src, &st, &mut state);
     egui::ScrollArea::vertical().id_salt("structure_pane_scroll").show(ui, |ui| {
-        if ui
-            .button(ts("Write Working"))
-            .on_hover_text(ts("Write after the structure its solution as live calculations: the equilibrium equations giving the reactions, then each member's laws N(x), T(x), M(x) with their values"))
-            .clicked()
-        {
-            let _ = app.run("structure.working", working_labels());
-        }
-        selection(app, ui, &info, &src, &st, &mut state);
-        ui.add_space(4.0);
-        tables(app, ui, &src, &st, &mut state);
+        inspector(app, ui, &info, &src, &st, &mut state);
     });
     ui.data_mut(|d| d.insert_temp(state_id(), state));
 }
@@ -398,23 +397,24 @@ pub(crate) fn editor(app: &mut WordApp, ui: &mut Ui) {
     let mut close_now = false;
     let mut esc_free = false;
     ui.scope_builder(egui::UiBuilder::new().max_rect(main.shrink(8.0)).layout(egui::Layout::top_down(egui::Align::Min)), |ui| {
-        ui.horizontal(|ui| {
+        ui.horizontal_wrapped(|ui| {
             ui.label(RichText::new(ts("Structure Editor")).heading().strong());
             ui.add_space(12.0);
             status_line(ui, &info);
         });
+        order_hint(app, ui, &st, &mut state);
         active_command_bar(ui, &st, &mut state);
         // Its tools, Write Working and Close Editor are on its ribbon tab (EDITOR_TAB).
         let h = ui.available_height() - 34.0;
         esc_free = sheet(app, ui, &src, &st, &mut state, h, true);
         typed_point(app, ui, &src, &st, &mut state);
     });
-    ui.painter().vline(side.min.x, side.y_range(), Stroke::new(1.0, Color32::from_gray(200)));
+    let tokens = Tokens::get(ui.ctx());
+    ui.painter().rect_filled(side, 0.0, tokens.panel);
+    ui.painter().vline(side.min.x, side.y_range(), Stroke::new(1.0, tokens.border));
     ui.scope_builder(egui::UiBuilder::new().max_rect(side.shrink(8.0)).layout(egui::Layout::top_down(egui::Align::Min)), |ui| {
         egui::ScrollArea::vertical().id_salt("structure_editor_side").show(ui, |ui| {
-            selection(app, ui, &info, &src, &st, &mut state);
-            ui.add_space(6.0);
-            tables(app, ui, &src, &st, &mut state);
+            inspector(app, ui, &info, &src, &st, &mut state);
         });
     });
     // Esc with nothing to cancel or deselect leaves the editor (the sheet's keys took it
@@ -585,12 +585,13 @@ pub(crate) const TEMPLATES: [(&str, &str); 5] = [
 fn status_line(ui: &mut Ui, info: &Value) {
     let status = info["status"].as_str().unwrap_or_default();
     let degree = info["degree"].as_u64().unwrap_or(0).to_string();
+    let tokens = Tokens::get(ui.ctx());
     let (text, color) = match status {
-        "isostatic" => (ts("Isostatic").to_string(), Color32::from_rgb(0x11, 0x7A, 0x65)),
-        "hyperstatic" => (crate::i18n::fmt(ts("Hyperstatic, degree {n}"), &[("n", &degree)]), Color32::from_rgb(0x1B, 0x4F, 0x72)),
-        "labile" => (crate::i18n::fmt(ts("Labile: {n} degree(s) of freedom"), &[("n", &degree)]), Color32::from_rgb(0xC0, 0x1C, 0x1C)),
-        "empty" => (ts("No members yet: draw them with Member").to_string(), Color32::GRAY),
-        _ => (info["message"].as_str().unwrap_or_default().to_string(), Color32::from_rgb(0xC0, 0x1C, 0x1C)),
+        "isostatic" => (ts("Isostatic").to_string(), tokens.accent_text),
+        "hyperstatic" => (crate::i18n::fmt(ts("Hyperstatic, degree {n}"), &[("n", &degree)]), tokens.text),
+        "labile" => (crate::i18n::fmt(ts("Labile: {n} degree(s) of freedom"), &[("n", &degree)]), ui.visuals().error_fg_color),
+        "empty" => (ts("No members yet: draw them with Member").to_string(), tokens.text_dim),
+        _ => (info["message"].as_str().unwrap_or_default().to_string(), ui.visuals().error_fg_color),
     };
     ui.horizontal(|ui| {
         ui.label(RichText::new(text).strong().color(color));
@@ -599,9 +600,31 @@ fn status_line(ui: &mut Ui, info: &Value) {
         }
     });
     for e in info["errors"].as_array().into_iter().flatten().filter_map(Value::as_str).take(4) {
-        ui.label(RichText::new(e).small().color(Color32::from_rgb(0xC0, 0x1C, 0x1C)));
+        ui.label(RichText::new(e).small().color(ui.visuals().error_fg_color));
     }
 }
+
+/// Names that don't follow the structure (members `3`, `1`, `2` from left to right, nodes `D`,
+/// `A`, `B`, `C`): a line saying so with one click to rename them in order (`structure.renumber`).
+/// The working goes through the members left to right whatever their names.
+fn order_hint(app: &mut WordApp, ui: &mut Ui, st: &Structure, state: &mut State) {
+    if st.members.len() < 2 || st.names_in_order() {
+        return;
+    }
+    ui.horizontal_wrapped(|ui| {
+        ui.label(RichText::new(ts("The names don't follow the structure from left to right.")).color(ui.visuals().warn_fg_color));
+        if ui.button(ts("Rename in Order")).on_hover_text(ts(RENUMBER_TIP)).clicked() && app.run("structure.renumber", json!({})).is_ok() {
+            // The names change: what was selected by them is let go.
+            state.sel.clear();
+        }
+    });
+}
+
+const WORKING_TIP: &str = "Write after the structure its solution as live calculations: the equilibrium equations giving the reactions, then each member's laws N(x), T(x), M(x) with their values";
+
+/// What Rename in Order does.
+pub(crate) const RENUMBER_TIP: &str =
+    "Name the members 1, 2, 3… from left to right and the nodes A, B, C… in the same order, so the drawing and the working read in order";
 
 /// What the editor's Dimensions switch does.
 pub(crate) const DIMS_TIP: &str = "Show on the sheet the dimensions, the slopes of inclined members and the angles of inclined forces (the document draws them as Structures › Dimensions says)";
@@ -611,15 +634,11 @@ pub(crate) const DIMS_TIP: &str = "Show on the sheet the dimensions, the slopes 
 fn active_command_bar(ui: &mut Ui, st: &Structure, state: &mut State) {
     let has_rot = rotate::active_target(st, &state.sel).is_some();
     let active = state.tool != Tool::Select;
+    let tokens = Tokens::get(ui.ctx());
     let (bg, border, badge_col) = match state.tool {
-        Tool::Select => (Color32::from_rgba_unmultiplied(0xF1, 0xF5, 0xF9, 190), Color32::from_gray(215), Color32::from_rgb(0x33, 0x41, 0x55)),
-        Tool::Erase => {
-            (Color32::from_rgba_unmultiplied(0xFE, 0xE2, 0xE2, 235), Color32::from_rgb(0xDC, 0x26, 0x26), Color32::from_rgb(0xB9, 0x1C, 0x1C))
-        }
-        Tool::Rotate => {
-            (Color32::from_rgba_unmultiplied(0xFF, 0xE4, 0xE6, 235), Color32::from_rgb(0xE1, 0x1D, 0x48), Color32::from_rgb(0xBE, 0x12, 0x3C))
-        }
-        _ => (Color32::from_rgba_unmultiplied(0xFF, 0xF7, 0xED, 240), Color32::from_rgb(0xEA, 0x58, 0x0C), Color32::from_rgb(0xC2, 0x41, 0x0C)),
+        Tool::Select => (tokens.panel, tokens.border, tokens.text),
+        Tool::Erase => (tokens.panel, ui.visuals().error_fg_color, ui.visuals().error_fg_color),
+        _ => (tokens.checked, tokens.accent, tokens.accent_text),
     };
     egui::Frame::NONE
         .fill(bg)
@@ -628,7 +647,7 @@ fn active_command_bar(ui: &mut Ui, st: &Structure, state: &mut State) {
         .inner_margin(egui::Margin::symmetric(8, 4))
         .show(ui, |ui| {
             ui.set_width(ui.available_width());
-            ui.horizontal(|ui| {
+            ui.horizontal_wrapped(|ui| {
                 let (ic_rect, _) = ui.allocate_exact_size(vec2(16.0, 16.0), Sense::hover());
                 crate::icons::paint(ui.painter(), ic_rect, state.tool.icon(), badge_col, badge_col);
                 let title = if state.tool == Tool::Member {
@@ -637,53 +656,51 @@ fn active_command_bar(ui: &mut Ui, st: &Structure, state: &mut State) {
                     ts(state.tool.label()).to_string()
                 };
                 ui.label(RichText::new(title).strong().color(badge_col));
-                ui.label(RichText::new("—").weak());
-                ui.label(RichText::new(ts(state.tool.prompt(state.start.is_some(), has_rot))).small().color(Color32::from_gray(0x30)));
-                if active {
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        if ui.small_button(format!("× {}", ts("Select tool"))).on_hover_text(ts("Return to the Select tool (Esc)")).clicked() {
-                            state.tool = Tool::Select;
-                            state.start = None;
-                            state.gesture = None;
-                        }
-                    });
+                if active && ui.small_button(ts("Select tool")).on_hover_text(ts("Return to the Select tool (Esc)")).clicked() {
+                    state.tool = Tool::Select;
+                    state.start = None;
+                    state.gesture = None;
                 }
             });
+            ui.label(RichText::new(ts(state.tool.prompt(state.start.is_some(), has_rot))).small().color(tokens.text));
         });
     ui.add_space(2.0);
 }
 
 fn toolbar(ui: &mut Ui, state: &mut State) {
-    let tools: [(Tool, &str, &str); 15] = [
-        (Tool::Select, "Select", "Select nodes, members and loads (Shift+click, a window); drag to move them, a load slides along its member"),
-        (Tool::Rotate, "Rotate", "Incline forces, distributed loads and supports with a graphical protractor (R)"),
-        (Tool::Node, "Node", "Click to add a node"),
-        (Tool::Member, "Member", "Click two points to draw a member; it goes on from its end (Esc or a right click stops)"),
-        (Tool::Support(SupportKind::Fixed), "Fixed", "Click a node to fix it (incastro)"),
-        (Tool::Support(SupportKind::Pin), "Pin", "Click a node to pin it (cerniera)"),
-        (Tool::Support(SupportKind::RollerCircle), "Roller", "Click a node to put it on a roller (carrello)"),
-        (Tool::Support(SupportKind::Roller), "Roller (triangle)", "Click a node to put it on a roller drawn on a triangle (carrello)"),
-        (Tool::Support(SupportKind::Link), "Link", "Click a node to hold it with a link (pendolo)"),
-        (Tool::Support(SupportKind::Slider), "Slider", "Click a node to hold it with a slider (glifo)"),
-        (Tool::Hinge, "Internal hinge", "Click a node or near a member's end to toggle an internal hinge"),
-        (Tool::Force, "Force", "Click a node or a point of a member to put a force there (or drag to aim its inclination)"),
-        (Tool::Couple, "Couple", "Click a node or a point of a member to put a couple there"),
-        (Tool::Distributed, "Distributed", "Click a member to load it along its length"),
-        (Tool::Erase, "Erase", "Click a load, support, member or node to remove it (a node with what uses it)"),
+    let groups: [(&str, &[Tool]); 4] = [
+        ("Selection", &[Tool::Select, Tool::Rotate, Tool::Erase]),
+        ("Draw", &[Tool::Node, Tool::Member, Tool::Hinge]),
+        (
+            "Supports",
+            &[
+                Tool::Support(SupportKind::Fixed),
+                Tool::Support(SupportKind::Pin),
+                Tool::Support(SupportKind::RollerCircle),
+                Tool::Support(SupportKind::Roller),
+                Tool::Support(SupportKind::Link),
+                Tool::Support(SupportKind::Slider),
+            ],
+        ),
+        ("Loads", &[Tool::Force, Tool::Couple, Tool::Distributed]),
     ];
-    ui.horizontal_wrapped(|ui| {
-        ui.spacing_mut().item_spacing = vec2(3.0, 3.0);
-        for (tool, label, tip) in tools {
-            let on = state.tool == tool;
-            let text = if on { RichText::new(ts(label)).strong() } else { RichText::new(ts(label)) };
-            if ui.selectable_label(on, text).on_hover_text(ts(tip)).clicked() {
-                state.tool = tool;
-                state.start = None;
-                state.gesture = None;
+    for (heading, tools) in groups {
+        ui.horizontal_wrapped(|ui| {
+            ui.spacing_mut().item_spacing = vec2(4.0, 3.0);
+            ui.label(RichText::new(tl!(heading)).small().weak());
+            for &tool in tools {
+                let text = RichText::new(ts(tool.label()));
+                let text = if tool == Tool::Erase { text.color(ui.visuals().error_fg_color) } else { text };
+                if ui.add(egui::Button::new(text).small().selected(state.tool == tool)).on_hover_text(ts(tool.prompt(false, false))).clicked() {
+                    state.tool = tool;
+                    state.start = None;
+                    state.gesture = None;
+                }
             }
-        }
-    });
-    ui.horizontal(|ui| {
+        });
+    }
+    ui.separator();
+    ui.horizontal_wrapped(|ui| {
         ui.checkbox(&mut state.snap, ts("Snap")).on_hover_text(ts("Snap to the grid (always to the nodes)"));
         ui.label(ts("Grid"));
         ui.add(egui::DragValue::new(&mut state.grid).range(MIN_GRID..=MAX_GRID).speed(0.05).max_decimals(3));
@@ -2325,9 +2342,9 @@ fn typed_point(app: &mut WordApp, ui: &mut Ui, src: &Structure, st: &Structure, 
             (ts("Point"), "x, y  ·  @dx, dy  ·  @L<α", ts("Node or Member tool: Enter places the point"))
         };
         ui.label(lbl);
-        let r = ui.add(egui::TextEdit::singleline(&mut state.typed).desired_width(160.0).hint_text(hint));
+        let r = ui.add(egui::TextEdit::singleline(&mut state.typed).desired_width(160.0).hint_text(hint)).on_hover_text(help);
         let enter = r.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
-        ui.label(RichText::new(help).small().weak());
+        ui.add(egui::Label::new(RichText::new(help).small().weak()).truncate());
         if !enter {
             return;
         }
@@ -2702,7 +2719,7 @@ fn selection(app: &mut WordApp, ui: &mut Ui, info: &Value, src: &Structure, st: 
                 state.sel.clear();
                 return;
             }
-            if ui.button(ts("Remove Selected")).clicked() {
+            if ui.add(destructive(ui, "Remove Selected")).clicked() {
                 let kept = without(src, &state.sel);
                 if app.run("structure.set", json!({"structure": kept})).is_ok() {
                     state.sel.clear();
@@ -2816,7 +2833,7 @@ fn selection(app: &mut WordApp, ui: &mut Ui, info: &Value, src: &Structure, st: 
             reactions_summary_ui(ui, info, st, Some(&id));
             node_loads(app, ui, src, st, state, &id);
             ui.add_space(6.0);
-            if ui.button(ts("Remove Node")).on_hover_text(ts("Remove the node with its members, support and loads")).clicked() {
+            if ui.add(destructive(ui, "Remove Node")).on_hover_text(ts("Remove the node with its members, support and loads")).clicked() {
                 let _ = app.run("structure.node", json!({"id": id, "remove": true}));
                 state.sel.clear();
             }
@@ -2902,7 +2919,7 @@ fn selection(app: &mut WordApp, ui: &mut Ui, info: &Value, src: &Structure, st: 
             ui.label(RichText::new(ts("Without E, I, A: EI is the same for every member and members do not stretch.")).small().weak());
             member_loads(app, ui, src, st, state, &id);
             ui.add_space(6.0);
-            if ui.button(ts("Remove Member")).on_hover_text(ts("Remove the member with its loads")).clicked() {
+            if ui.add(destructive(ui, "Remove Member")).on_hover_text(ts("Remove the member with its loads")).clicked() {
                 let _ = app.run("structure.member", json!({"id": id, "remove": true}));
                 state.sel.clear();
             }
@@ -3028,29 +3045,39 @@ fn structure_props(ui: &mut Ui, info: &Value, src: &Structure, st: &Structure) {
     );
 }
 
+fn inspector(app: &mut WordApp, ui: &mut Ui, info: &Value, src: &Structure, st: &Structure, state: &mut State) {
+    let width = ui.available_width();
+    egui::ScrollArea::horizontal().id_salt("structure_properties_width").auto_shrink([false, true]).show(ui, |ui| {
+        ui.set_max_width(width);
+        selection(app, ui, info, src, st, state);
+    });
+    ui.add_space(6.0);
+    tables(app, ui, src, st, state);
+}
+
 fn tables(app: &mut WordApp, ui: &mut Ui, src: &Structure, st: &Structure, state: &mut State) {
     section(ui, ts("Tables"));
     let title = |name: &str, n: usize| RichText::new(format!("{} ({n})", ts(name))).strong();
-    egui::CollapsingHeader::new(title("Nodes", src.nodes.len()))
-        .id_salt("structure_nodes")
-        .default_open(false)
-        .show(ui, |ui| nodes_table(app, ui, src, state));
-    egui::CollapsingHeader::new(title("Members", src.members.len()))
-        .id_salt("structure_members")
-        .default_open(false)
-        .show(ui, |ui| members_table(app, ui, src, state));
-    egui::CollapsingHeader::new(title("Supports", src.supports.len()))
-        .id_salt("structure_supports")
-        .default_open(false)
-        .show(ui, |ui| supports_table(app, ui, src, state));
-    egui::CollapsingHeader::new(title("Loads", src.loads.len()))
-        .id_salt("structure_loads")
-        .default_open(false)
-        .show(ui, |ui| loads_table(app, ui, src, st, state, None));
+    table_section(ui, title("Nodes", src.nodes.len()), "structure_nodes", |ui| nodes_table(app, ui, src, state));
+    table_section(ui, title("Members", src.members.len()), "structure_members", |ui| members_table(app, ui, src, state));
+    table_section(ui, title("Supports", src.supports.len()), "structure_supports", |ui| supports_table(app, ui, src, state));
+    table_section(ui, title("Loads", src.loads.len()), "structure_loads", |ui| loads_table(app, ui, src, st, state, None));
+}
+
+fn table_section(ui: &mut Ui, title: RichText, id: &str, contents: impl FnOnce(&mut Ui)) {
+    egui::CollapsingHeader::new(title).id_salt(id).show(ui, |ui| {
+        egui::ScrollArea::horizontal().id_salt((id, "width")).auto_shrink([false, true]).show(ui, contents);
+    });
+}
+
+fn destructive(ui: &Ui, label: &str) -> egui::Button<'static> {
+    egui::Button::new(RichText::new(ts(label).to_owned()).color(ui.visuals().error_fg_color))
 }
 
 fn remove_button(ui: &mut Ui, tip: &str) -> bool {
-    ui.small_button("×").on_hover_text(ts(tip)).clicked()
+    let response = ui.add(destructive(ui, "×").small()).on_hover_text(ts(tip));
+    response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, ui.is_enabled(), ts(tip)));
+    response.clicked()
 }
 
 fn nodes_table(app: &mut WordApp, ui: &mut Ui, src: &Structure, state: &mut State) {
@@ -3557,7 +3584,7 @@ mod tests {
         h.run_steps(3);
         assert!(h.state().structure_edit.is_some(), "the full-page editor is open");
         h.get_by_label(ts("Isostatic"));
-        h.get_by_label(ts("Loads"));
+        h.get_by_label(&format!("{} (1)", ts("Loads")));
     }
 
     /// The selection: a window takes what is inside it, a group moves together keeping

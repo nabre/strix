@@ -7,7 +7,7 @@
 
 use strix_plot::{PlotAnchor, PlotPrim};
 
-use super::{ARROW, BLACK, Ctx, Frame, GAP, GREY, LOAD, MEMBER_W, P, Pen, REACTION, Rgb, SPREAD, TEXT, add, lighter, mul, pd};
+use super::{ARROW, BLACK, Ctx, Frame, GAP, GREY, LOAD, MEMBER_W, P, Pen, REACTION, Rgb, SPREAD, TEXT, add, lighter, mul, pd, unit};
 use crate::model::{Load, SupportKind};
 use crate::names::load_names;
 use crate::working::{ResultantKind, resultants};
@@ -47,15 +47,19 @@ impl Pen {
         self.subscripted_then(at, dir, base, sub, "", c);
     }
 
+    /// The paper width [`Pen::subscripted`] gives `base` with the subscript `sub`.
+    fn subscripted_width(base: &str, sub: &str) -> f64 {
+        base.chars().map(glyph).sum::<f64>() * TEXT + 0.5 + sub.chars().map(glyph).sum::<f64>() * TEXT * SUB
+    }
+
     /// [`Pen::subscripted`] followed by `tail` (`H`, `A` and ` = 10 kN`: H_A = 10 kN).
     pub(super) fn subscripted_then(&mut self, at: P, dir: P, base: &str, sub: &str, tail: &str, c: Rgb) {
         let wb = base.chars().map(glyph).sum::<f64>() * TEXT + 0.5;
         let ws = sub.chars().map(glyph).sum::<f64>() * TEXT * SUB;
         // The tail's width taken generously (as the layout's boxes take a text's): on the left
-        // it ends at `at`, so a wider estimate only leaves room before it.
+        // the text ends before `at`, a wider estimate only leaves room there.
         let wt = tail.chars().count() as f64 * TEXT * 0.65;
         let w = wb + ws + wt;
-        let left = dir.0.abs() >= 0.6 && dir.0 < 0.0;
         let (x, y) = if dir.0.abs() >= 0.6 {
             if dir.0 > 0.0 { (at.0 + GAP, at.1 + TEXT * 0.4) } else { (at.0 - GAP - w, at.1 + TEXT * 0.4) }
         } else if dir.1 > 0.0 {
@@ -69,8 +73,16 @@ impl Pen {
             self.prims.push(PlotPrim::Text { at, text: sub.to_string(), height: TEXT * SUB, bold: false, anchor: PlotAnchor::Left, color: c });
         }
         if !tail.is_empty() {
-            let (at, anchor) = if left { ((at.0 - GAP, y), PlotAnchor::Right) } else { ((x + wb + ws, y), PlotAnchor::Left) };
-            self.prims.push(PlotPrim::Text { at, text: tail.to_string(), height: TEXT, bold: false, anchor, color: c });
+            // Right after the subscript, on the left too: the generous width leaves it ending
+            // before `at`.
+            self.prims.push(PlotPrim::Text {
+                at: (x + wb + ws, y),
+                text: tail.to_string(),
+                height: TEXT,
+                bold: false,
+                anchor: PlotAnchor::Left,
+                color: c,
+            });
         }
     }
 }
@@ -80,16 +92,33 @@ impl Ctx<'_> {
     pub(super) fn equilibrium(&mut self, f: &Frame) {
         self.members(f, BLACK, MEMBER_W, true);
         self.supports(f, lighter(GREY, 0.45));
-        let stations = self.resultants_named(f, &|_| true);
+        let (stations, mut taken) = self.resultants_named(f, &|_| true);
+        // The dimensions after the reactions, so they keep clear of them.
+        taken.extend(self.unknowns(f));
         self.dimensions_with(f, &stations);
-        self.unknowns(f);
-        self.node_names(f);
+        self.node_names_clear_of(f, &|_| true, &taken);
+    }
+
+    /// The names of the nodes `at` picks, each clear of the arrows drawn at it: `taken` holds
+    /// each arrow's paper point and the paper direction it (or its name) takes from there.
+    pub(super) fn node_names_clear_of(&mut self, f: &Frame, at: &dyn Fn(&str) -> bool, taken: &[(P, P)]) {
+        let st = self.st;
+        let sides = |id: &str| -> Vec<P> {
+            let Some(p) = self.node_p(f, id) else { return Vec::new() };
+            taken.iter().filter(|(q, _)| (q.0 - p.0).hypot(q.1 - p.1) < 0.5).map(|&(_, d)| d).collect()
+        };
+        let sides: Vec<(String, Vec<P>)> = st.nodes.iter().map(|n| (n.id.clone(), sides(&n.id))).collect();
+        let of = |id: &str| sides.iter().find(|(n, _)| n == id).map(|(_, d)| d.clone()).unwrap_or_default();
+        self.node_names_avoiding(f, BLACK, true, at, &of);
     }
 
     /// The loads `which` picks as the free body draws them: faded where they act, each
     /// distributed load's resultant and each askew force's parts named as the working names
-    /// them. The distributed loads' centroids, as stations for the dimensions.
-    pub(super) fn resultants_named(&mut self, f: &Frame, which: &dyn Fn(&Load) -> bool) -> Vec<(String, f64)> {
+    /// them. The distributed loads' centroids, as stations for the dimensions; and each arrow's
+    /// point with the paper directions its tail and its name take from there, for the nodes'
+    /// names to keep clear of.
+    #[allow(clippy::type_complexity)]
+    pub(super) fn resultants_named(&mut self, f: &Frame, which: &dyn Fn(&Load) -> bool) -> (Vec<(String, f64)>, Vec<(P, P)>) {
         let st = self.st;
         let faded = lighter(LOAD, 0.6);
         // What the resultants and the parts stand for, faded and unnamed.
@@ -103,6 +132,7 @@ impl Ctx<'_> {
         self.loads_as(f, faded, false, &|_, l| which(l) && (matches!(l, Load::Distributed { .. }) || askew_force(l)));
         let names = load_names(st);
         let mut stations: Vec<(String, f64)> = Vec::new();
+        let mut taken: Vec<(P, P)> = Vec::new();
         for r in resultants(st) {
             if !st.loads.get(r.load).is_some_and(which) {
                 continue;
@@ -139,8 +169,10 @@ impl Ctx<'_> {
             };
             // The way it acts on the paper.
             let d = mul(pd(r.dir), value.signum());
+            taken.push((p, mul(d, -1.0)));
             if !askew(r.dir) {
-                self.named_arrow(p, d, len, &idx, LOAD, (0.0, -1.0));
+                let name = self.named_arrow(p, d, len, &idx, LOAD, (0.0, -1.0));
+                taken.push((p, name));
                 continue;
             }
             // An askew distributed load's resultant faded, as its load (a force is drawn so).
@@ -154,39 +186,49 @@ impl Ctx<'_> {
             for (part, c) in [("h", (d.0, 0.0)), ("v", (0.0, d.1))] {
                 let size = c.0.hypot(c.1);
                 let dc = mul(c, 1.0 / size.max(TOL));
+                taken.push((p, mul(dc, -1.0)));
                 let mut i = idx.clone();
                 i.push(part.to_string());
-                self.named_arrow(p, dc, (len * size).max(5.0), &i, LOAD, level_side);
+                let name = self.named_arrow(p, dc, (len * size).max(5.0), &i, LOAD, level_side);
+                taken.push((p, name));
             }
         }
-        stations
+        (stations, taken)
     }
 
     /// An arrow of `len` mm acting at `p` along paper direction `d`, named `F` with the indices
     /// `idx` beyond its tail; a level one beside its middle, on the paper side `level_side`.
-    fn named_arrow(&mut self, p: P, d: P, len: f64, idx: &[String], c: Rgb, level_side: P) {
+    /// Returns the paper direction from `p` to its name.
+    fn named_arrow(&mut self, p: P, d: P, len: f64, idx: &[String], c: Rgb, level_side: P) -> P {
         let tail = add(p, mul(d, -len));
         self.pen.arrow(tail, add(p, mul(d, -0.5)), c, 0.4);
         let sub = idx.join(",");
         if d.1.abs() < 0.3 {
-            // A level arrow (along a beam) is named beside its middle, clear of the member.
-            let mid = add(p, mul(d, -len / 2.0));
+            // A level arrow (along a beam) is named beside it, clear of the member: by its
+            // middle, or its tail's way from there when the name is wider than half the arrow,
+            // so it does not reach past the point (where a member or a node's name may stand).
+            let half = (Pen::subscripted_width("F", &sub) / 2.0 + 2.0).max(len / 2.0);
+            let mid = add(p, mul(d, -half));
             self.pen.subscripted(add(mid, mul(level_side, 0.6)), level_side, "F", &sub, c);
+            unit(add(mul(d, -half), mul(level_side, 2.0)))
         } else {
             self.pen.subscripted(add(tail, mul(d, -0.8)), mul(d, -1.0), "F", &sub, c);
+            mul(d, -1.0)
         }
     }
 
     /// The reactions as unknowns, named as the working names them, each pointing the way it
     /// counts positive (along x, along y, along a roller's direction; a couple turning the way a
     /// rotation counts positive), as the structure's [`Positive`](crate::Positive) says.
-    fn unknowns(&mut self, f: &Frame) {
-        self.unknowns_where(f, &|_| true);
+    fn unknowns(&mut self, f: &Frame) -> Vec<(P, P)> {
+        self.unknowns_where(f, &|_| true)
     }
 
     /// [`Ctx::unknowns`] of the supports at the nodes `at` picks. The stretches draw their known reactions so too, by name the way they count positive, as
     /// the laws use them (one that came out negative too: its value enters when substituted).
-    pub(super) fn unknowns_where(&mut self, f: &Frame, at: &dyn Fn(&str) -> bool) {
+    /// Returns each node's point with the paper directions its arrows and names take from it.
+    pub(super) fn unknowns_where(&mut self, f: &Frame, at: &dyn Fn(&str) -> bool) -> Vec<(P, P)> {
+        let mut out: Vec<(P, P)> = Vec::new();
         let an = self.an;
         let pos = self.st.positive;
         let (sx, sy) = (pos.sx(), pos.sy());
@@ -230,13 +272,19 @@ impl Ctx<'_> {
                 } else {
                     self.pen.arrow(near, far, REACTION, 0.4);
                 }
-                self.pen.subscripted(add(far, mul(side, 0.8)), side, letter, &s, REACTION);
+                let (lat, ldir, extra) = self.arrow_label(&r.node, side, far, below, None);
+                taken.extend(extra);
+                self.pen.subscripted(lat, ldir, letter, &s, REACTION);
             }
             if matches!(r.kind, SupportKind::Fixed | SupportKind::Slider) {
                 self.pen.couple(p, 5.0, pos.sr() > 0.0, REACTION, 0.4);
                 let free = self.free_side_avoiding(&r.node, &taken);
                 self.pen.subscripted(add(p, mul(free, 6.5)), free, "M", &s, REACTION);
+                taken.push(free);
             }
+            // The first is the name's own free side, not an arrow.
+            out.extend(taken.into_iter().skip(1).map(|d| (p, d)));
         }
+        out
     }
 }

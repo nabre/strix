@@ -3922,6 +3922,7 @@ structure	y	y
 	Draw the bending moment diagram	Disegna il diagramma del momento flettente
 	Positive Side	Lato positivo
 	Which side of each member a diagram's positive values are drawn on	Da che parte dell'asta si disegnano i valori positivi di ogni diagramma
+	Conventions	Convenzioni
 	Italian Convention	Convenzione italiana
 	N and T positive up, M on the stretched fibres (positive down)	N e T positivi in alto, M dalla parte delle fibre tese (positivo in basso)
 	Write the notable values: at the ends of each stretch, the jumps, the maxima	Scrivi i valori notevoli: agli estremi dei tratti, i salti, i massimi
@@ -4059,6 +4060,10 @@ structure	Add a distributed load	Aggiungi un carico distribuito
 structure	Split here	Dividi qui
 structure	Split in half	Dividi a metà
 structure	Join the members	Unisci le aste
+structure	Rename in Order	Rinomina in ordine
+structure	The names don't follow the structure from left to right.	I nomi non seguono la struttura da sinistra a destra.
+structure	Name the members 1, 2, 3… from left to right and the nodes A, B, C… in the same order, so the drawing and the working read in order	Chiama le aste 1, 2, 3… da sinistra a destra e i nodi A, B, C… nello stesso ordine, così disegno e svolgimento si leggono in ordine
+	Rename in Order	Rinomina in ordine
 structure	The node must join exactly two members	Il nodo deve collegare esattamente due aste
 structure	The two members are not aligned	Le due aste non sono allineate
 structure	The node has a support	Il nodo ha un vincolo

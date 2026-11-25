@@ -20,6 +20,7 @@ mod diagram;
 mod linalg;
 mod model;
 mod names;
+mod order;
 mod orient;
 mod pivot;
 mod render;
@@ -37,6 +38,7 @@ pub use model::{
     Structure, Support, SupportKind, Titles, View,
 };
 pub use names::{LoadName, load_names};
+pub use order::{member_order, member_rank};
 pub use pivot::Pivot;
 pub use render::{Chains, StructureRendered, chains};
 pub use solve::{Analysis, Forces, MemberResult, Reaction, Status, analyse, analyse_released};

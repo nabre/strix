@@ -631,20 +631,21 @@ pub(super) fn load_inclination_ui(app: &mut WordApp, ui: &mut Ui, src: &Structur
         }
 
         let p = ui.painter_at(rect);
-        p.circle_filled(center, dr, Color32::WHITE);
-        p.circle_stroke(center, dr, Stroke::new(1.0, Color32::from_gray(180)));
-        p.line_segment([pos2(center.x - dr, center.y), pos2(center.x + dr, center.y)], Stroke::new(0.7, Color32::from_gray(220)));
-        p.line_segment([pos2(center.x, center.y - dr), pos2(center.x, center.y + dr)], Stroke::new(0.7, Color32::from_gray(220)));
+        let tokens = crate::theme::Tokens::get(ui.ctx());
+        p.circle_filled(center, dr, tokens.input);
+        p.circle_stroke(center, dr, Stroke::new(1.0, tokens.border_strong));
+        p.line_segment([pos2(center.x - dr, center.y), pos2(center.x + dr, center.y)], Stroke::new(0.7, tokens.border));
+        p.line_segment([pos2(center.x, center.y - dr), pos2(center.x, center.y + dr)], Stroke::new(0.7, tokens.border));
         for (_, th) in &members {
             let a = ring_pos(center, dr - 2.0, *th);
             let b = ring_pos(center, dr - 2.0, th + 180.0);
             p.line_segment([a, b], Stroke::new(1.5, Color32::from_rgb(0x0D, 0x94, 0x88)));
         }
         let tip = ring_pos(center, dr - 2.0, live_vis);
-        let col = Color32::from_rgb(0xB0, 0x3A, 0x2E);
+        let col = tokens.accent_text;
         p.line_segment([center, tip], Stroke::new(2.0, col));
         p.circle_filled(tip, 3.5, col);
-        p.circle_filled(center, 2.2, Color32::DARK_GRAY);
+        p.circle_filled(center, 2.2, tokens.text);
 
         // Quick preset & step buttons beside the dial.
         ui.vertical(|ui| {
@@ -759,6 +760,9 @@ pub(super) fn support_orientation_ui(app: &mut WordApp, ui: &mut Ui, src: &Struc
                 commit_target(app, src, st, &target, deg, false);
             }
         }
+    });
+    ui.horizontal_wrapped(|ui| {
+        ui.spacing_mut().item_spacing = vec2(3.0, 3.0);
         if ui.small_button("−15°").on_hover_text(ts("Turn 15° clockwise")).clicked() {
             commit_target(app, src, st, &target, stored - 15.0, true);
         }
