@@ -4086,6 +4086,7 @@ structure	Positive counter-clockwise	Positif dans le sens antihoraire
 structure	Positive clockwise	Positif dans le sens horaire
 structure	The reactions are taken positive so and the equilibrium equations sum so; the free body shows the symbol.	Les réactions sont prises positives dans ces sens et les équations d’équilibre sont sommées ainsi ; le corps libre montre le symbole.
 structure	Reactions are taken positive the way their arrows point in the free body: a negative one acts the other way.	Les réactions sont prises positives dans le sens de leurs flèches sur le corps libre : une réaction négative agit en sens inverse.
+structure	From here on the negative reactions are taken the way they act, as the drawings show them, with positive values:	À partir d'ici, les réactions négatives sont prises dans le sens où elles agissent, comme sur les dessins, avec des valeurs positives :
 structure	Right	Droite
 structure	Left	Gauche
 structure	Up	Vers le haut

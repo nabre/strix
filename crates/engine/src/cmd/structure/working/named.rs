@@ -3,7 +3,8 @@
 //! part of the structure before the section (the member's `a` end side). Each law is checked
 //! against the solution's; a member in a closed ring, a varying load across the section or a law
 //! that disagrees keeps its numbers ([`super::law`]). A reaction that came out negative keeps its
-//! name too (`N_1(x) = -H_A`), as the stretch's drawing shows it: its value enters when substituted.
+//! name too, taken the way it acts as the stretch's drawing shows it (`N_1(x) = H_A`, after
+//! `H_A := -H_A` turned its value positive).
 
 use strix_structure::{Action, Load, LoadAxes, LoadPer, MemberResult, Resultant, ResultantKind, Stretch, Structure, resultants};
 
@@ -40,12 +41,13 @@ pub(super) fn laws(st: &Structure, us: &[Unknown], m: &MemberResult, s: &Stretch
     let mut agents: Vec<Agent> = Vec::new();
     // The laws (N, T, M) a load across the section keeps from being named.
     let mut blocked = [false; 3];
-    // A reaction by its name, taken positive (one that came out negative too), as the stretch's
-    // drawing shows it.
+    // A reaction by its name, the way it acts as the stretch's drawing shows it: one that came out
+    // negative was taken the other way before the internal forces (`H_A := -H_A`).
     for k in us.iter().filter(|k| in_left(&k.node)) {
+        let flip = if k.flipped(us) { -1.0 } else { 1.0 };
         match k.acts {
-            Acts::Along(d) => agents.push(Agent::Point { name: k.name.clone(), mag: k.value, at: k.at, dir: d }),
-            Acts::Turns(sense) => agents.push(Agent::Couple { name: k.name.clone(), mag: k.value, sign: sense }),
+            Acts::Along(d) => agents.push(Agent::Point { name: k.name.clone(), mag: k.value * flip, at: k.at, dir: (d.0 * flip, d.1 * flip) }),
+            Acts::Turns(sense) => agents.push(Agent::Couple { name: k.name.clone(), mag: k.value * flip, sign: sense * flip }),
         }
     }
     let whole_rs = resultants(st);
@@ -241,7 +243,7 @@ fn chained(sec: &Section, whole_rs: &[Resultant], agents: &mut Vec<Agent>, block
 
 /// What acts on the part before the section.
 enum Agent {
-    /// A force of size `mag` (a reaction: its signed value) along `dir` at `at`, named `name`.
+    /// A force of size `mag` along `dir` at `at`, named `name`.
     Point { name: String, mag: f64, at: (f64, f64), dir: (f64, f64) },
     /// A couple of size `mag`, counter-clockwise when `sign` is positive.
     Couple { name: String, mag: f64, sign: f64 },

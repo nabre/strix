@@ -82,6 +82,7 @@ pub(in crate::cmd::structure) fn parts(
     let w = Writer { st, u: &u, labels: &labels, shear: shear_name(st), us: unknowns(st, an) };
     let members: Vec<(&MemberResult, Vec<Stretch>)> = super::in_order(st, &an.members).into_iter().map(|m| (m, stretches(m))).collect();
     let mut axial_lines = vec![Line::heading(forces)];
+    axial_lines.extend(super::flipped_lines(&w.us, &labels));
     let mut shear_lines = Vec::new();
     let mut moment_lines = Vec::new();
     for (m, parts) in &members {

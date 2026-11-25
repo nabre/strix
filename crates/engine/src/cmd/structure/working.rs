@@ -43,6 +43,9 @@ struct Labels {
     loads: String,
     reactions: String,
     signs: String,
+    /// Before the internal forces: the reactions that came out negative are taken from there on
+    /// the way they act, positive (`H_A := -H_A`), as the stretches' drawings show them.
+    flipped: String,
     hyperstatic: String,
     together: String,
     /// The force method's words ([`force`]): with one redundant and with two (`{X}`: their names).
@@ -92,6 +95,10 @@ impl Labels {
                 "signs",
                 "Reactions are taken positive the way their arrows point in the free body: a negative one acts the other way.",
             )),
+            flipped: get(
+                "flipped",
+                "From here on the negative reactions are taken the way they act, as the drawings show them, with positive values:",
+            ),
             hyperstatic: get("hyperstatic", "Hyperstatic: from the solution by the stiffness method"),
             together: get("together", "From the equations solved together"),
             force1: get(
@@ -599,6 +606,15 @@ struct Unknown {
     support: usize,
     place: usize,
     kind: SupportKind,
+}
+
+impl Unknown {
+    /// It came out negative (beyond round-off, against the largest of the reactions `us`): from
+    /// the internal forces on, it is taken the way it acts.
+    fn flipped(&self, us: &[Unknown]) -> bool {
+        let scale = us.iter().map(|k| k.value.abs()).fold(1e-12, f64::max);
+        self.value < -TOL * scale
+    }
 }
 
 /// The reactions as unknowns, each taken positive the way the structure's convention counts its
@@ -1323,6 +1339,7 @@ fn lines(st: &Structure, an: &strix_structure::Analysis, labels: &Labels, comma:
     }
     let shear = shear_name(st);
     out.push(Line::heading(format!("{}: {}", labels.forces, renamed_symbol(&labels.conventions, "T", &shear))));
+    out.extend(flipped_lines(&us, labels));
     for m in in_order(st, &an.members) {
         if out.len() >= MAX_LINES {
             break;
@@ -1330,6 +1347,21 @@ fn lines(st: &Structure, an: &strix_structure::Analysis, labels: &Labels, comma:
         member_lines(st, &us, m, &u, labels, &shear, &mut out);
     }
     out.truncate(MAX_LINES);
+    out
+}
+
+/// The reactions that came out negative taken the way they act from here on (`H_A := -H_A`,
+/// calc showing its positive value), after a sentence saying so; nothing when none did. The
+/// stretches draw them so and their laws use them so ([`named::laws`]).
+fn flipped_lines(us: &[Unknown], labels: &Labels) -> Vec<Line> {
+    let defs: Vec<String> = us.iter().filter(|k| k.flipped(us)).map(|k| format!("{0} := -{0} =", k.name)).collect();
+    if defs.is_empty() {
+        return Vec::new();
+    }
+    let mut out = vec![Line::heading(labels.flipped.clone())];
+    for chunk in defs.chunks(4) {
+        out.push(Line::eqs(chunk.to_vec(), false));
+    }
     out
 }
 
