@@ -81,7 +81,7 @@ pub fn specs() -> Vec<CommandSpec> {
                     None
                 }
             })
-            .params(r#"{"rows"?: n (default 4), "cols"?: n (default 3)} → inserts a table and makes it calculated (see table.calc)"#),
+            .params(r#"{"rows"?: n (default 4), "cols"?: n (default 3), "cells"?: [[string]] (row by row, the header first: "L [m]", "q = 2*L"; sets rows and cols)} → inserts a table and makes it calculated (see table.calc); with cells, fills it, leaves the caret after the table and returns {"calc", "cells": [[string]] as calculated, "recalculated"}"#),
         CommandSpec::new("calc.tableInfo", "Calculated Table Info", "Math › Tables", |s, _| {
             let table = s.sel.focus.path.cell().and_then(|(tp, _, _)| s.doc.table(s.sel.focus.story, &tp));
             let calc = table.is_some_and(|t| t.props.calc);
@@ -975,6 +975,9 @@ enum Outcome {
 struct Sheets {
     main: Worksheet,
     exercises: std::collections::BTreeMap<usize, Worksheet>,
+    /// The worksheet of a top-level block holding inline values, as it stands after that block:
+    /// what the values there are worth where they are ([`MAX_VALUE_SNAPSHOTS`] at most).
+    at: std::collections::BTreeMap<usize, Worksheet>,
     /// The drawings with an id as another drawing's underlay shows them: worked out, their
     /// labels written out with their worksheet ([`strix_cad::Drawing::freeze_labels`]).
     cads: CadsById,
@@ -998,8 +1001,9 @@ fn run_sheet(
     ex_calc: &std::collections::BTreeMap<usize, CalcOverrides>,
     call_opts: &CalcOverrides,
     hidden_solutions: Option<&(std::collections::BTreeSet<usize>, bool)>,
+    value_tops: &[usize],
 ) -> (Sheets, Vec<Outcome>) {
-    let first = run_sheet_with(found, opts, zones, seeds, ex_calc, call_opts, hidden_solutions, &CadsById::new());
+    let first = run_sheet_with(found, opts, zones, seeds, ex_calc, call_opts, hidden_solutions, &CadsById::new(), value_tops);
     let all = first.0.cads.clone();
     // An underlay printed whose source came after its drawing: worked out again with it.
     let forward = first.1.iter().any(|o| match o {
@@ -1010,7 +1014,7 @@ fn run_sheet(
         }
         _ => false,
     });
-    if forward { run_sheet_with(found, opts, zones, seeds, ex_calc, call_opts, hidden_solutions, &all) } else { first }
+    if forward { run_sheet_with(found, opts, zones, seeds, ex_calc, call_opts, hidden_solutions, &all, value_tops) } else { first }
 }
 
 /// [`run_sheet`] with the drawings of an earlier pass (`prior`) for underlays whose source comes
@@ -1025,6 +1029,7 @@ fn run_sheet_with(
     call_opts: &CalcOverrides,
     hidden_solutions: Option<&(std::collections::BTreeSet<usize>, bool)>,
     prior: &CadsById,
+    value_tops: &[usize],
 ) -> (Sheets, Vec<Outcome>) {
     // The drawings worked out so far in this pass.
     let mut done = CadsById::new();
@@ -1039,7 +1044,10 @@ fn run_sheet_with(
         o
     };
     let main_opts = zone_options(None);
-    let mut sheets = Sheets { main: Worksheet::new(main_opts), exercises: Default::default(), cads: CadsById::new() };
+    let mut sheets = Sheets { main: Worksheet::new(main_opts), exercises: Default::default(), at: Default::default(), cads: CadsById::new() };
+    // The blocks holding inline values, in order: each takes the worksheet as it stands once the
+    // items before it are worked out.
+    let mut pending = value_tops.iter().copied().take(MAX_VALUE_SNAPSHOTS).peekable();
     // Each exercise's sandbox starts with its data (the active variant's values).
     // The data count against the same step budget as everything else.
     let mut spent = 0usize;
@@ -1058,6 +1066,9 @@ fn run_sheet_with(
             let top = match item {
                 Item::Equation { top, .. } | Item::Table { top, .. } | Item::Cad { top, .. } | Item::Plot { top, .. } => *top,
             };
+            while let Some(at) = pending.next_if(|&at| at < top) {
+                snapshot(&mut sheets, zones, at);
+            }
             let zone = zones.get(top).copied().flatten();
             let show_sol = match (hidden_solutions, zone) {
                 (None, _) => true,
@@ -1169,7 +1180,23 @@ fn run_sheet_with(
         })
         .collect();
     sheets.cads = done;
+    // Blocks after the last item see the whole worksheet: no copy for them.
     (sheets, outcomes)
+}
+
+/// Most worksheet copies one recalculation keeps for inline values; past them, values read the
+/// worksheet as it ends.
+const MAX_VALUE_SNAPSHOTS: usize = 256;
+
+/// Keeps the worksheet of block `at`'s zone as it stands now, for the inline values there.
+fn snapshot(sheets: &mut Sheets, zones: &[Option<usize>], at: usize) {
+    let ws = match zones.get(at).copied().flatten() {
+        Some(e) => sheets.exercises.get(&e),
+        None => Some(&sheets.main),
+    };
+    if let Some(ws) = ws.cloned() {
+        sheets.at.insert(at, ws);
+    }
 }
 
 /// The sign the total row shows in its first column: the row's label (`docs/calc.md`).
@@ -1374,7 +1401,10 @@ fn recalculate_scoped(s: &mut Session, opts: &Options, call_opts: &CalcOverrides
     let zones = super::exercise::zones(s);
     let ex_calc = super::exercise::exercise_calc(s);
     let hidden = super::exercise::hidden_solutions(s);
-    let (sheets, outcomes) = run_sheet(&found, opts, &zones, &super::exercise::seeds(s), &ex_calc, call_opts, Some(&hidden));
+    // Inline values show what their names are worth where they stand.
+    let mut value_tops: Vec<usize> = super::exercise::expr::collect_exprs(&s.doc.body).into_iter().map(|(top, _)| top).collect();
+    value_tops.dedup();
+    let (sheets, outcomes) = run_sheet(&found, opts, &zones, &super::exercise::seeds(s), &ex_calc, call_opts, Some(&hidden), &value_tops);
     // Exercise data the reader only sees as values are written as values (docs/calc.md).
     let value_only = super::exercise::value_only(s);
     let mut sources: Vec<Option<String>> = Vec::new();
@@ -1492,7 +1522,7 @@ fn recalculate_scoped(s: &mut Session, opts: &Options, call_opts: &CalcOverrides
     for top in plain_tables {
         changed += hide_header_equals(s, top);
     }
-    let (expr_changed, expr_errors) = super::exercise::expr::apply_sheets(s, &zones, &sheets.main, &sheets.exercises);
+    let (expr_changed, expr_errors) = super::exercise::expr::apply_sheets(s, &zones, &sheets.main, &sheets.exercises, &sheets.at);
     changed += usize::from(converted_templates) + expr_changed;
     errors.extend(expr_errors);
     json!({"regions": calc_regions, "tables": tables, "changed": changed, "errors": errors})
@@ -1580,7 +1610,7 @@ pub(crate) fn answers(s: &Session, opts: &Options) -> Vec<(usize, u32, String)> 
     }
     let zones = super::exercise::zones(s);
     let ex_calc = super::exercise::exercise_calc(s);
-    let (sheets, outcomes) = run_sheet(&found, opts, &zones, &super::exercise::seeds(s), &ex_calc, &CalcOverrides::default(), None);
+    let (sheets, outcomes) = run_sheet(&found, opts, &zones, &super::exercise::seeds(s), &ex_calc, &CalcOverrides::default(), None, &[]);
     found
         .iter()
         .zip(&outcomes)
@@ -1870,7 +1900,7 @@ pub(crate) fn underlay_source(s: &Session, source: &Arc<str>) -> Option<Arc<stri
     let at = found.iter().position(|i| matches!(i, Item::Cad { source: src, .. } if Arc::ptr_eq(src, source)))?;
     found.truncate(at + 1);
     let (zones, seeds, ex_calc) = (super::exercise::zones(s), super::exercise::seeds(s), super::exercise::exercise_calc(s));
-    let (sheets, outcomes) = run_sheet(&found, &options_now(s), &zones, &seeds, &ex_calc, &CalcOverrides::default(), None);
+    let (sheets, outcomes) = run_sheet(&found, &options_now(s), &zones, &seeds, &ex_calc, &CalcOverrides::default(), None, &[]);
     let id = match outcomes.into_iter().nth(at) {
         Some(Outcome::Cad(_, _, Some(r))) => r.0.id.clone()?,
         _ => return None,
@@ -1902,7 +1932,7 @@ fn resolved_cad_as(s: &Session, source: &Arc<str>, in_mm: bool) -> Option<Resolv
     if let Some(hit) = CAD_MEMO.with(|m| m.borrow().get(slot).and_then(Option::as_ref).filter(|(k, _)| *k == key).map(|(_, v)| v.clone())) {
         return hit;
     }
-    let (mut sheets, outcomes) = run_sheet(&found, &opts, &zones, &seeds, &ex_calc, &CalcOverrides::default(), None);
+    let (mut sheets, outcomes) = run_sheet(&found, &opts, &zones, &seeds, &ex_calc, &CalcOverrides::default(), None, &[]);
     let resolved = match (found.get(at), outcomes.into_iter().nth(at)) {
         (Some(Item::Cad { top, source }), Some(Outcome::Cad(Some(r), _, Some(resolved)))) => {
             let (d, names, screen) = *resolved;
@@ -1942,7 +1972,7 @@ pub(crate) fn cad_errors(s: &Session, source: &Arc<str>) -> Option<Vec<(String, 
     let at = found.iter().position(|i| matches!(i, Item::Cad { source: src, .. } if Arc::ptr_eq(src, source)))?;
     found.truncate(at + 1);
     let (zones, seeds, ex_calc) = (super::exercise::zones(s), super::exercise::seeds(s), super::exercise::exercise_calc(s));
-    let (_, outcomes) = run_sheet(&found, &options_now(s), &zones, &seeds, &ex_calc, &CalcOverrides::default(), None);
+    let (_, outcomes) = run_sheet(&found, &options_now(s), &zones, &seeds, &ex_calc, &CalcOverrides::default(), None, &[]);
     match outcomes.into_iter().last() {
         Some(Outcome::Cad(_, errors, _)) => Some(errors),
         _ => None,
@@ -1955,7 +1985,7 @@ pub(crate) fn resolved_plot(s: &Session, source: &Arc<str>) -> Option<strix_plot
     let at = found.iter().position(|i| matches!(i, Item::Plot { source: src, .. } if Arc::ptr_eq(src, source)))?;
     found.truncate(at + 1);
     let (zones, seeds, ex_calc) = (super::exercise::zones(s), super::exercise::seeds(s), super::exercise::exercise_calc(s));
-    let (_, outcomes) = run_sheet(&found, &options_now(s), &zones, &seeds, &ex_calc, &CalcOverrides::default(), None);
+    let (_, outcomes) = run_sheet(&found, &options_now(s), &zones, &seeds, &ex_calc, &CalcOverrides::default(), None, &[]);
     match outcomes.into_iter().last() {
         Some(Outcome::Plot(rendered, _)) => rendered,
         _ => None,
@@ -1981,7 +2011,7 @@ pub(crate) fn worksheet_at(s: &Session, source: &Arc<str>) -> Option<Worksheet> 
     found.truncate(at);
     let (zones, seeds, ex_calc) = (super::exercise::zones(s), super::exercise::seeds(s), super::exercise::exercise_calc(s));
     let opts = options_now(s);
-    let (mut sheets, _) = run_sheet(&found, &opts, &zones, &seeds, &ex_calc, &CalcOverrides::default(), None);
+    let (mut sheets, _) = run_sheet(&found, &opts, &zones, &seeds, &ex_calc, &CalcOverrides::default(), None, &[]);
     Some(match zones.get(top).copied().flatten() {
         Some(e) => sheets.exercises.remove(&e).unwrap_or_else(|| Worksheet::new(opts)),
         None => sheets.main,
@@ -3060,10 +3090,84 @@ fn insert_table(s: &mut Session, v: &Value) -> CmdResult {
     if s.sel.focus.path.cell().is_some() {
         return Err(CmdError::Disabled(NESTED_TABLE.into()));
     }
-    let rows = p::u64(v, "rows").unwrap_or(4).clamp(2, 1000);
-    let cols = p::u64(v, "cols").unwrap_or(3).clamp(1, 63);
+    let cells = given_cells(v)?;
+    let rows = cells.as_ref().map_or_else(|| p::u64(v, "rows").unwrap_or(4), |c| c.len() as u64).clamp(2, MAX_TABLE_ROWS);
+    let cols =
+        cells.as_ref().map_or_else(|| p::u64(v, "cols").unwrap_or(3), |c| c.iter().map(Vec::len).max().unwrap_or(1) as u64).clamp(1, MAX_TABLE_COLS);
     s.run("insert.table", &json!({"rows": rows, "cols": cols})).map_err(|e| CmdError::Failed(e.to_string()))?;
-    toggle_table(s, &json!({"value": true}))
+    let Some(cells) = cells else {
+        return toggle_table(s, &json!({"value": true}));
+    };
+    let (tp, _, _) = s.sel.focus.path.cell().ok_or_else(|| CmdError::Failed("the table was not inserted".into()))?;
+    let story = s.sel.focus.story;
+    {
+        let t = s.doc.table_mut(story, &tp)?;
+        for (row, texts) in t.rows.iter_mut().zip(&cells) {
+            for (cell, text) in row.cells.iter_mut().zip(texts) {
+                if let Some(Block::Para(para)) = cell.blocks.first_mut().map(Arc::make_mut)
+                    && !text.is_empty()
+                {
+                    let props = para.props_of_char(0).clone();
+                    para.insert_text(0, text, &props).map_err(|e| CmdError::Failed(e.to_string()))?;
+                }
+            }
+        }
+    }
+    super::table::touch_cells(s, &tp)?;
+    let report = toggle_table(s, &json!({"value": true}))?;
+    // The cells as calculated, then the caret after the table, where the next statement goes.
+    let shown: Vec<Vec<String>> = s
+        .doc
+        .table(story, &tp)
+        .map(|t| {
+            t.rows
+                .iter()
+                .map(|r| r.cells.iter().map(|c| c.blocks.first().and_then(|b| b.as_para()).map(|p| p.plain_text()).unwrap_or_default()).collect())
+                .collect()
+        })
+        .unwrap_or_default();
+    let top = tp.0.first().copied().unwrap_or(0) as usize;
+    if top + 1 >= s.doc.body.len() {
+        s.doc.body.push(Arc::new(Block::Para(wordcraft_doc::Paragraph::default())));
+    }
+    s.sel = crate::Selection::caret(wordcraft_doc::Pos::new(story, wordcraft_doc::Path::top(top + 1), 0));
+    s.touch();
+    Ok(json!({"calc": true, "cells": shown, "recalculated": report["recalculated"]}))
+}
+
+/// Most rows and columns `calc.insertTable` makes.
+const MAX_TABLE_ROWS: u64 = 1000;
+const MAX_TABLE_COLS: u64 = 63;
+/// Longest text of one cell given to `calc.insertTable`.
+const MAX_CELL_CHARS: usize = 1000;
+
+/// The `cells` of `calc.insertTable`: rows of strings (numbers are taken as their text), at most
+/// [`MAX_TABLE_ROWS`] × [`MAX_TABLE_COLS`]. `None` when not given.
+fn given_cells(v: &Value) -> Result<Option<Vec<Vec<String>>>, CmdError> {
+    let Some(rows) = v.get("cells") else { return Ok(None) };
+    let bad = || CmdError::Params("cells: rows of strings, [[\"L [m]\", \"q = 2*L\"], [\"3\", \"\"]]".into());
+    let rows = rows.as_array().ok_or_else(bad)?;
+    if rows.is_empty() || rows.len() as u64 > MAX_TABLE_ROWS {
+        return Err(CmdError::Params(format!("cells: 1 to {MAX_TABLE_ROWS} rows")));
+    }
+    let mut out = Vec::with_capacity(rows.len());
+    for row in rows {
+        let row = row.as_array().ok_or_else(bad)?;
+        if row.len() as u64 > MAX_TABLE_COLS {
+            return Err(CmdError::Params(format!("cells: at most {MAX_TABLE_COLS} columns")));
+        }
+        let texts = row
+            .iter()
+            .map(|c| match c {
+                Value::String(t) => Ok(t.chars().filter(|c| !c.is_control()).take(MAX_CELL_CHARS).collect()),
+                Value::Number(n) => Ok(n.to_string()),
+                Value::Null => Ok(String::new()),
+                _ => Err(bad()),
+            })
+            .collect::<Result<Vec<String>, CmdError>>()?;
+        out.push(texts);
+    }
+    Ok(Some(out))
 }
 
 fn item_positions(blocks: &[Arc<Block>]) -> Vec<wordcraft_doc::Pos> {
@@ -3204,7 +3308,7 @@ fn variables(s: &mut Session, v: &Value) -> CmdResult {
     let zones = super::exercise::zones(s);
     let ex_calc = super::exercise::exercise_calc(s);
     let meta = super::exercise::sandbox_meta(s);
-    let (sheets, outcomes) = run_sheet(&found, &opts, &zones, &super::exercise::seeds(s), &ex_calc, &call_c, None);
+    let (sheets, outcomes) = run_sheet(&found, &opts, &zones, &super::exercise::seeds(s), &ex_calc, &call_c, None, &[]);
     let main_defined = defined_regions(&found, &outcomes, &zones, None);
     let list: Vec<Value> = sheets
         .main

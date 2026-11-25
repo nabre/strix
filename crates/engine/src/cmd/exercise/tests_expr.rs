@@ -154,7 +154,9 @@ fn an_inserted_value_replaces_the_selection_and_the_caret_goes_after_it() {
     let t = text(&s);
     assert!(t.contains("3 m e 150 cm 1.5 m e lato 200 cm."), "{t}");
     assert!(!t.contains("Raggio"), "{t}");
-    assert_eq!(statement(&s).1.len(), 4, "{t}");
+    let top = s.doc.body.iter().position(|b| matches!(&**b, Block::Para(p) if p.text.contains("e lato"))).unwrap();
+    let spans = s.doc.body.get(top).and_then(|b| b.as_para()).map(super::expr::expr_spans).unwrap_or_default();
+    assert_eq!(spans.len(), 4, "{t}");
     // An error comes back at once.
     let r = run(&mut s, "exercise.insertExpr", json!({"expr": "zz"}));
     assert!(r["error"].as_str().is_some_and(|e| e.contains("zz")), "{r}");
@@ -174,4 +176,25 @@ fn recalled_values_keep_the_unit_they_were_given_in() {
     let t = text(&s);
     assert!(t.contains("A 20 °C."), "{t}");
     assert!(t.contains("k = 0.0002 1/K"), "{t}");
+}
+
+/// An inline value shows what its names are worth where it stands; a name defined only further
+/// on (an option recalling the result) is read from where it is defined.
+#[test]
+fn an_inline_value_reads_its_names_where_it_stands() {
+    let mut s = Session::new(Document::new());
+    run(&mut s, "calc.insert", json!({"text": "L = 2 m"}));
+    run(&mut s, "text.newParagraph", json!({}));
+    run(&mut s, "text.insert", json!({"text": "prima {{L}} e {{A}}"}));
+    run(&mut s, "text.newParagraph", json!({}));
+    // A name is redefined with `:=` (with `=` a number after a known name is its result).
+    run(&mut s, "calc.insert", json!({"text": "L := 5 m"}));
+    run(&mut s, "text.newParagraph", json!({}));
+    run(&mut s, "calc.insert", json!({"text": "A = L^2"}));
+    run(&mut s, "text.newParagraph", json!({}));
+    run(&mut s, "text.insert", json!({"text": "dopo {{L}}"}));
+    run(&mut s, "calc.recalculate", json!({}));
+    let t = text(&s);
+    assert!(t.contains("prima 2 m e 25 m²"), "{t}");
+    assert!(t.contains("dopo 5 m"), "{t}");
 }

@@ -440,18 +440,19 @@ mod tests {
         // No value where the function has a pole or is not defined.
         assert_eq!(last_error(&["cot(0) ="]), Some(CalcError::DivisionByZero));
         assert_eq!(last_error(&["csc(180°) ="]), Some(CalcError::DivisionByZero));
-        assert_eq!(last_error(&["sec^(−1)⁡(0.5) ="]), Some(CalcError::Domain { function: "sec⁻¹".into() }));
-        assert_eq!(last_error(&["coth^(−1)⁡(0.5) ="]), Some(CalcError::Domain { function: "coth⁻¹".into() }));
+        assert_eq!(last_error(&["sec^(−1)⁡(0.5) ="]), Some(CalcError::Domain { function: "asec".into() }));
+        assert_eq!(last_error(&["coth^(−1)⁡(0.5) ="]), Some(CalcError::Domain { function: "acoth".into() }));
     }
 
     #[test]
-    fn inverses_are_written_as_the_gallery_writes_them() {
+    fn inverses_are_written_with_their_a() {
         let o = Options { steps: true, ..Options::default() };
         let run = |s: &[&str]| evaluate(s, &o).pop().and_then(|r| r.display).unwrap_or_default();
-        // Solving turns a function into its inverse, shown as a power on the name.
-        assert_eq!(run(&["y = 0.5", "y = sin(α)"]), "y = sin(α) ⇒ α = sin^(−1)\u{2061}(y) = sin^(−1)\u{2061}(0.5) = 30°");
-        assert_eq!(run(&["y = 2", "y = sec(α)"]), "y = sec(α) ⇒ α = sec^(−1)\u{2061}(y) = sec^(−1)\u{2061}(2) = 60°");
-        assert_eq!(run(&["y = 1", "y = cot(α)"]), "y = cot(α) ⇒ α = cot^(−1)\u{2061}(y) = cot^(−1)\u{2061}(1) = 45°");
+        // Solving turns a function into its inverse, named with an `a` before it.
+        assert_eq!(run(&["y = 0.5", "y = sin(α)"]), "y = sin(α) ⇒ α = asin\u{2061}(y) = asin\u{2061}(0.5) = 30°");
+        assert_eq!(run(&["y = 2", "y = sec(α)"]), "y = sec(α) ⇒ α = asec\u{2061}(y) = asec\u{2061}(2) = 60°");
+        assert_eq!(run(&["y = 1", "y = cot(α)"]), "y = cot(α) ⇒ α = acot\u{2061}(y) = acot\u{2061}(1) = 45°");
+        assert_eq!(run(&["x = 0.5", "α = atan(x)"]), "α = atan(x) = atan\u{2061}(0.5) = 26.565°");
         assert_eq!(run(&["α = 30°", "α = csc^(−1)⁡x"]), "α = csc^(−1)\u{2061}x ⇒ x = csc(α) = csc(30°) = 2");
         // What is written back reads as the same calculation.
         assert_eq!(run(&["sin^(−1)\u{2061}(0.5) ="]), "sin^(−1)\u{2061}(0.5) = 30°");

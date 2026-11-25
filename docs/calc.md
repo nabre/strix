@@ -320,6 +320,11 @@ reads parameters and one letter that is none (`tan(α) = d/h` with `h` defined) 
 that letter, not "in days per hour"; after a name alone (`v = m/s`) or after a result
 (`v = d/t = m/s`) the units stay a request.
 
+**Names with nested scripts.** A subscript of a subscript, `V_A_pl` (which a built-up equation
+gives back as `(V_A)_pl`), is one name. So is a subscripted name with a superscript of letters
+written against it, `Z_RT^S`: where a parameter of that name is defined, or alone before the
+first `=` when neither `Z_RT` nor `S` is a parameter; otherwise it is a power (`x_1^n`).
+
 **Shares and dimensionless units.** A plain number asked for in `%`, `‰`, `°` or `gon`
 (`p = 0.5 m/(50 m) = %`) keeps that unit wherever it is shown again: `p =`, the results summary,
 an inline value (`1 %`, not 0.01). A share written out of a number is a number: `1835000·10%`
@@ -420,9 +425,10 @@ tanh⁻¹`. So `α = sin⁻¹((R − r)/(R + r))` with `R = 3 m`, `r = 1 m` give
 out in degrees, like every angle a calculation shows (`asin(0.5) = 30°`); the hyperbolic inverses
 give plain numbers.
 
-Steps and solutions write the inverse as the Equation tab does, the −1 on the function's name:
-`α = sin⁻¹((R − r)/(R + r)) = sin^(−1)⁡(((3 m) - (1 m))/((3 m) + (1 m))) = 30°`, and solving
-`y = sin(α)` gives `α = sin^(−1)⁡(y)`.
+Steps and solutions write the inverse with an `a` before the function, however it was typed:
+`α = sin⁻¹((R − r)/(R + r)) = asin⁡(((3 m) - (1 m))/((3 m) + (1 m))) = 30°`, and solving
+`y = sin(α)` gives `α = asin⁡(y)`; `atan`, `acos`, `acsc`, `asinh`… likewise, also in messages
+("asin is not defined there"). A statement typed as text keeps `atan(…)` as written.
 
 A positive whole power on the name is a power of the result: `sin²(x)` is `sin(x)²`
 (`cos²(x) + sin²(x) = 1`). Other powers on a name are errors (`sin^-2(x)`: write `(sin(x))^-2`),
@@ -756,7 +762,7 @@ now stands (a `(2 m)` left in it stays a number). The source travels with the eq
 | `equation.calc` | the Calculate button: the equation at the caret is a region or not (`{"value"?: bool}`) |
 | `calc.newEquations` | preference: new equations are regions (default on) |
 | `table.calc` | the table at the caret is calculated or not (`{"value"?: bool}`); disabled, like `table.calcNames`, `table.mathCells`, `table.calcIndex` and `table.calcTotal`, on a table that is never calculated (inside another table, or outside the body) |
-| `calc.insertTable` | insert a calculated table (`{"rows"?, "cols"?}`); disabled inside a table and outside the body |
+| `calc.insertTable` | insert a calculated table (`{"rows"?, "cols"?, "cells"?: [[string]]}`: with `cells`, filled row by row, the header first, the caret left after the table and the cells returned as calculated); disabled inside a table and outside the body |
 | `calc.tableInfo` | whether the table at the caret is calculated, and its options (`columnTotal`: the caret's column is summed) |
 | `table.calcTotal` | Column Total: the column at the caret is summed in the total row or not (`{"value"?: bool}`) |
 | `calc.recalculate` | evaluate every region and table in order, update results; returns errors; `{"decimalComma": bool}` sets the document's decimal separator (see *Decimal separator*) |
@@ -811,7 +817,7 @@ none of them.
 
 ## Revision history
 
-- 2026-11-25: put right from a conversion report: a plain number asked for in `%`/`‰`/`°`/`gon` keeps it in `p =`, the results summary and inline values (it was 0.01 after `= %`); `1835000·10%` is 183500, no longer `1.835·10^7 %`; a parameter after a unit and `·` or a space is the parameter (`2 m·s` with `s = 3 m`), also in function bodies; `tan(α) = d/h` with `h` defined solves `d` (it showed the result "in days per hour"); a number in °C in a denominator is a step of one degree; `0.0002/K` and `0.0002 1/K` are per kelvin (the first was two unknowns, the second an error); inline values show temperatures in °C and shares in % as the worksheet does (they were 293.15 K and 0.01), `-> 1` a plain number; text inserted with spaces around `/` and `^` (`3 / 100`, `r ^ 2`) no longer builds empty fractions and powers, and `sqrt`, `asin`, `acos`, `atan` are written `√`, `sin⁻¹`, `cos⁻¹`, `tan⁻¹` as the working writes them; a plain `=` definition no longer copies the whole scope to check itself (4000 definitions took 4 s).
+- 2026-11-25: put right from a conversion report: a plain number asked for in `%`/`‰`/`°`/`gon` keeps it in `p =`, the results summary and inline values (it was 0.01 after `= %`); `1835000·10%` is 183500, no longer `1.835·10^7 %`; a parameter after a unit and `·` or a space is the parameter (`2 m·s` with `s = 3 m`), also in function bodies; `tan(α) = d/h` with `h` defined solves `d` (it showed the result "in days per hour"); a number in °C in a denominator is a step of one degree; `0.0002/K` and `0.0002 1/K` are per kelvin (the first was two unknowns, the second an error); inline values show temperatures in °C and shares in % as the worksheet does (they were 293.15 K and 0.01), `-> 1` a plain number; text inserted with spaces around `/` and `^` (`3 / 100`, `r ^ 2`) no longer builds empty fractions and powers, and `sqrt` is written `√` as the working writes it; inverse functions are written with their `a` (`atan`, `asin`), in the working too (it wrote `tan^(−1)`); names `V_A_pl` (read back as `(V_A)_pl`) and `Z_RT^S`; `calc.insertTable` takes `cells` and leaves the caret after the table; a plain `=` definition no longer copies the whole scope to check itself (4000 definitions took 4 s); an unknown alone on one side but read by the other (`cos(x) = x`) is solved and shown (it was taken for a definition and showed nothing).
 
 - 2026-11-21: lines of math keep a quarter of the font size free above and below it (`crates/layout/src/para/math_leading.rs`): calculations under one another no longer look glued together. Put right in the review of pull request 107: only math beyond plain symbols takes that room (an `x` in a sentence left prose unevenly spaced); with Decimal Places a substituted value keeps its digits (`(0.001 kN/mm)` was written for 0.0005); the limit of the rounding rule noted.
 

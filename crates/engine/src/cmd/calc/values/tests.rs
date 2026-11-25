@@ -146,8 +146,8 @@ fn a_built_up_inverse_sine_is_worked_out() {
     run(&mut plain, "calc.recalculate", json!({}));
     let last = last_shown(&plain);
     assert!(last.starts_with("α=sin^(−1)\u{2061}") && last.ends_with("=30°"), "{last}");
-    // The steps write the inverse as it is written, the −1 on the function's name.
-    assert!(last.contains("=sin^(−1)\u{2061}(((3m)-(1m))/((3m)+(1m)))=30°"), "{last}");
+    // The steps write the inverse with its `a`.
+    assert!(last.contains("=asin\u{2061}(((3m)-(1m))/((3m)+(1m)))=30°"), "{last}");
     assert!(run(&mut plain, "calc.recalculate", json!({}))["errors"].as_array().unwrap().is_empty());
 }
 
@@ -162,6 +162,24 @@ fn spaces_around_fractions_and_powers_are_read_as_written() {
         run(&mut plain, "text.insert", json!({"text": " "}));
     }
     let all = shown(&plain);
-    assert_eq!(all[0], "ε=tan⁻¹(3/100)=1.718°", "{all:?}");
-    assert_eq!(all[2], "A=r^2·pi=12.566m²", "{all:?}");
+    // The inverse keeps its `a`, applied to its argument.
+    assert_eq!(all[0], "ε=atan\u{2061}(3/100)=1.718°", "{all:?}");
+    assert_eq!(all[2], "A=r^2·pi=(2m)²·pi=12.566m²", "{all:?}");
+}
+
+/// A calculated table in one command: filled, calculated, the caret after it.
+#[test]
+fn a_calculated_table_from_its_cells() {
+    let mut s = Session::new(Document::new());
+    let r = run(&mut s, "calc.insertTable", json!({"cells": [["L [m]", "A = L^2"], ["2", ""], ["3", ""]]}));
+    assert_eq!(r["cells"][1][1], "4 m²", "{r}");
+    assert_eq!(r["cells"][2][1], "9 m²", "{r}");
+    // The caret is in the paragraph after the table: a statement goes there, outside it.
+    assert!(s.sel.focus.path.cell().is_none());
+    run(&mut s, "calc.insert", json!({"text": "x = 2 m ="}));
+    assert!(matches!(&*s.doc.body[0], Block::Table(_)));
+    // Junk cells are refused, never a panic.
+    let mut s2 = Session::new(Document::new());
+    assert!(s2.run("calc.insertTable", &json!({"cells": [[{"a": 1}]]})).is_err());
+    assert!(s2.run("calc.insertTable", &json!({"cells": []})).is_err());
 }

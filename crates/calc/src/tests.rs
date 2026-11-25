@@ -164,7 +164,7 @@ fn errors_wrong_unit_and_arithmetic() {
     assert_eq!(last_error(&["1e999 ="]), CalcError::Overflow);
     assert_eq!(last_error(&["10^10^10 ="]), CalcError::Overflow);
     assert_eq!(last_error(&["ln(0) ="]), CalcError::Domain { function: "ln".into() });
-    assert_eq!(last_error(&["asin(2) ="]), CalcError::Domain { function: "sin⁻¹".into() });
+    assert_eq!(last_error(&["asin(2) ="]), CalcError::Domain { function: "asin".into() });
     assert!(matches!(last_error(&["sin(2 m) ="]), CalcError::NeedsDimensionless { .. }));
     assert!(matches!(last_error(&["sin(1, 2) ="]), CalcError::Arity { .. }));
     assert!(matches!(last_error(&["max() ="]), CalcError::Arity { .. }));
@@ -1333,7 +1333,7 @@ fn hostile_user_functions_arity_and_values() {
 fn hostile_user_function_definitions() {
     // Bad definitions.
     // A built-in function is never redefined: `sin(x) = x` is an equation in x.
-    assert_eq!(run(&["sin(x) = x"])[0].kind, RegionKind::Definition);
+    assert_eq!(run(&["sin(x) = x"])[0].kind, RegionKind::Solved);
     assert!(matches!(last_error(&["sin(x) := x"]), CalcError::Syntax { .. }));
     assert!(matches!(last_error(&["f(x, x) = x"]), CalcError::BadDefinition(_)));
     assert!(matches!(last_error(&["f(x) = x = 3"]), CalcError::Syntax { .. }));
@@ -1904,15 +1904,15 @@ fn inverse_trigonometric_functions_in_every_form() {
     ] {
         assert_eq!(last(&[&format!("{written} =")]), format!("{written} = {value}"), "{written}");
     }
-    // The user's equation, built up: α = sin⁻¹((R − r)/(R + r)).
+    // The user's equation, built up: α = sin⁻¹((R − r)/(R + r)); the working writes `asin`.
     let sheet = ["R = 3 m", "r = 1 m", "α = sin^(−1)\u{2061}((R−r)/(R+r))"];
-    assert_eq!(steps(&sheet).unwrap(), ["= sin^(−1)\u{2061}(((3 m) - (1 m))/((3 m) + (1 m)))", "= 30°"]);
+    assert_eq!(steps(&sheet).unwrap(), ["= asin\u{2061}(((3 m) - (1 m))/((3 m) + (1 m)))", "= 30°"]);
     assert_eq!(
         inline(&["R = 3 m", "r = 1 m", "α = sin⁻¹((R - r)/(R + r))"]),
-        "α = sin⁻¹((R - r)/(R + r)) = sin^(−1)\u{2061}(((3 m) - (1 m))/((3 m) + (1 m))) = 30°"
+        "α = sin⁻¹((R - r)/(R + r)) = asin\u{2061}(((3 m) - (1 m))/((3 m) + (1 m))) = 30°"
     );
-    // Solving for an angle writes the same inverse.
-    assert_eq!(inline(&["y = 0.5", "y = sin(α)"]), "y = sin(α) ⇒ α = sin^(−1)\u{2061}(y) = sin^(−1)\u{2061}(0.5) = 30°");
+    // Solving for an angle writes the inverse with its `a`.
+    assert_eq!(inline(&["y = 0.5", "y = sin(α)"]), "y = sin(α) ⇒ α = asin\u{2061}(y) = asin\u{2061}(0.5) = 30°");
     // Functions applied the Word way, and powers of them.
     assert_eq!(last(&["x = 2", "sin\u{2061}x ="]), "sin\u{2061}x = 0.909");
     assert_eq!(last(&["x = 2", "cos²(x) + sin^2(x) ="]), "cos²(x) + sin^2(x) = 1");
@@ -2511,4 +2511,30 @@ fn silent_wrong_results_from_a_conversion() {
     assert_eq!(format_value_in(&Value::Scalar(Quantity::number(0.15)), "1", &Options::default()).map(|(_, t)| t), Ok("0.15".to_string()));
     // Still an unknown when nothing else is defined by the equation.
     assert_eq!(last(&["5 = 10/t"]), "5 = 10/t ⇒ t = 2");
+}
+
+/// Names with a subscript of a subscript (`V_A_pl`, read back as `(V_A)_pl`) and with a
+/// superscript of letters (`Z_RT^S`).
+#[test]
+fn names_with_nested_scripts() {
+    assert_eq!(last(&["(V_A)_pl = 3 kN", "X = (V_A)_pl + 1 kN ="]), "X = (V_A)_pl + 1 kN = 4 kN");
+    assert_eq!(last(&["V_A_pl = 3 kN", "V_A_pl ="]), "V_A_pl = 3 kN");
+    assert_eq!(last(&["Z_RT^S = 2 kN", "X = Z_RT^S + 1 kN ="]), "X = Z_RT^S + 1 kN = 3 kN");
+    assert_eq!(last(&["Z_RT^S := 2 kN", "Z_RT^S ="]), "Z_RT^S = 2 kN");
+    // A power stays a power when its parts are parameters.
+    assert_eq!(last(&["x_1 = 2", "n = 3", "x_1^n ="]), "x_1^n = 8");
+    assert_eq!(last(&["x_1 = 2", "x_1^n = 8"]), "x_1^n = 8 ⇒ n = 3");
+    // With spaces, `(a)_b` and `a ^ b` are what they were.
+    assert!(run(&["(V_A) _pl = 3"]).pop().and_then(|r| r.error).is_some());
+}
+
+/// An unknown alone on one side but read by the other is solved and shown, not defined silently.
+#[test]
+fn an_unknown_on_both_sides_is_shown() {
+    let r = run(&["cos(x) = x"]).pop().unwrap();
+    assert_eq!(r.kind, RegionKind::Solved);
+    assert_eq!(r.display.as_deref(), Some("cos(x) = x ⇒ x = 0.739"));
+    assert_eq!(last(&["y = cos(y)"]), "y = cos(y) ⇒ y = 0.739");
+    // A plain definition stays one.
+    assert_eq!(run(&["L = 4.5 m"]).pop().unwrap().kind, RegionKind::Definition);
 }

@@ -2,7 +2,7 @@
 
 use crate::eval::{DIFFERENCE, DomainConstraint, Function, Names, Scope, Temp, Value, eval, eval_scalar};
 use crate::format::{format_number, is_quantity, render, render_nodes};
-use crate::lexer::{Tok, Token, lex};
+use crate::lexer::{Tok, Token, lex, scripted_at, scripted_names};
 use crate::parser::{BinOp, Expr, Func, parse, parse_scope};
 use crate::quantity::{Dim, Quantity, finite};
 use crate::solve::{
@@ -213,9 +213,22 @@ impl Worksheet {
         if text.chars().count() > MAX_INPUT_CHARS {
             return Err(CalcError::TooLong { limit: MAX_INPUT_CHARS });
         }
-        let tokens = lex(text, self.opts.decimal_comma)?;
+        let tokens = self.with_scripted_names(lex(text, self.opts.decimal_comma)?);
         let expr = self.parse_expr(&tokens, text.chars().count())?;
         eval(&expr, &self.scope, Names::Worksheet)
+    }
+
+    /// `tokens` with the names written with a subscript and a superscript (`Z_RT^S`) as one
+    /// token: a parameter of that name, or the name alone before the statement's first `=` or
+    /// `:=` when neither part is a parameter (`Z_RT^S = 120 cm³`; with `x_1` and `n` defined,
+    /// `x_1^n = 8` is still a power).
+    fn with_scripted_names(&self, tokens: Vec<Token>) -> Vec<Token> {
+        let defines = matches!(tokens.get(3).map(|t| &t.tok), Some(Tok::Equals | Tok::Define));
+        let left = defines.then(|| scripted_at(&tokens, 0)).flatten().filter(|name| {
+            let (a, b) = name.split_once('^').unwrap_or((name, ""));
+            self.scope.get(a).is_none() && self.scope.get(b).is_none()
+        });
+        scripted_names(tokens, &|n| self.scope.get(n).is_some() || left.as_deref() == Some(n))
     }
 
     /// [`Self::eval_expr`], formatted as results show it, with its unit: in the unit its
@@ -223,7 +236,7 @@ impl Worksheet {
     /// share asked for in % is `1 %`), else the automatic one.
     pub fn show_expr(&self, text: &str) -> Result<String, CalcError> {
         let v = self.eval_expr(text)?;
-        let tokens = lex(text, self.opts.decimal_comma)?;
+        let tokens = self.with_scripted_names(lex(text, self.opts.decimal_comma)?);
         let hint = self.parse_expr(&tokens, text.chars().count()).ok().and_then(|e| self.hint(&e));
         let (number, unit) = self.auto_hinted(&v, hint.as_deref());
         Ok(with_unit(&number, &unit))
@@ -714,6 +727,7 @@ impl Worksheet {
             },
             None => (text, tokens),
         };
+        let tokens = self.with_scripted_names(tokens);
         let len = text.chars().count();
         // `f(x) = 2·x + 1` defines a function; it is never an equation to solve.
         if let Some(result) = self.function_definition(&tokens, len, reduced.is_some()) {
@@ -1507,7 +1521,10 @@ impl Worksheet {
                 // `h·r = A`: the unknown alone on the right of a formula is solved like `A = h·r`,
                 // the formula turned round first (`A = h·r`), as an isolation step.
                 let flipped = matches!(&rhs, Expr::Name(n) if n == x) && !matches!(&lhs, Expr::Name(n) if n == x) && self.reads_parameter(&lhs, x);
-                let alone = matches!(&lhs, Expr::Name(n) if n == x) || (matches!(&rhs, Expr::Name(n) if n == x) && !flipped);
+                // Alone only when the other side doesn't read it too: `cos(x) = x` is an equation
+                // to solve and show, not a definition of `x`.
+                let alone = (matches!(&lhs, Expr::Name(n) if n == x) && !reads(&rhs, x))
+                    || (matches!(&rhs, Expr::Name(n) if n == x) && !flipped && !reads(&lhs, x));
                 let (value, solution) = match self.solve_for(&lhs, &rhs, x, extra) {
                     (value, Solution::Direct(f)) if flipped => (value, Solution::Isolated(f.clone(), vec![(Expr::Name(x.clone()), f)])),
                     other => other,

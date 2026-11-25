@@ -1,10 +1,10 @@
 //! A statement typed as text (`calc.insert`, the CLI, MCP) made ready for the equation: the
 //! linear format reads spaces as the end of an operand, so `3 / 100` or `r ^ 2` would build an
-//! empty fraction or power; and functions are spelled as the working writes them (`√`, `cos⁻¹`),
-//! so the formula and its values look alike.
+//! empty fraction or power; and a square root is written `√`, as the working writes it, so the
+//! formula and its values look alike (inverse functions keep their `a`: `atan`).
 
-/// `text` with the spaces around `/`, `^` and `_` taken out and `sqrt`, `asin`, `acos`, `atan`
-/// before a bracket written `√`, `sin⁻¹`, `cos⁻¹`, `tan⁻¹`.
+/// `text` with the spaces around `/`, `^` and `_` taken out and `sqrt` before a bracket written
+/// `√`.
 pub(crate) fn tidy(text: &str) -> String {
     let chars: Vec<char> = text.chars().collect();
     let mut out = String::with_capacity(text.len());
@@ -27,8 +27,7 @@ pub(crate) fn tidy(text: &str) -> String {
         let word_start = !out.chars().last().is_some_and(|p| p.is_alphanumeric() || p == '_');
         if word_start && c.is_ascii_alphabetic() {
             let rest: String = chars.get(i..).unwrap_or_default().iter().take(5).collect();
-            let spelled =
-                [("sqrt(", "√("), ("asin(", "sin⁻¹("), ("acos(", "cos⁻¹("), ("atan(", "tan⁻¹(")].into_iter().find(|(from, _)| rest.starts_with(from));
+            let spelled = [("sqrt(", "√(")].into_iter().find(|(from, _)| rest.starts_with(from));
             if let Some((from, to)) = spelled {
                 out.push_str(to);
                 i += from.chars().count();
@@ -52,14 +51,14 @@ mod tests {
 
     #[test]
     fn spaces_around_fractions_and_powers_go() {
-        assert_eq!(tidy("ε = atan(3 / 100) ="), "ε = tan⁻¹(3/100) =");
+        assert_eq!(tidy("ε = atan(3 / 100) ="), "ε = atan(3/100) =");
         assert_eq!(tidy("A = r ^ 2·pi ="), "A = r^2·pi =");
         assert_eq!(tidy("q = 12 kN / m"), "q = 12 kN/m");
         assert_eq!(tidy("x = f _ ck"), "x = f_ck");
         // Other spaces stay; names holding the letters stay.
         assert_eq!(tidy("y = sqrt(4) + 2 m ="), "y = √(4) + 2 m =");
         assert_eq!(tidy("y = xsqrt(4)"), "y = xsqrt(4)");
-        assert_eq!(tidy("z = acos(0.5) + asin(x)"), "z = cos⁻¹(0.5) + sin⁻¹(x)");
+        assert_eq!(tidy("z = acos(0.5) + asin(x)"), "z = acos(0.5) + asin(x)");
         assert_eq!(tidy("atan2(1; 2)"), "atan2(1; 2)");
         assert_eq!(tidy("  "), "");
     }

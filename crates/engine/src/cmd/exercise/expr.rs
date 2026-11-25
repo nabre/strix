@@ -159,6 +159,12 @@ fn split_number_and_unit(shown: &str) -> (&str, &str) {
 /// Converts any plain-text `{{formula}}` templates outside existing `strix:expr` controls in `p`
 /// into inline `strix:expr` content controls. Returns whether `p` changed.
 pub(crate) fn convert_templates_in_para(p: &mut Paragraph) -> bool {
+    convert_templates_keeping(p, None)
+}
+
+/// [`convert_templates_in_para`], keeping the caret at offset `caret` where it was in the text:
+/// after a converted template it moves with the text, inside one it goes after the value.
+fn convert_templates_keeping(p: &mut Paragraph, mut caret: Option<&mut usize>) -> bool {
     let mut changed = false;
     for _ in 0..MAX_EXPRS_PER_PARA {
         let Some((from, to, formula)) = find_next_template(p) else { break };
@@ -174,6 +180,14 @@ pub(crate) fn convert_templates_in_para(p: &mut Paragraph) -> bool {
         let _ = p.insert_text(inner, &formula, &props);
         let _ = p.insert_object(inner + formula.len(), InlineObject::ControlEnd, &props);
         p.touch();
+        let written = 2 * OBJ.len_utf8() + formula.len();
+        if let Some(c) = caret.as_deref_mut() {
+            if *c >= to {
+                *c = (*c - (to - from)).saturating_add(written);
+            } else if *c > from {
+                *c = from + written;
+            }
+        }
         changed = true;
     }
     changed
@@ -239,7 +253,23 @@ pub(crate) fn expr_spans(p: &Paragraph) -> Vec<(usize, usize)> {
 /// Converts `{{formula}}` templates across all body paragraphs (and table cells).
 pub(crate) fn convert_all_templates(s: &mut Session) -> bool {
     let mut changed = false;
-    for b in s.doc.body.iter_mut() {
+    // The caret's paragraph keeps the caret where it was in its text (both ends of a selection
+    // there are taken as the caret).
+    let caret_top = (s.sel.focus.story == StoryRef::Body && s.sel.focus.path.0.len() == 1).then(|| s.sel.focus.path.last());
+    let mut caret = s.sel.focus.off;
+    for (top, b) in s.doc.body.iter_mut().enumerate() {
+        if Some(top) == caret_top
+            && let Block::Para(p) = &**b
+            && p.text.contains("{{")
+            && p.text.contains("}}")
+        {
+            let Block::Para(p) = Arc::make_mut(b) else { continue };
+            if convert_templates_keeping(p, Some(&mut caret)) {
+                changed = true;
+                s.sel = crate::Selection::caret(wordcraft_doc::Pos::new(StoryRef::Body, s.sel.focus.path.clone(), caret));
+            }
+            continue;
+        }
         changed |= convert_block(b, 0);
     }
     if changed {
@@ -337,6 +367,7 @@ pub(crate) fn apply_sheets(
     zones: &[Option<usize>],
     main: &strix_calc::Worksheet,
     exercises: &std::collections::BTreeMap<usize, strix_calc::Worksheet>,
+    at: &std::collections::BTreeMap<usize, strix_calc::Worksheet>,
 ) -> (usize, Vec<Value>) {
     let converted = convert_all_templates(s) | super::word_blank::convert_all(s, zones);
     let mut has_any = false;
@@ -355,17 +386,53 @@ pub(crate) fn apply_sheets(
     }
     let mut updates = usize::from(converted);
     let mut errors = Vec::new();
+    let caret = caret_after_values(s);
     let layout = super::scan(s);
     for (top, b) in s.doc.body.iter_mut().enumerate() {
         let ws = zones.get(top).copied().flatten().and_then(|e| exercises.get(&e)).unwrap_or(main);
         let teacher = zones.get(top).copied().flatten().and_then(|e| layout.exercises.get(e)).is_none_or(|e| e.show.solution);
-        apply_block(b, top, ws, teacher, 0, &mut updates, &mut errors);
+        let sheets = Sheets { here: at.get(&top), end: ws };
+        apply_block(b, top, sheets, teacher, 0, &mut updates, &mut errors);
     }
     if updates > 0 {
+        if let Some(mark) = caret {
+            restore_caret(s, mark);
+        }
         s.touch();
         s.clamp_selection();
     }
     (updates, errors)
+}
+
+/// Where the caret is among the values of its paragraph (a top-level one of the body): after
+/// how many of them, and how far past the last of those. Values rewritten by a recalculation
+/// change length; the caret stays at the same place in the text. A caret inside a value is
+/// taken as after it.
+#[derive(Clone, Copy)]
+struct CaretMark {
+    top: usize,
+    after: usize,
+    past: usize,
+}
+
+fn caret_after_values(s: &Session) -> Option<CaretMark> {
+    let f = &s.sel.focus;
+    if f.story != StoryRef::Body || f.path.0.len() != 1 || s.sel.anchor != s.sel.focus {
+        return None;
+    }
+    let top = f.path.last();
+    let p = s.doc.body.get(top)?.as_para()?;
+    let spans = expr_spans(p);
+    let after = spans.iter().filter(|&&(a, _)| a < f.off).count();
+    let end = spans.get(after.checked_sub(1)?).map(|&(_, b)| b + OBJ.len_utf8())?;
+    Some(CaretMark { top, after, past: f.off.saturating_sub(end) })
+}
+
+fn restore_caret(s: &mut Session, mark: CaretMark) {
+    let Some(p) = s.doc.body.get(mark.top).and_then(|b| b.as_para()) else { return };
+    let Some(&(_, b)) = expr_spans(p).get(mark.after.saturating_sub(1)) else { return };
+    let off = (b + OBJ.len_utf8()).saturating_add(mark.past).min(p.text.len());
+    s.sel = crate::Selection::caret(wordcraft_doc::Pos::new(StoryRef::Body, wordcraft_doc::Path::top(mark.top), off));
 }
 
 fn block_has_expr(b: &Block, depth: usize) -> bool {
@@ -378,15 +445,34 @@ fn block_has_expr(b: &Block, depth: usize) -> bool {
     }
 }
 
-fn apply_block(
-    block: &mut Arc<Block>,
-    top: usize,
-    ws: &strix_calc::Worksheet,
-    teacher: bool,
-    depth: usize,
-    updates: &mut usize,
-    errors: &mut Vec<Value>,
-) {
+/// The worksheets an inline value is worked out in: as it stands at the value's block (`here`,
+/// when kept) and at the end of the document (`end`), for a name defined only further on (an
+/// option recalling the result the solution works out).
+#[derive(Clone, Copy)]
+struct Sheets<'a> {
+    here: Option<&'a strix_calc::Worksheet>,
+    end: &'a strix_calc::Worksheet,
+}
+
+impl Sheets<'_> {
+    fn eval(self, formula: &str) -> Result<String, String> {
+        // A name the document defines only further on is read there (else `A` before its
+        // definition would be the ampere).
+        let here = self.here.filter(|ws| names_in(shown_expr(formula)).all(|n| ws.scope().get(n).is_some() || self.end.scope().get(n).is_none()));
+        match here.map(|ws| eval_in_sheet(ws, formula)) {
+            Some(Ok(shown)) => Ok(shown),
+            _ => eval_in_sheet(self.end, formula),
+        }
+    }
+}
+
+/// The names a formula reads, roughly (words of letters, digits, `_` and `^` starting with a
+/// letter): enough to tell which parameters it needs.
+fn names_in(formula: &str) -> impl Iterator<Item = &str> {
+    formula.split(|c: char| !(c.is_alphanumeric() || c == '_' || c == '^')).filter(|w| w.chars().next().is_some_and(char::is_alphabetic))
+}
+
+fn apply_block(block: &mut Arc<Block>, top: usize, ws: Sheets<'_>, teacher: bool, depth: usize, updates: &mut usize, errors: &mut Vec<Value>) {
     if depth > 16 {
         return;
     }
@@ -465,13 +551,7 @@ fn shown_parts(control: &ContentControl, formula: &str, value: String) -> (Strin
     }
 }
 
-fn plan_para_updates(
-    p: &Paragraph,
-    top: usize,
-    ws: &strix_calc::Worksheet,
-    teacher: bool,
-    errors: &mut Vec<Value>,
-) -> Vec<(usize, (String, String))> {
+fn plan_para_updates(p: &Paragraph, top: usize, ws: Sheets<'_>, teacher: bool, errors: &mut Vec<Value>) -> Vec<(usize, (String, String))> {
     let mut out = Vec::new();
     for (idx, (a, b)) in expr_spans(p).into_iter().enumerate() {
         let Some(InlineObject::ControlStart { control }) = p.object_at(a) else { continue };
@@ -483,7 +563,7 @@ fn plan_para_updates(
             continue;
         }
         let Some(formula) = read_formula(control) else { continue };
-        let mut desired = match eval_in_sheet(ws, &formula) {
+        let mut desired = match ws.eval(&formula) {
             Ok(val) => val,
             Err(err) => {
                 errors.push(json!({"expr": formula, "top": top, "error": err}));

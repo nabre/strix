@@ -451,6 +451,12 @@ just after it, Delete just before it, either key inside it, or a selection endin
 takes all of it (Undo brings it back). Values saved before they could be deleted are unlocked
 when the document is recalculated.
 
+An inline value shows what its names are worth **where it stands**: after `L = 2 m` it shows
+2 m even if `L := 5 m` comes later. A name the document defines only further on (a
+multiple-choice option recalling the result the solution works out) is read where it is defined.
+A template typed and turned into a value, or a value rewritten by a recalculation, leaves the
+caret where it was in the text, never inside the value.
+
 `exercise.insertExpr` replaces the selection, leaves the caret after the value (so the next
 insertion is a new value, not a change of this one), reads names copied in mathematical italic
 (`𝑅`) as plain letters, and returns what the value shows and its error at once
@@ -574,7 +580,7 @@ same commands the ribbon runs (`crates/engine/src/sample_calc.rs`), as the sampl
 
 ## Revision history
 
-- 2026-11-25: `exercise.insertExpr` replaces the selection, puts the caret after the value (the next one went into it, changing its formula: "no inline value" after), reads math-italic names and returns `shown`/`error`; a datum given in °C is recalled in °C, units like `1/K` and `1/m³` work in the data.
+- 2026-11-25: inline values read their names where they stand (they read the end of the document, so a name redefined later showed its later value), a name defined only further on still read there; the caret no longer lands inside a value when `{{…}}` is turned into one or a value is rewritten. `exercise.insertExpr` replaces the selection, puts the caret after the value (the next one went into it, changing its formula: "no inline value" after), reads math-italic names and returns `shown`/`error`; a datum given in °C is recalled in °C, units like `1/K` and `1/m³` work in the data.
 
 - 2026-11-17: Docs brought up to date with the code: the status line, the Teaching tab's groups (Exercise with Exercise Tools, Archive, Scores, Assessment, Graph Paper), the commands table completed (`exercise.titleLine`, `questionPoints`, `blank`, `insertExpr`, `generateVariants`, `totalScore`, `grading`, `check`, `file.exportPack`, `view.gradingPane`, `view.checkPane`), the Next list (worked steps are calc's).
 

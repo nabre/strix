@@ -295,7 +295,79 @@ pub(crate) fn lex(text: &str, decimal_comma: bool) -> Result<Vec<Token>, CalcErr
         out.push(Token { tok, pos, byte });
         i += 1;
     }
-    Ok(out)
+    Ok(nested_subscripts(out))
+}
+
+/// A name whose subscript has a subscript, `V_A_pl`, comes back from a built-up equation as
+/// `(V_A)_pl`: written against each other, that is the one name `V_A_pl` (nothing else reads a
+/// bracketed name followed by `_`).
+fn nested_subscripts(tokens: Vec<Token>) -> Vec<Token> {
+    let mut out: Vec<Token> = Vec::with_capacity(tokens.len());
+    let mut i = 0usize;
+    while let Some(t) = tokens.get(i) {
+        if let (
+            Some(Tok::LParen),
+            Some(Token { tok: Tok::Ident(a), pos: pa, .. }),
+            Some(Token { tok: Tok::RParen, pos: pr, .. }),
+            Some(Token { tok: Tok::Under, pos: pu, .. }),
+            Some(Token { tok: Tok::Ident(b), pos: pb, .. }),
+        ) = (Some(&t.tok), tokens.get(i + 1), tokens.get(i + 2), tokens.get(i + 3), tokens.get(i + 4))
+            && a.contains('_')
+            && !a.ends_with('_')
+            && *pa == t.pos + 1
+            && *pr == pa + a.chars().count()
+            && *pu == pr + 1
+            && *pb == pu + 1
+            && b.chars().all(char::is_alphanumeric)
+        {
+            out.push(Token { tok: Tok::Ident(format!("{a}_{b}")), pos: t.pos, byte: t.byte });
+            i += 5;
+            continue;
+        }
+        out.push(t.clone());
+        i += 1;
+    }
+    out
+}
+
+/// A name with a subscript and a superscript of letters written against it (`Z_RT^S`, a
+/// section modulus): one name where `defined` says so (a parameter of that name, or the name a
+/// statement defines); otherwise `x_1^n` stays a power.
+pub(crate) fn scripted_names(tokens: Vec<Token>, defined: &dyn Fn(&str) -> bool) -> Vec<Token> {
+    let mut out: Vec<Token> = Vec::with_capacity(tokens.len());
+    let mut i = 0usize;
+    while let Some(t) = tokens.get(i) {
+        if let Some(name) = scripted_at(&tokens, i)
+            && defined(&name)
+        {
+            out.push(Token { tok: Tok::Ident(name), pos: t.pos, byte: t.byte });
+            i += 3;
+            continue;
+        }
+        out.push(t.clone());
+        i += 1;
+    }
+    out
+}
+
+/// The name `a^b` when tokens `i..i+3` are a subscripted name, `^` and letters, written against
+/// each other.
+pub(crate) fn scripted_at(tokens: &[Token], i: usize) -> Option<String> {
+    let (
+        Some(Token { tok: Tok::Ident(a), pos: pa, .. }),
+        Some(Token { tok: Tok::Caret, pos: pc, .. }),
+        Some(Token { tok: Tok::Ident(b), pos: pb, .. }),
+    ) = (tokens.get(i), tokens.get(i + 1), tokens.get(i + 2))
+    else {
+        return None;
+    };
+    let joined = a.contains('_')
+        && !a.ends_with('_')
+        && *pc == pa + a.chars().count()
+        && *pb == pc + 1
+        && b.chars().count() <= 8
+        && b.chars().all(char::is_alphabetic);
+    joined.then(|| format!("{a}^{b}"))
 }
 
 /// True when a postfix `!` can follow `last`: it ends a value (`5`, `n`, `(n − 1)`, `x²`, `3!`).
