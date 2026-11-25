@@ -2447,6 +2447,15 @@ preview	Title	Esempio
 	Decimal Places	Cifre decimali
 	Significant Digits	Cifre significative
 	Show Trailing Zeros	Mostra zeri finali
+	The result of the calculation at the caret: its unit, decimal places and rounding step	Il risultato del calcolo al cursore: unità di misura, cifre decimali e passo di arrotondamento
+	The calculation at the caret shows no result after =	Il calcolo al cursore non mostra un risultato dopo =
+	As the Document	Come il documento
+	Rounding Step	Passo di arrotondamento
+	No Step	Nessun passo
+	Round to Nearest	Arrotonda al più vicino
+	Round Up	Arrotonda per eccesso
+	Round Down	Arrotonda per difetto
+	Rounding as the Document	Arrotondamento come il documento
 	Make this equation a live calculation: write it with = and the unknown is solved for	Rendi questa equazione un calcolo dinamico: scrivila con = e l'incognita viene ricavata
 	Drawing	Disegno
 	CAD\nDrawing	Disegno\nCAD
@@ -4166,6 +4175,7 @@ structure	Positive counter-clockwise	Positivo in senso antiorario
 structure	Positive clockwise	Positivo in senso orario
 structure	The reactions are taken positive so and the equilibrium equations sum so; the free body shows the symbol.	Le reazioni sono assunte positive in questi versi e le equazioni di equilibrio sommano così; il corpo libero mostra il simbolo.
 structure	Reactions are taken positive the way their arrows point in the free body: a negative one acts the other way.	Le reazioni sono assunte positive nel verso delle loro frecce nel corpo libero: una reazione negativa agisce nel verso opposto.
+structure	From here on the negative reactions are taken the way they act, as the drawings show them, with positive values:	Da qui in poi le reazioni negative sono prese nel verso in cui agiscono, come nei disegni, con valore positivo:
 structure	Right	Destra
 structure	Left	Sinistra
 structure	Up	Su

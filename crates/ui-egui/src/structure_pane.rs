@@ -549,6 +549,7 @@ pub(crate) fn working_labels() -> Value {
         "loads": ts("Loads"),
         "reactions": ts("Reactions"),
         "signs": ts("Reactions are taken positive the way their arrows point in the free body: a negative one acts the other way."),
+        "flipped": ts("From here on the negative reactions are taken the way they act, as the drawings show them, with positive values:"),
         "hyperstatic": ts("Hyperstatic: from the solution by the stiffness method"),
         "together": ts("From the equations solved together"),
         "force1": ts("Hyperstatic structure of degree 1, solved by the force method. Redundant: {X}. Without the constraint that gives it, the structure left (the released structure) is isostatic."),

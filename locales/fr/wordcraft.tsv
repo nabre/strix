@@ -2669,6 +2669,15 @@ paper	Envelope DL	Enveloppe DL
 	Steps	les étapes
 	Show Steps	Afficher les étapes
 	Show Trailing Zeros	Afficher les zéros de fin
+	The result of the calculation at the caret: its unit, decimal places and rounding step	Le résultat du calcul au curseur : unité, décimales et pas d'arrondi
+	The calculation at the caret shows no result after =	Le calcul au curseur n'affiche pas de résultat après =
+	As the Document	Comme le document
+	Rounding Step	Pas d'arrondi
+	No Step	Aucun pas
+	Round to Nearest	Arrondir au plus proche
+	Round Up	Arrondir par excès
+	Round Down	Arrondir par défaut
+	Rounding as the Document	Arrondi comme le document
 	Show every cell as an equation: names in italics, subscripts, units in the Unit style	Afficher chaque cellule comme une équation : noms en italique, indices, unités dans le style Unité
 	Show every file as it is on disk, discarding edits made here	Afficher chaque fichier tel qu’il est sur le disque, en abandonnant les modifications faites ici
 	Show one digit less in results	Afficher un chiffre de moins dans les résultats
@@ -4086,6 +4095,7 @@ structure	Positive counter-clockwise	Positif dans le sens antihoraire
 structure	Positive clockwise	Positif dans le sens horaire
 structure	The reactions are taken positive so and the equilibrium equations sum so; the free body shows the symbol.	Les réactions sont prises positives dans ces sens et les équations d’équilibre sont sommées ainsi ; le corps libre montre le symbole.
 structure	Reactions are taken positive the way their arrows point in the free body: a negative one acts the other way.	Les réactions sont prises positives dans le sens de leurs flèches sur le corps libre : une réaction négative agit en sens inverse.
+structure	From here on the negative reactions are taken the way they act, as the drawings show them, with positive values:	À partir d'ici, les réactions négatives sont prises dans le sens où elles agissent, comme sur les dessins, avec des valeurs positives :
 structure	Right	Droite
 structure	Left	Gauche
 structure	Up	Vers le haut

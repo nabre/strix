@@ -46,6 +46,7 @@ mod dsa;
 mod dsa_runs;
 pub(crate) mod expr;
 mod front;
+mod go_working;
 pub(crate) mod grading;
 mod guard;
 mod items;
@@ -55,6 +56,7 @@ mod numbering;
 mod own_lists;
 mod pack;
 mod question_line;
+pub(crate) mod result_format;
 mod scores;
 mod series;
 mod show;
@@ -139,7 +141,7 @@ pub fn specs() -> Vec<CommandSpec> {
             .params(r#"{"kind"?: "problem" (default) | "open" (open answers) | "choice" (multiple choice) | "trueFalse" | "calc" (calculations) | "drawing" (CAD drawings), "title"?: string, "text"?: string, "statement"?: bool (a quiz's statement placeholder), "titleLine"?: "title" | "statement" (as exercise.titleLine), "questions"?: [string | {"text", "type"?: "open" | "choice" | "trueFalse" | "calc" | "drawing" (this question's mode; default: the kind's), "level"?, "points"?, "height"?: cm, "grid"?: bool, "spacing"?: mm, "choices"?: [string], "correct"?: "B" | 2 | [..], "drawing"?: CAD source (a drawing question's solution; default: the starter drawing)}]} → inserts an exercise after the paragraph at the caret. A problem: title, statement, questions, solution, and the results summary at the end of the document. A quiz (open, choice, trueFalse): title, a statement when given or with more than one question (its placeholder), each question followed by its answer (a space of `height` cm, squared or blank; or options A), B)… with a box ticked on the correct ones), its points after it"#),
         CommandSpec::new("exercise.questions", "Question Settings", "Teaching › Exercise", items::command)
             .when(|s| if exercise_at_caret(s).is_some() || !scan(s).exercises.is_empty() { None } else { Some("the document has no exercise") })
-            .params(r#"{"exercise"?: n (1-based; default: at the caret), "question"?: n (1-based; default: at the caret), "points"?: number | null (the question's maximum points), "height"?: cm (an open answer's space, 0.5–25), "grid"?: bool (squared / blank), "spacing"?: mm (the side of a square), "tolerance"?: string | null (a calc question's acceptable tolerance, e.g. "2%" or "0.1 cm"), "shuffleChoices"?: bool (deterministic per-variant option permutation), "rationales"?: [string | null] (per-option teacher diagnostic notes), "correct"?: "B" | 2 | ["A", "C"] (a multiple choice's correct options)} → changes those given on that question; without them, reads every question → {"exercise", "kind": "problem"|"open"|"choice", "questions": [{"label", "text", "type": "problem"|"open"|"choice"|"calc"|"drawing", "points", "height"?, "grid"?, "spacing"?, "tolerance"?, "line"?, "result"?, "workingPos"?, "scale"?, "cadSelect"?, "trueFalse"?, "shuffleChoices"?, "choices"?, "rationales"?, "correct"?}], "total": points | null}"#),
+            .params(r#"{"exercise"?: n (1-based; default: at the caret), "question"?: n (1-based; default: at the caret), "points"?: number | null (the question's maximum points), "resultFormat"?: {"unit"?, "decimals"?, "step"?, "stepMode"?} | null (format of the final result; null inherits), "height"?: cm (an open answer's space, 0.5–25), "grid"?: bool (squared / blank), "spacing"?: mm (the side of a square), "tolerance"?: string | null (a calc question's acceptable tolerance, e.g. "2%" or "0.1 cm"), "shuffleChoices"?: bool (deterministic per-variant option permutation), "rationales"?: [string | null] (per-option teacher diagnostic notes), "correct"?: "B" | 2 | ["A", "C"] (a multiple choice's correct options)} → changes those given on that question; without them, reads every question → {"exercise", "kind": "problem"|"open"|"choice", "questions": [{"label", "text", "type": "problem"|"open"|"choice"|"calc"|"drawing", "points", "height"?, "grid"?, "spacing"?, "tolerance"?, "line"?, "result"?, "workingPos"?, "scale"?, "cadSelect"?, "trueFalse"?, "shuffleChoices"?, "choices"?, "rationales"?, "correct"?}], "total": points | null}"#),
         CommandSpec::new("exercise.questionMode", "Question Mode", "Teaching › Exercise", items::set_mode)
             .when(|s| if exercise_at_caret(s).is_some() || !scan(s).exercises.is_empty() { None } else { Some("the document has no exercise") })
             .params(r#"{"exercise"?: n (1-based; default: at the caret), "question"?: n (1-based; default: at the caret), "type": "open" | "choice" | "trueFalse" | "calc" | "drawing"} → converts a quiz question's answer part in place while preserving its question paragraph, points, space settings, and existing working/options across compatible modes"#),
@@ -149,6 +151,9 @@ pub fn specs() -> Vec<CommandSpec> {
         CommandSpec::new("exercise.addQuestion", "Add Question", "Teaching › Exercise", add_question)
             .when(|s| if exercise_at_caret(s).is_some() { None } else { Some("the cursor isn't in an exercise") })
             .params(r#"{"text"?: string, "level"?: 0–2, "sub"?: bool (one level below the last question); in a quiz "type"?: "open" | "choice" | "trueFalse" | "calc" | "drawing", "points"?, "height"?, "grid"?, "spacing"?, "choices"?, "trueFalse"?: bool, "correct"?, "drawing"? as exercise.insert (default: like the last question)} → adds a question at the end of the questions of the exercise at the caret"#),
+        CommandSpec::new("exercise.goWorking", "Go to Working", "Teaching › Exercise", go_working::command)
+            .when(|s| if scan(s).exercises.is_empty() { Some("the document has no exercise") } else { None })
+            .params(r#"{"question": n (1-based), "exercise"?: n (1-based; default: at the caret)} → {"exercise", "question", "block"}: the caret at the end of the question's working space (the blocks under its repeated question in the solution; an empty paragraph is made when there is none)"#),
         CommandSpec::new("exercise.addNote", "Add Note", "Teaching › Exercise", add_note)
             .when(|s| match exercise_at_caret(s) {
                 None => Some("the cursor isn't in an exercise"),
@@ -2442,6 +2447,43 @@ mod tests {
         let mut s = session();
         s.run("exercise.insert", &json!({"title": "Primo", "questions": ["q"]})).unwrap();
         assert_eq!(texts(&s)[..2], ["Intro", "Primo"]);
+    }
+
+    #[test]
+    fn question_rounding_and_units_follow_the_final_calculation() {
+        let mut s = session();
+        s.run("exercise.insert", &json!({"questions": ["Lunghezza", "Forza"]})).unwrap();
+        s.run("calc.options", &json!({"scope": "document", "layout": "lines", "steps": true})).unwrap();
+        s.run(
+            "exercise.questions",
+            &json!({
+                "exercise": 1, "question": 1, "resultFormat": {"unit": "m", "decimals": 2, "step": "0,05", "stepMode": "up"}
+            }),
+        )
+        .unwrap();
+        s.run("exercise.questions", &json!({"exercise": 1, "question": 2, "resultFormat": {"unit": "kN", "decimals": 2}})).unwrap();
+        for (question, formula) in [(1, "(t + 1 cm)·4 = 1017.32 cm"), (2, "F_cu = 87 kN - 8 kN")] {
+            s.run("exercise.goWorking", &json!({"exercise": 1, "question": question})).unwrap();
+            s.run("calc.insert", &json!({"text": "base = 100 cm"})).unwrap();
+            s.run("text.newParagraph", &json!({})).unwrap();
+            let inserted = s.run("calc.insert", &json!({"text": formula})).unwrap();
+            let expected = if question == 1 { "2.55m" } else { "79.00kN" };
+            assert!(inserted["shown"].as_str().is_some_and(|line| line.replace(char::is_whitespace, "").contains(expected)), "{inserted}");
+        }
+        let check = |s: &mut Session| {
+            let st = s.run("exercise.questions", &json!({"exercise": 1})).unwrap();
+            assert_eq!(st["questions"][0]["result"], "t = 2.55 m", "{st}");
+            assert_eq!(st["questions"][1]["result"], "F_cu = 79.00 kN", "{st}");
+            let visible = texts(s);
+            assert!(visible.iter().any(|t| t == "a) t = 2.55 m"), "{visible:?}");
+            assert!(visible.iter().any(|t| t == "b) F_cu = 79.00 kN"), "{visible:?}");
+        };
+        check(&mut s);
+        let bytes = crate::io::save_bytes("exercise.docx", &s.doc).unwrap();
+        s.doc = crate::io::open_bytes("exercise.docx", &bytes).unwrap();
+        check(&mut s);
+        s.run("exercise.questions", &json!({"exercise": 1, "question": 1, "resultFormat": null})).unwrap();
+        assert!(texts(&s).iter().any(|t| t == "a) t = 253.33 cm"), "{:?}", texts(&s));
     }
 
     #[test]

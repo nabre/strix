@@ -2544,6 +2544,15 @@ paper	Envelope DL	Umschlag DL
 	Steps	Schritte
 	Show Steps	Schritte anzeigen
 	Show Trailing Zeros	Nachkommanullen anzeigen
+	The result of the calculation at the caret: its unit, decimal places and rounding step	Das Ergebnis der Berechnung an der Einfügemarke: Einheit, Dezimalstellen und Rundungsschritt
+	The calculation at the caret shows no result after =	Die Berechnung an der Einfügemarke zeigt kein Ergebnis nach =
+	As the Document	Wie im Dokument
+	Rounding Step	Rundungsschritt
+	No Step	Kein Schritt
+	Round to Nearest	Kaufmännisch runden
+	Round Up	Aufrunden
+	Round Down	Abrunden
+	Rounding as the Document	Rundung wie im Dokument
 	Show every cell as an equation: names in italics, subscripts, units in the Unit style	Jede Zelle als Formel anzeigen: Namen kursiv, Indizes, Einheiten in der Formatvorlage „Einheit“
 	Show every file as it is on disk, discarding edits made here	Jede Datei so zeigen, wie sie auf dem Datenträger liegt, und hier vorgenommene Änderungen verwerfen
 	Show one digit less in results	Eine Stelle weniger in Ergebnissen anzeigen
@@ -4087,6 +4096,7 @@ structure	Positive counter-clockwise	Positiv gegen den Uhrzeigersinn
 structure	Positive clockwise	Positiv im Uhrzeigersinn
 structure	The reactions are taken positive so and the equilibrium equations sum so; the free body shows the symbol.	Die Auflagerreaktionen werden so positiv angenommen und die Gleichgewichtsbedingungen so summiert; das Freikörperbild zeigt das Symbol.
 structure	Reactions are taken positive the way their arrows point in the free body: a negative one acts the other way.	Auflagerreaktionen werden in Richtung ihrer Pfeile im Freikörperbild positiv angenommen: Eine negative wirkt in die Gegenrichtung.
+structure	From here on the negative reactions are taken the way they act, as the drawings show them, with positive values:	Von hier an werden die negativen Auflagerreaktionen in ihrer wirklichen Richtung angenommen, wie in den Zeichnungen, mit positiven Werten:
 structure	Right	Rechts
 structure	Left	Links
 structure	Up	Nach oben

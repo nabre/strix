@@ -424,7 +424,10 @@ impl Scope {
         match (op, self.dimensionless_hint(a), self.dimensionless_hint(b)) {
             (BinOp::Add | BinOp::Sub, Some(x), Some(y)) if x == y => Some(x),
             (BinOp::Add | BinOp::Sub, Some(x), None) | (BinOp::Add | BinOp::Sub, None, Some(x)) => Some(x),
-            (BinOp::Mul, Some(x), None) | (BinOp::Mul, None, Some(x)) => Some(x),
+            // A share written out of a number is a number (`1835000·10%` is 183500); a
+            // parameter in % times a number stays in % (`2 p`), an angle stays an angle (`2·30°`).
+            (BinOp::Mul, Some(x), None) if !(is_ratio(&x) && is_share(a)) => Some(x),
+            (BinOp::Mul, None, Some(x)) if !(is_ratio(&x) && is_share(b)) => Some(x),
             (BinOp::Div, Some(x), None) => Some(x),
             _ => None,
         }
@@ -582,6 +585,20 @@ impl<'a> Ctx<'a> {
             Expr::Bin(BinOp::Mul, number, u) if let Some(scale) = self.affine_unit(u) => {
                 let v = self.eval(number)?;
                 self.absolute(v, scale, u)
+            }
+            // Per degree: `0.0002/(1 °C)` divides by a step of one degree, as by kelvin, not by
+            // the absolute temperature 274.15 K. Only one degree: `p·V/(25 °C)` is still divided
+            // by the temperature 298.15 K.
+            Expr::Bin(BinOp::Div, left, right)
+                if let Expr::Bin(BinOp::Mul, number, u) = &**right
+                    && matches!(&**number, Expr::Num(n) if (*n - 1.0).abs() < f64::EPSILON)
+                    && self.affine_unit(u).is_some() =>
+            {
+                let a = self.eval(left)?;
+                let n = self.eval(number)?;
+                let unit = self.eval(u)?;
+                let b = self.binary(BinOp::Mul, n, unit)?;
+                self.binary(BinOp::Div, a, b)
             }
             Expr::Bin(op, left, right) => {
                 let a = self.eval(left)?;
@@ -1560,4 +1577,18 @@ fn binary_quantity(op: BinOp, x: Quantity, y: Quantity, mode: crate::Uncertainty
         return Ok(Quantity { unc: Some(finite(one.unc.unwrap_or(0.0).hypot(two.unc.unwrap_or(0.0)))?), ..result });
     }
     Ok(result)
+}
+
+/// `%`, `‰`, `ppm`: a share of something, unlike an angle (`°`, `gon`, `rad`).
+fn is_ratio(unit: &str) -> bool {
+    matches!(unit, "%" | "‰" | "ppm")
+}
+
+/// A number written with its unit, `10 %` (also `-10 %`).
+fn is_share(e: &Expr) -> bool {
+    match e {
+        Expr::Neg(a) => is_share(a),
+        Expr::Bin(BinOp::Mul, n, u) => matches!(&**n, Expr::Num(_)) && matches!(&**u, Expr::Unit(_) | Expr::Name(_)),
+        _ => false,
+    }
 }

@@ -130,7 +130,7 @@ pub(super) fn stamp(s: &mut Session, sources: &[Option<String>]) {
 
 /// `math`'s calculation options with `source` kept (and the fingerprint of what it shows), or
 /// with no source when `source` is `None`.
-fn stamped(source: Option<String>, linear: &str, math: &Math) -> Option<String> {
+pub(super) fn stamped(source: Option<String>, linear: &str, math: &Math) -> Option<String> {
     let mut opts: Map<String, Value> = math.calc_opts.as_deref().and_then(|o| serde_json::from_str(o).ok()).unwrap_or_default();
     match source.filter(|s| s.len() <= MAX_SOURCE) {
         Some(src) => {

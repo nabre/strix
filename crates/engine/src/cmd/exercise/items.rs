@@ -372,7 +372,7 @@ pub(super) fn problem_para_points(p: &Paragraph) -> Option<f64> {
 
 /// Number of `ControlEnd` markers at the very end of `p` that close block-level controls
 /// (either opened before `p` or opened as `block == true` at the start of `p`, such as `TAG_QUESTIONS`).
-fn trailing_block_ends(p: &Paragraph) -> usize {
+pub(super) fn trailing_block_ends(p: &Paragraph) -> usize {
     let mut stack: Vec<(usize, bool)> = Vec::new();
     let mut block_ends: Vec<usize> = Vec::new();
     for (at, o) in p.objects_with_offsets() {
@@ -1210,16 +1210,14 @@ pub(super) fn update(s: &mut Session) -> bool {
     changed
 }
 
-/// A calculation's results (docs/question-modes.md): the values found in its space that the
-/// working doesn't use afterwards are the results of question `n` (each one's value goes to a
-/// result line and the summary), the others are working; with none such, the last equation.
+/// Mark the final calculation as the answer to question `n`.
 fn mark_result(s: &mut Session, (a, b): (usize, usize), n: u32) -> bool {
     let results = result_equations(s, (a, b));
     let mut changed = false;
     for i in a..=b {
         let Some(block) = s.doc.body.get_mut(i) else { continue };
         let Block::Para(p) = &**block else { continue };
-        let want = |k: usize| if results.contains(&(i, k)) { n } else { 0 };
+        let want = |k: usize| if results == Some((i, k)) { n } else { 0 };
         let wrong = p.objects.iter().enumerate().any(|(k, o)| matches!(o, InlineObject::Equation { math, .. } if math.answer != want(k)));
         if !wrong {
             continue;
@@ -1239,59 +1237,25 @@ fn mark_result(s: &mut Session, (a, b): (usize, usize), n: u32) -> bool {
     changed
 }
 
-/// The result equations of a calculation's space `(a, b)` (block, object index): each calculated
-/// equation that shows the value of a name (`s = a·t^2/2 =`) no later equation of the space
-/// uses; with none such, the last equation (not in the result lines).
-fn result_equations(s: &Session, (a, b): (usize, usize)) -> Vec<(usize, usize)> {
-    let mut eqs = Vec::new();
+/// The last calculation in the working, falling back to an ordinary equation.
+fn result_equations(s: &Session, (a, b): (usize, usize)) -> Option<(usize, usize)> {
+    let mut last = None;
+    let mut calc = None;
     for i in a..=b {
-        let Some(Block::Para(p)) = s.doc.body.get(i).map(|b| &**b) else { continue };
+        let Some(p) = s.doc.body.get(i).and_then(|b| b.as_para()) else { continue };
         if span(p, TAG_LINE).is_some() {
             continue;
         }
         for (k, o) in p.objects.iter().enumerate() {
-            if let InlineObject::Equation { linear, math, .. } = o {
-                let text = math.calc.then(|| super::super::calc::calc_text(linear, math));
-                eqs.push(((i, k), text));
+            if let InlineObject::Equation { math, .. } = o {
+                last = Some((i, k));
+                if math.calc {
+                    calc = last;
+                }
             }
         }
     }
-    let mut out = Vec::new();
-    for (j, (at, text)) in eqs.iter().enumerate() {
-        let Some(name) = text.as_deref().and_then(shown_name) else { continue };
-        let used = eqs.iter().skip(j + 1).any(|(_, t)| t.as_deref().is_some_and(|t| uses(t, name)));
-        if !used && out.len() < MAX_RESULTS {
-            out.push(*at);
-        }
-    }
-    if out.is_empty()
-        && let Some((at, _)) = eqs.last()
-    {
-        out.push(*at);
-    }
-    out
-}
-
-/// The name a calculation statement shows the value of: `s` for `s = a·t^2/2 =` or
-/// `s := a·t^2/2 = 20 m`; `None` for a definition (`t = 4 s`), an evaluation without a name.
-fn shown_name(text: &str) -> Option<&str> {
-    let (left, rest) = text.split_once('=')?;
-    let left = left.strip_suffix(':').unwrap_or(left).trim();
-    let rest = rest.strip_prefix('=').unwrap_or(rest);
-    let plain = left.chars().next().is_some_and(char::is_alphabetic) && left.chars().all(is_name_char);
-    (plain && rest.contains('=')).then_some(left)
-}
-
-/// Whether a calculation statement's expression (after its first `=`, up to the value it shows)
-/// uses `name`.
-fn uses(text: &str, name: &str) -> bool {
-    let expr = text.split_once('=').map_or(text, |(_, r)| r);
-    let expr = expr.split(['=', '⇒']).next().unwrap_or_default();
-    expr.split(|c: char| !is_name_char(c)).any(|w| w == name)
-}
-
-fn is_name_char(c: char) -> bool {
-    c.is_alphanumeric() || c == '_' || c == '\''
+    calc.or(last)
 }
 
 /// What a calculation's result line says: the result's name, a blank and its unit while the
@@ -1828,6 +1792,8 @@ pub(super) fn fingerprint(s: &Session) -> u64 {
                 &r.start.path.0,
             )
                 .hash(&mut h);
+        } else if r.control.tag == super::result_format::TAG {
+            (&r.start.path.0, &r.control.extra).hash(&mut h);
         } else if r.control.tag == TAG_ANSWER {
             let a = read_answer(&r.control);
             (
@@ -1866,6 +1832,14 @@ fn state(s: &Session, e: usize) -> Value {
     let its = items(s, &layout, e);
     // The question the caret is in (1-based), for the pane to open.
     let current = (super::exercise_at_caret(s) == Some(e)).then(|| question_at_caret(s, &layout, e)).flatten().map(|q| q + 1);
+    let mut calc_answers: std::collections::HashMap<u32, String> = Default::default();
+    if !ex.kind.quiz() || its.iter().any(|it| it.settings.mode == Mode::Calc) {
+        for (top, qn, text) in super::super::calc::answers(s, &super::super::calc::options_now(s)) {
+            if layout.parts.get(top).and_then(|(x, _)| *x) == Some(e) {
+                calc_answers.insert(qn, text);
+            }
+        }
+    }
     if !(ex.kind.quiz() || its.iter().any(|i| i.answer.is_some())) {
         let list: Vec<Value> = if ex.no_questions {
             Vec::new()
@@ -1881,21 +1855,14 @@ fn state(s: &Session, e: usize) -> Value {
                         "label": label,
                         "text": text,
                         "type": "problem",
+                        "resultFormat": p.and_then(super::result_format::read),
+                        "result": calc_answers.get(&u32::try_from(k + 1).unwrap_or(u32::MAX)),
                         "points": pts,
                     })
                 })
                 .collect()
         };
         return json!({"exercise": e + 1, "kind": ex.kind.name(), "questions": list, "total": total(s, &layout, e), "current": current});
-    }
-    let calc_opts = super::super::calc::options_now(s);
-    let mut calc_answers: std::collections::HashMap<u32, String> = std::collections::HashMap::new();
-    if its.iter().any(|it| it.settings.mode == Mode::Calc) {
-        for (top, qn, text) in super::super::calc::answers(s, &calc_opts) {
-            if layout.parts.get(top).and_then(|(x, _)| *x) == Some(e) {
-                calc_answers.insert(qn, text);
-            }
-        }
     }
     let lone = its.len() == 1;
     let list: Vec<Value> = its
@@ -1927,6 +1894,7 @@ fn state(s: &Session, e: usize) -> Value {
                         o.insert("line".into(), json!(lines.first()));
                         o.insert("lines".into(), json!(lines));
                         o.insert("result".into(), json!(calc_answers.get(&qn)));
+                        o.insert("resultFormat".into(), json!(p.and_then(super::result_format::read)));
                         o.insert("tolerance".into(), json!(it.settings.tolerance));
                         if let Some((a, _)) = it.answer {
                             let pos = wordcraft_doc::Pos::new(StoryRef::Body, super::body_path(a), OBJ.len_utf8());
@@ -1986,6 +1954,10 @@ fn question_at_caret(s: &Session, layout: &Layout, e: usize) -> Option<usize> {
     if layout.parts.get(top).and_then(|(x, _)| *x) != Some(e) {
         return None;
     }
+    let ex = layout.exercises.get(e)?;
+    if ex.solution_blocks.is_some_and(|(from, to)| (from..=to).contains(&top)) {
+        return ex.prompts.iter().rposition(|(from, _)| *from <= top);
+    }
     items(s, layout, e).iter().rposition(|it| it.question <= top)
 }
 
@@ -2026,7 +1998,7 @@ pub(crate) fn command(s: &mut Session, v: &Value) -> CmdResult {
     let changes = ["points", "height", "grid", "spacing", "gridStyle", "gridColor", "correct", "tolerance", "shuffleChoices", "rationales"]
         .iter()
         .any(|k| v.get(*k).is_some());
-    if !changes {
+    if !changes && v.get("resultFormat").is_none() {
         return Ok(state(s, e));
     }
     let its = items(s, &layout, e);
@@ -2036,6 +2008,22 @@ pub(crate) fn command(s: &mut Session, v: &Value) -> CmdResult {
         None => question_at_caret(s, &layout, e).ok_or_else(|| CmdError::Params("question: which one (1-based)".into()))?,
     };
     let it = its.get(q).ok_or_else(|| CmdError::Params("no such question".into()))?;
+    let format = v.get("resultFormat").map(super::result_format::parse).transpose()?;
+    if format.is_some() && (it.answer.is_some() && it.settings.mode != Mode::Calc || ex.no_questions) {
+        return Err(CmdError::Disabled("result format needs a problem question or a calculation question".into()));
+    }
+    if let Some(format) = &format {
+        let block = s.doc.body.get_mut(it.question).ok_or_else(|| CmdError::Failed("question vanished".into()))?;
+        let Block::Para(p) = Arc::make_mut(block) else { return Err(CmdError::Failed("question vanished".into())) };
+        super::result_format::write(p, format.as_ref())?;
+        s.touch();
+    }
+    if !changes {
+        super::super::calc::recalculate_now(s);
+        super::update(s);
+        s.clamp_selection();
+        return Ok(state(s, e));
+    }
     let Some((a, b)) = it.answer else {
         let answer_only = ["height", "grid", "spacing", "gridStyle", "gridColor", "correct", "tolerance", "shuffleChoices", "rationales"]
             .iter()
@@ -2054,6 +2042,9 @@ pub(crate) fn command(s: &mut Session, v: &Value) -> CmdResult {
         let Block::Para(p) = Arc::make_mut(block) else { return Err(CmdError::Failed("question vanished".into())) };
         set_problem_points_para(p, pts, w, comma);
         s.touch();
+        if format.is_some() {
+            super::super::calc::recalculate_now(s);
+        }
         super::update(s);
         s.clamp_selection();
         return Ok(state(s, e));
@@ -2071,12 +2062,11 @@ pub(crate) fn command(s: &mut Session, v: &Value) -> CmdResult {
     if set.choice && (v.get("correct").is_some() || v.get("rationales").is_some()) {
         apply_choice_edits(s, (a, b), v, ex.show.solution);
     }
-    let tolerance_changed = v.get("tolerance").is_some();
     s.touch();
-    super::update(s);
-    if tolerance_changed {
+    if format.is_some() || v.get("tolerance").is_some() {
         super::super::calc::recalculate_now(s);
     }
+    super::update(s);
     s.clamp_selection();
     Ok(state(s, e))
 }
@@ -2672,7 +2662,7 @@ mod tests {
     }
 
     #[test]
-    fn several_results_get_a_line_each_aligned_and_the_working_none() {
+    fn only_the_last_calculation_gets_a_result_line() {
         let mut s = session();
         run(&mut s, "exercise.insert", json!({"kind": "calc", "questions": [{"text": "Area e perimetro del rettangolo.", "points": 2}]}));
         let data = json!({
@@ -2686,7 +2676,7 @@ mod tests {
         run(&mut s, "exercise.setData", json!({"data": data}));
         let at = space(&s, 0);
         s.sel = crate::Selection::caret(wordcraft_doc::Pos::new(StoryRef::Body, super::super::body_path(at), OBJ.len_utf8()));
-        // `d` is working (P uses it); A and P are the results.
+        // A and d are working. P is the final result.
         for (k, line) in ["A = b·h = cm^2", "d = b + h =", "P = 2·d ="].iter().enumerate() {
             if k > 0 {
                 run(&mut s, "text.newParagraph", json!({}));
@@ -2694,35 +2684,16 @@ mod tests {
             run(&mut s, "calc.insert", json!({"text": line, "display": true}));
         }
         let st = run(&mut s, "exercise.questions", json!({"exercise": 1}));
-        assert_eq!(st["questions"][0]["lines"], json!(["A = 15 cm²", "P = 16 cm"]), "{st}");
-        let lines: Vec<Paragraph> = s.doc.body.iter().filter_map(|b| b.as_para()).filter(|p| span(p, TAG_LINE).is_some()).cloned().collect();
-        assert_eq!(lines.len(), 2);
-        // The same columns, so the `=` line up; the label only on the first; no gap between.
-        assert_eq!(lines[0].props.tabs, lines[1].props.tabs);
-        assert!(
-            lines[0].plain_text().starts_with("\tRisposta:\tA =") || lines[0].plain_text().starts_with("\tAnswer:\tA ="),
-            "{:?}",
-            lines[0].plain_text()
-        );
-        assert!(lines[1].plain_text().starts_with("\t\tP =\t16"), "{:?}", lines[1].plain_text());
-        assert_eq!(lines[1].props.space_before, Some(0.0));
-        // The summary gives both.
-        assert!(texts(&s).iter().any(|x| x == "A = 15 cm²; P = 16 cm"), "{:?}", texts(&s));
+        assert_eq!(st["questions"][0]["lines"], json!(["P = 16 cm"]), "{st}");
+        assert!(texts(&s).iter().any(|x| x == "P = 16 cm"), "{:?}", texts(&s));
         // The answer control still closes after the last line, and survives a round of undo.
         let ranges = s.doc.control_ranges(StoryRef::Body);
         let answer = ranges.iter().find(|r| r.control.tag == TAG_ANSWER).unwrap();
         let last = s.doc.body.iter().rposition(|b| b.as_para().is_some_and(|p| span(p, TAG_LINE).is_some())).unwrap();
         assert_eq!(answer.end.path.0.first().copied(), Some(u32::try_from(last).unwrap()));
-        // Students' copy: two blanks, each with its unit.
         run(&mut s, "exercise.show", json!({"solution": false}));
         let st = run(&mut s, "exercise.questions", json!({"exercise": 1}));
-        assert_eq!(st["questions"][0]["lines"], json!([format!("A = {BLANK} cm²"), format!("P = {BLANK} cm")]), "{st}");
-        // P removed: d is now a result, still two lines; then only A: one line.
-        run(&mut s, "exercise.show", json!({"solution": true}));
-        run(&mut s, "edit.undo", json!({}));
-        let st = run(&mut s, "exercise.questions", json!({"exercise": 1}));
-        let n = st["questions"][0]["lines"].as_array().unwrap().len();
-        assert!((1..=2).contains(&n), "{st}");
+        assert_eq!(st["questions"][0]["lines"], json!([format!("P = {BLANK} cm")]), "{st}");
     }
 
     #[test]

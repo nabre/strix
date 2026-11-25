@@ -77,10 +77,8 @@ equations** (docs/calc.md) of the exercise's sandbox, so they use the exercise's
 follow its **variants**: variant A gives `A = 15 cm²`, variant B `A = 24 cm²`, with nothing redone
 by hand. The data part of a quiz goes after its statement, or after its title when it has none.
 
-- The **results** are the values found in the space that the working doesn't use afterwards:
-  `s = a·t^2/2 =` and `v = a·t =` are two results, while in `d = b + h =`, `P = 2·d =` only `P`
-  is (`d` is working). Each is marked as the question's result (like Result Of in a problem);
-  with none such, the last equation is the result. The working is shown with its steps
+- The last live calculation in the working supplies the **result**. Question Settings controls
+  its unit, decimal places and rounding step and direction. The working is shown with its steps
   (substitution, isolation: Math › Show Steps).
 - Under the space, **one result line per result** (`strix:exercise.resultLine`, generated,
   can't be edited or deleted), right-aligned on the margin in columns so the lines of one

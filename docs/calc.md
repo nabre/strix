@@ -310,6 +310,31 @@ common engineering units (`mm cm km`, `t`, `kN MN`, `kPa MPa GPa`, `min h`, `L`,
 `K`, `°C` and `°F` (see Temperatures). A unit typed in the wrong case gets a hint: "unknown name
 KN (did you mean kN?)".
 
+**Units or parameters.** Right after a number a name is a unit (`3 h`, `12 kN/m`, even with a
+parameter `m`). After that unit, `·` or a space followed by a defined parameter multiplies by the
+parameter: with `s = 3 m`, `2 m·s` and `2 m s` are 6 m² (also in a function's body); in brackets
+of units it stays the unit (`2 (kN·m)`), and so does a unit after `/` (`12 kN/m`), a unit raised
+(`3 m·s^-1`, `m·s²`) and a unit that makes a named quantity with the units before it: `5 kN·m`
+(an energy's dimension), `3 kW·h`, `4 A·h`, `2 N·s`, `Pa·s` stay units whatever `m`, `h` or `s`
+are defined. A reciprocal
+unit goes after a number either way: `0.0002/K` and `0.0002 1/K` are per kelvin, `3 1/m³` per
+cubic metre (`k = 0.0002/K` defines `k`; `K` is no second unknown, as the other side is only
+numbers and units: in `F = m·g` with `m` undefined, `m` is an unknown, not the metre). An equation whose last side
+reads parameters and one letter that is none (`tan(α) = d/h` with `h` defined) is an equation in
+that letter, not "in days per hour"; after a name alone (`v = m/s`) or after a result
+(`v = d/t = m/s`) the units stay a request.
+
+**Names with nested scripts.** A subscript of a subscript, `V_A_pl` (which a built-up equation
+gives back as `(V_A)_pl`), is one name. So is a subscripted name with a superscript of letters
+written against it, `Z_RT^S`: where a parameter of that name is defined, or alone before the
+first `=` when neither `Z_RT` nor `S` is a parameter; otherwise it is a power (`x_1^n`).
+
+**Shares and dimensionless units.** A plain number asked for in `%`, `‰`, `°` or `gon`
+(`p = 0.5 m/(50 m) = %`) keeps that unit wherever it is shown again: `p =`, the results summary,
+an inline value (`1 %`, not 0.01). A share written out of a number is a number: `1835000·10%`
+is 183500; a parameter in % times a number stays in % (`2 p = 30 %`), an angle stays an angle.
+An inline value `{{p -> 1}}` shows a plain number.
+
 ### Temperatures
 
 `°C` and `°F` (also `℃` `℉`, and the ASCII spellings `degC` `degF`) sit beside the kelvin.
@@ -319,7 +344,9 @@ Temperatures are held in kelvin; the rules:
   offset: `20 °C` is 293.15 K, `68 °F` is 293.15 K (= 20 °C), `-40 °F` = `-40 °C`. Also a
   vector (`[0; 100] °C`) and a number in a `[°C]` table column.
 - **Inside a compound unit, or with no number, a degree is its size only**: `4.2 kJ/(kg·°C)` is
-  4200 J/(kg·K), `3 °C/min` is 0.05 K/s.
+  4200 J/(kg·K), `3 °C/min` is 0.05 K/s. So is one degree in a denominator:
+  `0.0002/(1 °C)` is 0.0002 K⁻¹, not divided by 274.15 K; any other number is a temperature
+  (`p·V/(25 °C)` is divided by 298.15 K).
 - **Absolute − absolute is a difference**, shown in K: with `T_1 = 20 °C` and `T_2 = 80 °C`,
   `T_2 - T_1 = 60 K`. A difference times or over a number stays a difference (`2·ΔT = 120 K`).
 - **Absolute ± a difference (or a value in K) stays absolute**: `T_1 + ΔT = 80 °C`,
@@ -403,9 +430,10 @@ tanh⁻¹`. So `α = sin⁻¹((R − r)/(R + r))` with `R = 3 m`, `r = 1 m` give
 out in degrees, like every angle a calculation shows (`asin(0.5) = 30°`); the hyperbolic inverses
 give plain numbers.
 
-Steps and solutions write the inverse as the Equation tab does, the −1 on the function's name:
-`α = sin⁻¹((R − r)/(R + r)) = sin^(−1)⁡(((3 m) - (1 m))/((3 m) + (1 m))) = 30°`, and solving
-`y = sin(α)` gives `α = sin^(−1)⁡(y)`.
+Steps and solutions write the inverse with an `a` before the function, however it was typed:
+`α = sin⁻¹((R − r)/(R + r)) = asin⁡(((3 m) - (1 m))/((3 m) + (1 m))) = 30°`, and solving
+`y = sin(α)` gives `α = asin⁡(y)`; `atan`, `acos`, `acsc`, `asinh`… likewise, also in messages
+("asin is not defined there"). A statement typed as text keeps `atan(…)` as written.
 
 A positive whole power on the name is a power of the result: `sin²(x)` is `sin(x)²`
 (`cos²(x) + sin²(x) = 1`). Other powers on a name are errors (`sin^-2(x)`: write `(sin(x))^-2`),
@@ -540,6 +568,16 @@ not `24 kJ`), `q·L²/8` is in kN·m, `γ·t` in kN/m², a line load in kN/m. Ot
 derived unit (`2 kg·a` is `6 N`, `F/m` is `2.5 m/s²`), a unit asked for after `=` (`= Pa`) or a
 working unit written for the kind wins.
 
+## Hidden calculations
+
+`calc.hide` (Math › Calculation › Hide Calculation) hides the calculation at the caret: it stays
+in the calculation (later statements read what it defines) but isn't printed, for coefficients
+and service steps. It is Word's hidden text on the equation, and on its paragraph when the
+equation is alone there, so the line takes no room while hidden text isn't shown and shows with
+Show All (¶). The equation keeps the choice in its own options (`hidden`), saved with it; every
+recalculation puts the hidden text back, never takes off hidden text chosen otherwise. The same
+command shows it again (`{"value": false}`).
+
 ## Number format
 
 Set on the Math tab (Number Display: More/Fewer Digits, Rounding, Scope) or with `calc.options`;
@@ -561,6 +599,27 @@ or `calc.layout`.
   `°C`/`°F`), then convert back to coherent SI while keeping the unit hint (`round(30°; 0) = 30°`,
   `round(20.6 °C; 0) = 21 °C`); a 3rd unit argument `round(x; n; unit)` rounds in that explicit
   unit (`round(alpha; 1; °)`).
+- **Rounding step** (`calc.options {"step": 0.05, "stepMode": "up"}`, for an equation, an
+  exercise or the document; not in preferences): the result goes to a multiple of the step in
+  the unit it is shown in (0.05 m, or 0.05 cm when shown in cm, 0.05 % for a share in %),
+  `nearest` (halves away from zero), `up` (per eccesso, towards +∞) or `down` (per difetto,
+  towards −∞), and shows as many decimals as the step (`t = 0.37 m/2 = 0.2 m` up, `0.15 m`
+  down). The value defined is the rounded one: later statements and their steps read it
+  (`2·(0.2 m)`). Data, numbers and units defined without a result shown (`ν = 0.33`,
+  `α = 0.0002/K`, `L = 4.12 m`), are kept as given; what is worked out from them is rounded. The step is an exact decimal (0.45 m/3 is 0.15 m either way). `"stepMode"`
+  alone turns a wider scope's step round; `"step": "none"` takes it off. Temperatures in °C/°F
+  and vectors are not rounded to a step.
+- **The result of one calculation** (Math › Number Display › Result, or `calc.result`): with the
+  caret on a calculation that shows a result after `=`, its unit is chosen among those of its
+  quantity (a volume: `mm³ cm³ mL dL L dm³ m³`; `calc.resultInfo` lists them) and written after
+  the `=` as if typed: `V_e = (260 cm + 20 cm·2)·(1.0 m)·(230 cm + 20 cm) = 7.5 m³` becomes
+  `… = 7500 dm³`, read back and saved as any unit asked for; **Automatic** (`"unit": "auto"`) shows
+  it in the automatic unit again (a result shown keeps the unit it is in when read back). A unit of another quantity is refused. The same menu gives the result its
+  own **decimal places** (`"decimals": 2`, or `"auto"` for the document's), **rounding step** in
+  the unit shown (`"step": 0.05`, `"none"`) and **direction** (`"stepMode"`: nearest, up per
+  eccesso, down per difetto): the equation's options, as `calc.options` with
+  `"scope": "equation"` sets them; **Rounding as the Document** (`"reset": true`) takes them off
+  and keeps the unit. Datums (`L = 4.12 m`), checks and equations without a result have none.
 - The automatic prefix is chosen on the number as shown: `999999.9996 Pa` shows `1 MPa`, never
   `1000 kPa`.
 - In an equation a unit's quotient reads inline, as ISO 80000 writes units (`(12 kN/m)·…`, a
@@ -739,13 +798,16 @@ now stands (a `(2 m)` left in it stays a number). The source travels with the eq
 | `equation.calc` | the Calculate button: the equation at the caret is a region or not (`{"value"?: bool}`) |
 | `calc.newEquations` | preference: new equations are regions (default on) |
 | `table.calc` | the table at the caret is calculated or not (`{"value"?: bool}`); disabled, like `table.calcNames`, `table.mathCells`, `table.calcIndex` and `table.calcTotal`, on a table that is never calculated (inside another table, or outside the body) |
-| `calc.insertTable` | insert a calculated table (`{"rows"?, "cols"?}`); disabled inside a table and outside the body |
+| `calc.insertTable` | insert a calculated table (`{"rows"?, "cols"?, "cells"?: [[string]]}`: with `cells`, filled row by row, the header first, the caret left after the table and the cells returned as calculated); disabled inside a table and outside the body |
 | `calc.tableInfo` | whether the table at the caret is calculated, and its options (`columnTotal`: the caret's column is summed) |
 | `table.calcTotal` | Column Total: the column at the caret is summed in the total row or not (`{"value"?: bool}`) |
 | `calc.recalculate` | evaluate every region and table in order, update results; returns errors; `{"decimalComma": bool}` sets the document's decimal separator (see *Decimal separator*) |
 | `calc.variables` | the parameters of the document and of each exercise sandbox, with jump positions and optional unit conversions (`{"units"?: {…}}`) |
 | `view.variablesPane` | open or close the **Variables** task pane (Math › Calculation › Variables) |
-| `calc.options` | number format: digits, count, trailing zeros (and `layout`) |
+| `calc.hide` | the calculation at the caret stays in the calculation but isn't printed (`{"value"?: bool}`, default toggle) |
+| `calc.result` | the result of the calculation at the caret: `unit` (of its quantity, or `auto`), `decimals`, `step`, `stepMode`, `reset` |
+| `calc.resultInfo` | the result at the caret: the unit asked for and shown, the units of its quantity, its own decimals and step |
+| `calc.options` | number format: digits, count, trailing zeros, rounding step (`step`, `stepMode`) (and `layout`) |
 | `calc.steps` | Show Steps: formulas, solved equations and checks show their working (a preference) |
 | `calc.layout` | Result Layout: `{"value"?: "inline" \| "lines"}` (default: toggle), a preference; recalculates |
 | `calc.new` | a new empty calculation at the caret, being edited: **Alt+Shift+C** (⌃⌥C on a Mac; Ctrl+Space stays Word's Reset Character Formatting) |
@@ -793,6 +855,10 @@ none of them.
    regions (pending equations solved together). Plots are done ([plot.md](plot.md)).
 
 ## Revision history
+
+- 2026-11-25: the result of one calculation (Math › Number Display › Result, `calc.result`, `calc.resultInfo`): its unit chosen among those of its quantity and written after its `=`, its own decimal places, rounding step and direction, and back to the document's rounding.
+- 2026-11-25: after the review of the conversion fixes: a unit after `·` that makes a named quantity with the units before it (`5 kN·m`, `3 kW·h`, `4 A·h`, `2 N·s`) or is raised (`3 m·s^-1`) stays the unit whatever parameter shares its name (with `m` a mass, `kN·m` was kN times it); only one degree in a denominator is a degree's step (`p·V/(25 °C)` was divided by 25 K); the rounding step leaves data defined without a result shown alone (`α = 0.0002/K` became 0 with a step of 0.05); `F = m·g` with `m` undefined has two unknowns again (`m` was taken for the metre).
+- 2026-11-25: put right from a conversion report: a plain number asked for in `%`/`‰`/`°`/`gon` keeps it in `p =`, the results summary and inline values (it was 0.01 after `= %`); `1835000·10%` is 183500, no longer `1.835·10^7 %`; a parameter after a unit and `·` or a space is the parameter (`2 m·s` with `s = 3 m`), also in function bodies; `tan(α) = d/h` with `h` defined solves `d` (it showed the result "in days per hour"); a number in °C in a denominator is a step of one degree; `0.0002/K` and `0.0002 1/K` are per kelvin (the first was two unknowns, the second an error); inline values show temperatures in °C and shares in % as the worksheet does (they were 293.15 K and 0.01), `-> 1` a plain number; text inserted with spaces around `/` and `^` (`3 / 100`, `r ^ 2`) no longer builds empty fractions and powers, and `sqrt` is written `√` as the working writes it; inverse functions are written with their `a` (`atan`, `asin`), in the working too (it wrote `tan^(−1)`); names `V_A_pl` (read back as `(V_A)_pl`) and `Z_RT^S`; `calc.insertTable` takes `cells` and leaves the caret after the table; a plain `=` definition no longer copies the whole scope to check itself (4000 definitions took 4 s); an unknown alone on one side but read by the other (`cos(x) = x`) is solved and shown (it was taken for a definition and showed nothing); a rounding step as a format option (`calc.options` `step`, `stepMode`), the value defined rounded too; `calc.hide` hides a calculation from print while it still counts.
 
 - 2026-11-21: lines of math keep a quarter of the font size free above and below it (`crates/layout/src/para/math_leading.rs`): calculations under one another no longer look glued together. Put right in the review of pull request 107: only math beyond plain symbols takes that room (an `x` in a sentence left prose unevenly spaced); with Decimal Places a substituted value keeps its digits (`(0.001 kN/mm)` was written for 0.0005); the limit of the rounding rule noted.
 

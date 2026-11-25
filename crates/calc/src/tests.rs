@@ -164,7 +164,7 @@ fn errors_wrong_unit_and_arithmetic() {
     assert_eq!(last_error(&["1e999 ="]), CalcError::Overflow);
     assert_eq!(last_error(&["10^10^10 ="]), CalcError::Overflow);
     assert_eq!(last_error(&["ln(0) ="]), CalcError::Domain { function: "ln".into() });
-    assert_eq!(last_error(&["asin(2) ="]), CalcError::Domain { function: "sin⁻¹".into() });
+    assert_eq!(last_error(&["asin(2) ="]), CalcError::Domain { function: "asin".into() });
     assert!(matches!(last_error(&["sin(2 m) ="]), CalcError::NeedsDimensionless { .. }));
     assert!(matches!(last_error(&["sin(1, 2) ="]), CalcError::Arity { .. }));
     assert!(matches!(last_error(&["max() ="]), CalcError::Arity { .. }));
@@ -516,6 +516,7 @@ fn hostile_input_never_panics() {
             steps: round % 2 == 1,
             layout: if round % 4 < 2 { Layout::Inline } else { Layout::Lines },
             uncertainty: crate::UncertaintyMode::Max,
+            step: [None, Step::parse("0.05", StepMode::Up), Step::parse("5e-9", StepMode::Down), Step::parse("2e9", StepMode::Nearest)][round % 4],
         };
         let mut statements = Vec::new();
         for _ in 0..4 {
@@ -1333,7 +1334,7 @@ fn hostile_user_functions_arity_and_values() {
 fn hostile_user_function_definitions() {
     // Bad definitions.
     // A built-in function is never redefined: `sin(x) = x` is an equation in x.
-    assert_eq!(run(&["sin(x) = x"])[0].kind, RegionKind::Definition);
+    assert_eq!(run(&["sin(x) = x"])[0].kind, RegionKind::Solved);
     assert!(matches!(last_error(&["sin(x) := x"]), CalcError::Syntax { .. }));
     assert!(matches!(last_error(&["f(x, x) = x"]), CalcError::BadDefinition(_)));
     assert!(matches!(last_error(&["f(x) = x = 3"]), CalcError::Syntax { .. }));
@@ -1904,15 +1905,15 @@ fn inverse_trigonometric_functions_in_every_form() {
     ] {
         assert_eq!(last(&[&format!("{written} =")]), format!("{written} = {value}"), "{written}");
     }
-    // The user's equation, built up: α = sin⁻¹((R − r)/(R + r)).
+    // The user's equation, built up: α = sin⁻¹((R − r)/(R + r)); the working writes `asin`.
     let sheet = ["R = 3 m", "r = 1 m", "α = sin^(−1)\u{2061}((R−r)/(R+r))"];
-    assert_eq!(steps(&sheet).unwrap(), ["= sin^(−1)\u{2061}(((3 m) - (1 m))/((3 m) + (1 m)))", "= 30°"]);
+    assert_eq!(steps(&sheet).unwrap(), ["= asin\u{2061}(((3 m) - (1 m))/((3 m) + (1 m)))", "= 30°"]);
     assert_eq!(
         inline(&["R = 3 m", "r = 1 m", "α = sin⁻¹((R - r)/(R + r))"]),
-        "α = sin⁻¹((R - r)/(R + r)) = sin^(−1)\u{2061}(((3 m) - (1 m))/((3 m) + (1 m))) = 30°"
+        "α = sin⁻¹((R - r)/(R + r)) = asin\u{2061}(((3 m) - (1 m))/((3 m) + (1 m))) = 30°"
     );
-    // Solving for an angle writes the same inverse.
-    assert_eq!(inline(&["y = 0.5", "y = sin(α)"]), "y = sin(α) ⇒ α = sin^(−1)\u{2061}(y) = sin^(−1)\u{2061}(0.5) = 30°");
+    // Solving for an angle writes the inverse with its `a`.
+    assert_eq!(inline(&["y = 0.5", "y = sin(α)"]), "y = sin(α) ⇒ α = asin\u{2061}(y) = asin\u{2061}(0.5) = 30°");
     // Functions applied the Word way, and powers of them.
     assert_eq!(last(&["x = 2", "sin\u{2061}x ="]), "sin\u{2061}x = 0.909");
     assert_eq!(last(&["x = 2", "cos²(x) + sin^2(x) ="]), "cos²(x) + sin^2(x) = 1");
@@ -2474,4 +2475,197 @@ fn a_call_opened_with_its_working_reads_back() {
         let again = r.last().and_then(|r| r.display.clone()).unwrap_or_default();
         assert!(r.last().is_some_and(|r| r.error.is_none()) && again.ends_with("= 45 kN·m"), "{text}: {again}");
     }
+}
+
+/// Results that came out wrong without a warning (a conversion report): each as the user wrote it.
+#[test]
+fn silent_wrong_results_from_a_conversion() {
+    // A plain number asked for in % keeps it wherever it is shown again (the results summary).
+    let mut ws = Worksheet::new(Options::default());
+    ws.eval_statement("p = 0.5 m/(50 m) = %");
+    assert_eq!(ws.shown("p").as_deref(), Some("1 %"));
+    assert_eq!(last(&["p = 0.5 m/(50 m) = %", "p ="]), "p = 1 %");
+    assert_eq!(last(&["p := 0.5 m/(50 m) = ‰", "p ="]), "p = 10 ‰");
+    assert_eq!(last(&["a = 50 gon/2 = gon", "a ="]), "a = 25 gon");
+    // A share written out of a number is a number; a parameter in % times a number stays in %.
+    assert_eq!(last(&["1835000·10% ="]), "1835000·10% = 183500");
+    assert_eq!(last(&["x = 1835000·10% =", "x ="]), "x = 183500");
+    assert_eq!(last(&["p = 15 %", "2 p ="]), "2 p = 30 %");
+    // A parameter after a unit and `·` is the parameter.
+    assert_eq!(last(&["s = 3 m", "2 m·s ="]), "2 m·s = 6 m²");
+    assert_eq!(last(&["2 kN·m ="]), "2 kN·m = 2 kN·m");
+    assert_eq!(last(&["s = 3 m", "2 m s ="]), "2 m s = 6 m²");
+    assert_eq!(last(&["s = 3 m", "f(x) = x·1 m·s", "f(1) ="]), "f(1) = 3 m²");
+    assert_eq!(last(&["m = 3 kg", "M = 2 (kN·m) = kN·m"]), "M = 2 (kN·m) = 2 kN·m");
+    // An unknown named like a unit, with parameters around it, is solved.
+    assert_eq!(last(&["h = 2 m", "α = 30°", "tan(α) = d/h"]), "tan(α) = d/h ⇒ d = 1.155 m");
+    // A unit request after a name alone stays one.
+    assert_eq!(last(&["v = 3 m/s", "m = 2 kg", "v = m/s"]), "v = 3 m/s");
+    // Per degree Celsius is per kelvin, not per 274.15 K.
+    assert_eq!(last(&["0.0002/(1 °C) ="]), "0.0002/(1 °C) = 2·10^-4 K^-1");
+    // More than one degree is a temperature: 25 °C is 298.15 K.
+    assert_eq!(last(&["x = 298.15 J/(25 °C) = J/K"]), "x = 298.15 J/(25 °C) = 1 J/K");
+    assert_eq!(last(&["T = 20 °C", "T ="]), "T = 20 °C");
+    // Reciprocal units: per kelvin after a number, written either way.
+    assert_eq!(last(&["k = 0.0002/K =", "k ="]), "k = 2·10^-4 K^-1");
+    assert_eq!(last(&["k = 0.0002 1/K ="]), "k = 0.0002 1/K = 2·10^-4 1/K");
+    assert_eq!(last(&["ρ = 2 1/m³ ="]), "ρ = 2 1/m³ = 2 1/m³");
+    // `1` asks for a plain number.
+    assert_eq!(format_value_in(&Value::Scalar(Quantity::number(0.15)), "1", &Options::default()).map(|(_, t)| t), Ok("0.15".to_string()));
+    // Still an unknown when nothing else is defined by the equation.
+    assert_eq!(last(&["5 = 10/t"]), "5 = 10/t ⇒ t = 2");
+}
+
+/// Names with a subscript of a subscript (`V_A_pl`, read back as `(V_A)_pl`) and with a
+/// superscript of letters (`Z_RT^S`).
+#[test]
+fn names_with_nested_scripts() {
+    assert_eq!(last(&["(V_A)_pl = 3 kN", "X = (V_A)_pl + 1 kN ="]), "X = (V_A)_pl + 1 kN = 4 kN");
+    assert_eq!(last(&["V_A_pl = 3 kN", "V_A_pl ="]), "V_A_pl = 3 kN");
+    assert_eq!(last(&["Z_RT^S = 2 kN", "X = Z_RT^S + 1 kN ="]), "X = Z_RT^S + 1 kN = 3 kN");
+    assert_eq!(last(&["Z_RT^S := 2 kN", "Z_RT^S ="]), "Z_RT^S = 2 kN");
+    // A power stays a power when its parts are parameters.
+    assert_eq!(last(&["x_1 = 2", "n = 3", "x_1^n ="]), "x_1^n = 8");
+    assert_eq!(last(&["x_1 = 2", "x_1^n = 8"]), "x_1^n = 8 ⇒ n = 3");
+    // With spaces, `(a)_b` and `a ^ b` are what they were.
+    assert!(run(&["(V_A) _pl = 3"]).pop().and_then(|r| r.error).is_some());
+}
+
+/// An unknown alone on one side but read by the other is solved and shown, not defined silently.
+#[test]
+fn an_unknown_on_both_sides_is_shown() {
+    let r = run(&["cos(x) = x"]).pop().unwrap();
+    assert_eq!(r.kind, RegionKind::Solved);
+    assert_eq!(r.display.as_deref(), Some("cos(x) = x ⇒ x = 0.739"));
+    assert_eq!(last(&["y = cos(y)"]), "y = cos(y) ⇒ y = 0.739");
+    // A plain definition stays one.
+    assert_eq!(run(&["L = 4.5 m"]).pop().unwrap().kind, RegionKind::Definition);
+}
+
+/// Results rounded to a step in the unit they are shown in; the rounded value is what is defined.
+#[test]
+fn results_rounded_to_a_step() {
+    let step = |t: &str, mode| Step::parse(t, mode).unwrap();
+    assert_eq!(step("0.05", StepMode::Nearest).text(), "0.05");
+    assert_eq!(step("5", StepMode::Nearest).text(), "5");
+    assert_eq!(step("2.5e-3", StepMode::Nearest).text(), "0.0025");
+    assert_eq!(step("2000", StepMode::Nearest).text(), "2000");
+    for bad in ["0", "-1", "abc", "1e40", "", ".", "1234567"] {
+        assert!(Step::parse(bad, StepMode::Up).is_none(), "{bad}");
+    }
+    let with = |mode, statements: &[&str]| {
+        let o = Options { step: Some(step("0.05", mode)), ..Options::default() };
+        evaluate(statements, &o).pop().and_then(|r| r.display).unwrap_or_default()
+    };
+    assert_eq!(with(StepMode::Nearest, &["t = 0.37 m/2 = m"]), "t = 0.37 m/2 = 0.2 m");
+    assert_eq!(with(StepMode::Up, &["t = 0.37 m/2 = m"]), "t = 0.37 m/2 = 0.2 m");
+    assert_eq!(with(StepMode::Down, &["t = 0.37 m/2 = m"]), "t = 0.37 m/2 = 0.15 m");
+    // A multiple stays itself, whatever the binary arithmetic gives.
+    assert_eq!(with(StepMode::Down, &["t = 0.45 m/3 = m"]), "t = 0.45 m/3 = 0.15 m");
+    assert_eq!(with(StepMode::Up, &["t = 0.45 m/3 = m"]), "t = 0.45 m/3 = 0.15 m");
+    // In the unit shown: 0.05 cm.
+    assert_eq!(with(StepMode::Up, &["t = 1.234 cm = cm"]), "t = 1.234 cm = 1.25 cm");
+    // The rounded value is the one defined.
+    let o = Options { step: Some(step("0.05", StepMode::Up)), ..Options::default() };
+    let mut ws = Worksheet::new(o);
+    ws.eval_statement("t = 0.37 m/2 = m");
+    ws.set_options(Options::default());
+    assert_eq!(ws.eval_statement("2·t =").display.as_deref(), Some("2·t = 0.4 m"));
+    // A share in %, a solved unknown.
+    assert_eq!(with(StepMode::Nearest, &["p = 0.123 = %"]), "p = 0.123 = 12.3 %");
+    let o = Options { step: Some(step("0.5", StepMode::Up)), ..Options::default() };
+    assert_eq!(evaluate(&["A = 10 m²", "A = b·4 m"], &o).pop().and_then(|r| r.display).as_deref(), Some("A = b·4 m ⇒ b = 2.5 m"));
+    assert_eq!(evaluate(&["A = 10.2 m²", "A = b·4 m"], &o).pop().and_then(|r| r.display).as_deref(), Some("A = b·4 m ⇒ b = 3 m"));
+    // Temperatures in °C are left alone; negative values go up towards +∞.
+    let o = Options { step: Some(step("5", StepMode::Up)), ..Options::default() };
+    assert_eq!(evaluate(&["T = 21 °C", "T ="], &o).pop().and_then(|r| r.display).as_deref(), Some("T = 21 °C"));
+    assert_eq!(evaluate(&["x = -12 ="], &o).pop().and_then(|r| r.display).as_deref(), Some("x = -12 = -10"));
+    // Data defined without a result shown are kept as given; what is worked out from them is
+    // rounded.
+    let o = Options { step: Some(step("0.05", StepMode::Nearest)), ..Options::default() };
+    let mut ws = Worksheet::new(o);
+    for datum in ["ν = 0.33", "α_T = 0.0002/K", "L = 4.12 m", "k := 0.0002 1/K"] {
+        ws.eval_statement(datum);
+    }
+    ws.set_options(Options::default());
+    assert_eq!(ws.eval_statement("ν =").display.as_deref(), Some("ν = 0.33"));
+    assert_eq!(ws.eval_statement("α_T =").display.as_deref(), Some("α_T = 2·10^-4 1/K"));
+    assert_eq!(ws.eval_statement("k =").display.as_deref(), Some("k = 2·10^-4 1/K"));
+    assert_eq!(ws.eval_statement("L =").display.as_deref(), Some("L = 4.12 m"));
+    ws.set_options(o);
+    ws.eval_statement("d = L/2");
+    ws.set_options(Options::default());
+    assert_eq!(ws.eval_statement("d =").display.as_deref(), Some("d = 2.05 m"));
+}
+
+#[test]
+fn step_rounding_at_boundaries_and_in_a_solved_units_request() {
+    let step = |t: &str, mode| Step::parse(t, mode).unwrap();
+    assert_eq!(step("0.1", StepMode::Nearest).apply(0.3 / 2.0), 0.2);
+    assert_eq!(step("1", StepMode::Up).apply(1_000_000_000.25), 1_000_000_001.0);
+    assert_eq!(step("1", StepMode::Down).apply(999_999_999.75), 999_999_999.0);
+    // A solved unknown uses the unit on the answer line for both rounding and display.
+    for steps in [false, true] {
+        let o = Options { step: Some(step("5", StepMode::Up)), steps, ..Options::default() };
+        let mut ws = Worksheet::new(o);
+        ws.eval_statement("A = 10.12 m²");
+        let result = ws.eval_statement("A = b·4 m ⇒ b = cm");
+        assert!(result.display.as_deref().is_some_and(|s| s.ends_with(" = 255 cm")), "{result:?}");
+        ws.set_options(Options::default());
+        assert_eq!(ws.eval_statement("b = m").display.as_deref(), Some("b = 2.55 m"));
+    }
+}
+
+/// Units and parameters of the same name (`m`, `h`, `s`): the parameter after a unit and `·`
+/// unless the unit makes a named quantity or is raised; a name beside parameters is an unknown.
+#[test]
+fn units_beside_parameters_of_the_same_name() {
+    // A unit that makes a named quantity with the units before it, or is raised, stays a unit
+    // whatever parameters share its name: torques, energies, charges, impulses, speeds.
+    assert_eq!(last(&["m = 3 kg", "M = 5 kN·m = kN·m"]), "M = 5 kN·m = 5 kN·m");
+    assert_eq!(last(&["h = 2 m", "E = 3 kW·h = kW·h"]), "E = 3 kW·h = 3 kW·h");
+    assert_eq!(last(&["h = 2 m", "Q = 4 A·h = A·h"]), "Q = 4 A·h = 4 A·h");
+    assert_eq!(last(&["s = 3 m", "J = 2 N·s = N·s"]), "J = 2 N·s = 2 N·s");
+    assert_eq!(last(&["s = 3 m", "v = 3 m·s^-1 = m/s"]), "v = 3 m·s^-1 = 3 m/s");
+    assert_eq!(last(&["m = 3 kg", "M = 5 kN m = kN·m"]), "M = 5 kN m = 5 kN·m");
+    // A name that is also a unit, beside parameters, is an unknown, not that unit.
+    for s in [&["g = 9.81 m/s²", "F = m·g"][..], &["v = 3 m", "a = v/s"][..]] {
+        assert!(run(s).pop().and_then(|r| r.error).is_some(), "{s:?}");
+    }
+}
+
+/// The unit a result is asked in, read and written after its last `=` (a front end's unit
+/// picker): the next calculation works the result again in it.
+#[test]
+fn a_results_unit_is_read_and_written() {
+    let ws = Worksheet::new(Options::default());
+    let v = "V_e = (260 cm + 20 cm·2)·(1.0 m)·(230 cm + 20 cm) = 7.5 m³";
+    assert_eq!(ws.result_unit(v).as_deref(), Some("m³"));
+    let asked = ws.with_result_unit(v, Some("dm³")).unwrap();
+    assert_eq!(asked, "V_e = (260 cm + 20 cm·2)·(1.0 m)·(230 cm + 20 cm) = dm³");
+    assert_eq!(last(&[asked.as_str()]), "V_e = (260 cm + 20 cm·2)·(1.0 m)·(230 cm + 20 cm) = 7500 dm³");
+    assert_eq!(ws.result_unit(&asked).as_deref(), Some("dm³"));
+    // Litres too, and back to the automatic unit: the stale number stays, the unit goes.
+    let litres = ws.with_result_unit(v, Some("L")).unwrap();
+    assert_eq!(last(&[litres.as_str()]), "V_e = (260 cm + 20 cm·2)·(1.0 m)·(230 cm + 20 cm) = 7500 L");
+    let auto = ws.with_result_unit("A = 3 m·50 cm = 15000 cm²", None).unwrap();
+    assert_eq!(auto, "A = 3 m·50 cm = 15000");
+    assert_eq!(last(&[auto.as_str()]), "A = 3 m·50 cm = 1.5 m²");
+    assert_eq!(ws.with_result_unit("A = 3 m·50 cm = cm²", None).as_deref(), Some("A = 3 m·50 cm ="));
+    assert_eq!(ws.result_unit("A = 3 m·50 cm = 1.5"), None);
+    // Results with a power of ten, compound units, a bare `=`, a solved unknown.
+    assert_eq!(ws.with_result_unit("M = 2 kN·3 m = 6 kN·m", Some("N·m")).as_deref(), Some("M = 2 kN·3 m = N·m"));
+    assert_eq!(ws.with_result_unit("x = 3·10^9 m = 3·10^9 m", Some("km")).as_deref(), Some("x = 3·10^9 m = km"));
+    assert_eq!(ws.with_result_unit("v = 90 km/h·2 =", Some("m/s")).as_deref(), Some("v = 90 km/h·2 = m/s"));
+    assert_eq!(ws.result_unit("F = m·a ⇒ a = 2.5 m/s²").as_deref(), Some("m/s²"));
+    assert_eq!(ws.with_result_unit("s = v·t ⇒ t = 7200 s", Some("h")).as_deref(), Some("s = v·t ⇒ t = h"));
+    assert_eq!(last(&["s = 144 km", "v = 72 km/h", "s = v·t ⇒ t = h"]), "s = v·t ⇒ t = 2 h");
+    // No result: a datum, a check, a definition, a unit that is no unit.
+    for text in ["L = 4.12 m", "a + b = c", "x := 2 m", "F = m·a"] {
+        assert_eq!(ws.with_result_unit(text, Some("m")), None, "{text}");
+        assert_eq!(ws.result_unit(text), None, "{text}");
+    }
+    assert_eq!(ws.with_result_unit(v, Some("3 m")), None);
+    assert_eq!(ws.with_result_unit(v, Some("m·5 m")), None);
+    assert_eq!(ws.with_result_unit(v, Some("(")), None);
 }

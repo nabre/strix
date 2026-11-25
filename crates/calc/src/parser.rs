@@ -210,13 +210,13 @@ impl Func {
             Func::Csc => "csc",
             Func::Sec => "sec",
             Func::Cot => "cot",
-            // An inverse is named as it is written (Equation › Function › Inverse Functions).
-            Func::Asin => "sin⁻¹",
-            Func::Acos => "cos⁻¹",
-            Func::Atan => "tan⁻¹",
-            Func::Acsc => "csc⁻¹",
-            Func::Asec => "sec⁻¹",
-            Func::Acot => "cot⁻¹",
+            // An inverse is named with an `a` before the function (`atan`), as the owner wants it.
+            Func::Asin => "asin",
+            Func::Acos => "acos",
+            Func::Atan => "atan",
+            Func::Acsc => "acsc",
+            Func::Asec => "asec",
+            Func::Acot => "acot",
             Func::Atan2 => "atan2",
             Func::Sinh => "sinh",
             Func::Cosh => "cosh",
@@ -224,12 +224,12 @@ impl Func {
             Func::Csch => "csch",
             Func::Sech => "sech",
             Func::Coth => "coth",
-            Func::Asinh => "sinh⁻¹",
-            Func::Acosh => "cosh⁻¹",
-            Func::Atanh => "tanh⁻¹",
-            Func::Acsch => "csch⁻¹",
-            Func::Asech => "sech⁻¹",
-            Func::Acoth => "coth⁻¹",
+            Func::Asinh => "asinh",
+            Func::Acosh => "acosh",
+            Func::Atanh => "atanh",
+            Func::Acsch => "acsch",
+            Func::Asech => "asech",
+            Func::Acoth => "acoth",
             Func::Norm => "norm",
             Func::Matrix => "matrix",
             Func::Det => "det",
@@ -369,14 +369,22 @@ pub(crate) fn parse(tokens: &[Token], end_pos: usize) -> Result<Expr, CalcError>
 }
 
 /// [`parse`], where a name `is_func` accepts followed by `(` is a call of that user function
-/// (`f(3)`), not a product (`a(b + c)`).
-pub(crate) fn parse_with(tokens: &[Token], end_pos: usize, is_func: &dyn Fn(&str) -> bool) -> Result<Expr, CalcError> {
-    parse_env(tokens, end_pos, is_func, &|_| false)
+/// (`f(3)`), not a product (`a(b + c)`); also distinguishing defined vector parameters (`F = [1; 2; 3] kN` in `2 F =`).
+pub(crate) fn parse_env(tokens: &[Token], end_pos: usize, is_func: &dyn Fn(&str) -> bool, is_vec: &dyn Fn(&str) -> bool) -> Result<Expr, CalcError> {
+    parse_names(tokens, end_pos, is_func, is_vec, &|_| false).map(|(expr, _)| expr)
 }
 
-/// [`parse_with`], also distinguishing defined vector parameters (`F = [1; 2; 3] kN` in `2 F =`).
-pub(crate) fn parse_env(tokens: &[Token], end_pos: usize, is_func: &dyn Fn(&str) -> bool, is_vec: &dyn Fn(&str) -> bool) -> Result<Expr, CalcError> {
-    parse_names(tokens, end_pos, is_func, is_vec).map(|(expr, _)| expr)
+/// [`parse_env`], also knowing the defined parameters (`is_param`): after a unit and `·`, a
+/// parameter is the parameter (`2 m·s` with `s = 3 m` is 2 m times s), and `0.0002/K` is per
+/// kelvin unless `K` is a parameter.
+pub(crate) fn parse_scope(
+    tokens: &[Token],
+    end_pos: usize,
+    is_func: &dyn Fn(&str) -> bool,
+    is_vec: &dyn Fn(&str) -> bool,
+    is_param: &dyn Fn(&str) -> bool,
+) -> Result<Expr, CalcError> {
+    parse_names(tokens, end_pos, is_func, is_vec, is_param).map(|(expr, _)| expr)
 }
 
 /// [`parse_env`], with the indices of the tokens read as names (parameters, constants, units
@@ -386,8 +394,9 @@ pub(crate) fn parse_names(
     end_pos: usize,
     is_func: &dyn Fn(&str) -> bool,
     is_vec: &dyn Fn(&str) -> bool,
+    is_param: &dyn Fn(&str) -> bool,
 ) -> Result<(Expr, Vec<usize>), CalcError> {
-    let mut parser = Parser { toks: tokens, i: 0, depth: 0, nodes: 0, end_pos, is_func, is_vec, names: Vec::new() };
+    let mut parser = Parser { toks: tokens, i: 0, depth: 0, nodes: 0, end_pos, is_func, is_vec, is_param, unit_group: 0, names: Vec::new() };
     let expr = parser.full()?;
     if let Some(token) = tokens.get(parser.i) {
         return Err(CalcError::syntax(token.pos, format!("unexpected {}", describe(&token.tok))));
@@ -427,6 +436,10 @@ pub(crate) struct Parser<'a> {
     end_pos: usize,
     is_func: &'a dyn Fn(&str) -> bool,
     is_vec: &'a dyn Fn(&str) -> bool,
+    /// A defined parameter ([`parse_scope`]).
+    is_param: &'a dyn Fn(&str) -> bool,
+    /// How deep in brackets of units (`(kg·m)`) the parser is: there every name is a unit.
+    unit_group: usize,
     /// The indices of the tokens read as names ([`parse_names`]).
     names: Vec<usize>,
 }
@@ -563,6 +576,19 @@ impl Parser<'_> {
         if crate::format::is_numeric(&left) && self.unit_at(self.i) {
             let unit = self.unit_chain()?;
             left = self.bin(BinOp::Mul, left, unit)?;
+        } else if crate::format::is_numeric(&left)
+            && matches!(self.peek(), Some(Tok::Num(v)) if *v == 1.0)
+            && matches!(self.toks.get(self.i + 1).map(|t| &t.tok), Some(Tok::Slash))
+            && self.unit_at(self.i + 2)
+        {
+            // A reciprocal unit written after a number: `0.0002 1/K`.
+            let one = self.node(Expr::Num(1.0))?;
+            self.bump();
+            self.bump();
+            let f = self.unit_factor()?;
+            let first = self.bin(BinOp::Div, one, f)?;
+            let unit = self.unit_chain_from(first)?;
+            left = self.bin(BinOp::Mul, left, unit)?;
         }
         while matches!(self.peek(), Some(Tok::Ident(_) | Tok::LParen | Tok::Sqrt | Tok::Nary(_))) || self.opens_structure() {
             let right = self.power()?;
@@ -620,10 +646,35 @@ impl Parser<'_> {
     /// Units multiplied, divided and raised to powers: `kN·m`, `m/s²`, `kg m^-3`. Stops at
     /// anything that isn't a unit (`2 m·a` is two metres times `a`).
     pub(crate) fn unit_chain(&mut self) -> R<Expr> {
-        let mut e = self.unit_factor()?;
+        let e = self.unit_factor()?;
+        self.unit_chain_from(e)
+    }
+
+    /// True when token `i` is a defined parameter that a unit chain `chain` stops before: after
+    /// `·` or a space (`2 m·s` with `s = 3 m`), outside brackets of units (`(kN·m)` is always the
+    /// unit). The unit stays the unit when it is raised or divided (`m·s^-1`, `m·s²`) or when it
+    /// makes a named quantity with the units before it (`kN·m`, `kW·h`, `A·h`, `N·s`), whatever
+    /// parameters `m`, `h` or `s` there are.
+    fn param_at(&self, i: usize, chain: &Expr) -> bool {
+        let Some(Tok::Ident(name)) = self.toks.get(i).map(|t| &t.tok) else { return false };
+        if self.unit_group > 0 || !(self.is_param)(name) {
+            return false;
+        }
+        if matches!(self.toks.get(i + 1).map(|t| &t.tok), Some(Tok::Sup(_) | Tok::Caret | Tok::Slash)) {
+            return false;
+        }
+        let named = units_dim(chain)
+            .zip(crate::units::unit(name).map(|u| u.dim))
+            .and_then(|(a, b)| a.try_mul(b).ok())
+            .is_some_and(crate::units::named_product);
+        !named
+    }
+
+    /// [`Self::unit_chain`] after its first factor `e`.
+    fn unit_chain_from(&mut self, mut e: Expr) -> R<Expr> {
         loop {
             match self.peek() {
-                Some(Tok::Star) if self.unit_at(self.i + 1) => {
+                Some(Tok::Star) if self.unit_at(self.i + 1) && !self.param_at(self.i + 1, &e) => {
                     self.bump();
                     let f = self.unit_factor()?;
                     e = self.bin(BinOp::Mul, e, f)?;
@@ -633,7 +684,7 @@ impl Parser<'_> {
                     let f = self.unit_factor()?;
                     e = self.bin(BinOp::Div, e, f)?;
                 }
-                Some(Tok::Ident(_)) if self.unit_at(self.i) => {
+                Some(Tok::Ident(_)) if self.unit_at(self.i) && !self.param_at(self.i, &e) => {
                     let f = self.unit_factor()?;
                     e = self.bin(BinOp::Mul, e, f)?;
                 }
@@ -655,7 +706,10 @@ impl Parser<'_> {
     fn unit_factor(&mut self) -> R<Expr> {
         let mut e = if matches!(self.peek(), Some(Tok::LParen)) {
             self.bump();
-            let inner = self.nested(Self::unit_chain)?;
+            self.unit_group += 1;
+            let inner = self.nested(Self::unit_chain);
+            self.unit_group = self.unit_group.saturating_sub(1);
+            let inner = inner?;
             self.expect(Tok::RParen, ")")?;
             inner
         } else {
@@ -1059,6 +1113,27 @@ fn without_leading_percent(e: &Expr) -> Option<Expr> {
         Expr::Unit(n) if n == "%" => Some(Expr::Num(1.0)),
         Expr::Bin(BinOp::Mul, l, r) if matches!(&**l, Expr::Unit(n) if n == "%") => Some((**r).clone()),
         Expr::Bin(op @ (BinOp::Mul | BinOp::Div), l, r) => without_leading_percent(l).map(|u| Expr::Bin(*op, Box::new(u), r.clone())),
+        _ => None,
+    }
+}
+
+/// The dimension of a chain of units (`kN·m`, `m/s²`), `None` when a part isn't a unit.
+fn units_dim(e: &Expr) -> Option<crate::quantity::Dim> {
+    match e {
+        Expr::Unit(n) | Expr::Name(n) => crate::units::unit(n).map(|u| u.dim),
+        Expr::Bin(BinOp::Mul, a, b) => units_dim(a)?.try_mul(units_dim(b)?).ok(),
+        Expr::Bin(BinOp::Div, a, b) => units_dim(a)?.try_div(units_dim(b)?).ok(),
+        Expr::Bin(BinOp::Pow, a, p) => {
+            let p = match &**p {
+                Expr::Num(v) => *v,
+                Expr::Neg(inner) => match &**inner {
+                    Expr::Num(v) => -*v,
+                    _ => return None,
+                },
+                _ => return None,
+            };
+            units_dim(a)?.try_pow(p).ok()
+        }
         _ => None,
     }
 }

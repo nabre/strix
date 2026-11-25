@@ -137,3 +137,84 @@ fn data_recalled_by_a_drawing_in_the_statement_has_no_line() {
     // h is shown by the drawing, R and L by the text: no data part left at all.
     assert!(data_lines(&s).is_empty(), "{}", text(&s));
 }
+
+/// From a conversion report: an inline value replaces the selection, leaves the caret after
+/// itself (so the next one is a new value, not a change of this one) and says what it shows.
+#[test]
+fn an_inserted_value_replaces_the_selection_and_the_caret_goes_after_it() {
+    let mut s = exercise();
+    run(&mut s, "select.text", json!({"text": "Raggio"}));
+    let r = run(&mut s, "exercise.insertExpr", json!({"expr": "h"}));
+    assert_eq!(r["shown"], "3 m", "{r}");
+    assert!(r["error"].is_null(), "{r}");
+    run(&mut s, "text.insert", json!({"text": " e "}));
+    // A value whose name is in mathematical italic recalls the datum all the same.
+    let r = run(&mut s, "exercise.insertExpr", json!({"expr": "\u{1D445} -> cm"}));
+    assert_eq!(r["shown"], "150 cm", "{r}");
+    let t = text(&s);
+    assert!(t.contains("3 m e 150 cm 1.5 m e lato 200 cm."), "{t}");
+    assert!(!t.contains("Raggio"), "{t}");
+    let top = s.doc.body.iter().position(|b| matches!(&**b, Block::Para(p) if p.text.contains("e lato"))).unwrap();
+    let spans = s.doc.body.get(top).and_then(|b| b.as_para()).map(super::expr::expr_spans).unwrap_or_default();
+    assert_eq!(spans.len(), 4, "{t}");
+    // An error comes back at once.
+    let r = run(&mut s, "exercise.insertExpr", json!({"expr": "zz"}));
+    assert!(r["error"].as_str().is_some_and(|e| e.contains("zz")), "{r}");
+}
+
+/// A datum given in °C is recalled in °C, a share asked for in % in %.
+#[test]
+fn recalled_values_keep_the_unit_they_were_given_in() {
+    let mut s = Session::new(Document::new());
+    run(&mut s, "exercise.insert", json!({"title": "Calore", "text": "A {{T}}.", "questions": ["Pendenza"]}));
+    let data = json!({"items": [
+        {"symbol": "T", "description": "", "unit": "°C", "values": ["20"]},
+        {"symbol": "k", "description": "", "unit": "1/K", "values": ["0.0002"]}
+    ], "variants": ["A"], "active": 0});
+    let r = run(&mut s, "exercise.setData", json!({"exercise": 1, "data": data}));
+    assert!(r["errors"].as_array().is_none_or(|e| e.iter().all(Value::is_null)), "{r}");
+    let t = text(&s);
+    assert!(t.contains("A 20 °C."), "{t}");
+    assert!(t.contains("k = 0.0002 1/K"), "{t}");
+}
+
+/// An inline value shows what its names are worth where it stands; a name defined only further
+/// on (an option recalling the result) is read from where it is defined.
+#[test]
+fn an_inline_value_reads_its_names_where_it_stands() {
+    let mut s = Session::new(Document::new());
+    run(&mut s, "calc.insert", json!({"text": "L = 2 m"}));
+    run(&mut s, "text.newParagraph", json!({}));
+    run(&mut s, "text.insert", json!({"text": "prima {{L}} e {{A}}"}));
+    run(&mut s, "text.newParagraph", json!({}));
+    // A name is redefined with `:=` (with `=` a number after a known name is its result).
+    run(&mut s, "calc.insert", json!({"text": "L := 5 m"}));
+    run(&mut s, "text.newParagraph", json!({}));
+    run(&mut s, "calc.insert", json!({"text": "A = L^2"}));
+    run(&mut s, "text.newParagraph", json!({}));
+    run(&mut s, "text.insert", json!({"text": "dopo {{L}}"}));
+    run(&mut s, "calc.recalculate", json!({}));
+    let t = text(&s);
+    assert!(t.contains("prima 2 m e 25 m²"), "{t}");
+    assert!(t.contains("dopo 5 m"), "{t}");
+}
+
+/// `exercise.goWorking` puts the caret in a question's working space, whatever the text.
+#[test]
+fn go_to_the_working_space_of_a_question() {
+    let mut s = Session::new(Document::new());
+    run(&mut s, "exercise.insert", json!({"title": "Due", "text": "Testo.", "questions": ["Area", "Volume"]}));
+    run(&mut s, "exercise.goWorking", json!({"exercise": 1, "question": 2}));
+    run(&mut s, "calc.insert", json!({"text": "V = 2 m³"}));
+    run(&mut s, "exercise.goWorking", json!({"exercise": 1, "question": 1}));
+    run(&mut s, "calc.insert", json!({"text": "A = 3 m²"}));
+    let t = text(&s);
+    let solution = t.rfind("Area").unwrap();
+    let (a, v, vol) = (t.find("A=3").unwrap(), t.find("V=2").unwrap(), t.rfind("Volume").unwrap());
+    assert!(solution < a && a < vol && vol < v, "{t}");
+    // Refused: no such question, no exercise, bad numbers.
+    assert!(s.run("exercise.goWorking", &json!({"exercise": 1, "question": 3})).is_err());
+    assert!(s.run("exercise.goWorking", &json!({"exercise": 1, "question": 0})).is_err());
+    assert!(s.run("exercise.goWorking", &json!({"exercise": 9, "question": 1})).is_err());
+    assert!(Session::new(Document::new()).run("exercise.goWorking", &json!({"question": 1})).is_err());
+}

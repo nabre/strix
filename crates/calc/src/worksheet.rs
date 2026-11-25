@@ -2,8 +2,8 @@
 
 use crate::eval::{DIFFERENCE, DomainConstraint, Function, Names, Scope, Temp, Value, eval, eval_scalar};
 use crate::format::{format_number, is_quantity, render, render_nodes};
-use crate::lexer::{Tok, Token, lex};
-use crate::parser::{BinOp, Expr, Func, parse, parse_env, parse_with};
+use crate::lexer::{Tok, Token, lex, scripted_at, scripted_names};
+use crate::parser::{BinOp, Expr, Func, parse, parse_scope};
 use crate::quantity::{Dim, Quantity, finite};
 use crate::solve::{
     AbsPlan, QuadraticPlan, SymbolicKind, free_names, free_names_where, inline_calls, isolate, isolate_steps, numeric, solve_symbolic,
@@ -11,6 +11,7 @@ use crate::solve::{
 use crate::units::{TEMPERATURE_DIM, affine, auto_unit, constant, dim_name, unit};
 use crate::{CalcError, MAX_INPUT_CHARS};
 
+mod result_unit;
 mod values;
 
 /// Evaluation and number-format options (`docs/calc.md`, Number format).
@@ -33,6 +34,121 @@ pub struct Options {
     pub layout: Layout,
     /// How independent measurement uncertainties combine.
     pub uncertainty: crate::UncertaintyMode,
+    /// Results rounded to a step (`0.05`, up or down) in the unit they are shown in; the value
+    /// defined is the rounded one.
+    pub step: Option<Step>,
+}
+
+/// A rounding step, an exact decimal: `digits`·10^`exp` (0.05 is 5·10⁻²), and which way to round.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Step {
+    digits: u32,
+    exp: i8,
+    /// Which way a result goes to the step.
+    pub mode: StepMode,
+}
+
+/// Which way [`Step`] rounds.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum StepMode {
+    /// To the nearest multiple, halves away from zero.
+    #[default]
+    Nearest,
+    /// Up (towards +∞): per eccesso.
+    Up,
+    /// Down (towards −∞): per difetto.
+    Down,
+}
+
+impl StepMode {
+    /// The mode called `name`: `nearest`, `up` or `down`.
+    pub fn from_name(name: &str) -> Option<StepMode> {
+        match name {
+            "nearest" => Some(StepMode::Nearest),
+            "up" => Some(StepMode::Up),
+            "down" => Some(StepMode::Down),
+            _ => None,
+        }
+    }
+
+    /// The mode's name.
+    pub fn name(self) -> &'static str {
+        match self {
+            StepMode::Nearest => "nearest",
+            StepMode::Up => "up",
+            StepMode::Down => "down",
+        }
+    }
+}
+
+impl Step {
+    /// A step from its decimal text (`"0.05"`, `"5"`, `"2.5e-3"`): positive, at most 6
+    /// significant digits, between 10⁻⁹ and 10⁹. `None` otherwise.
+    pub fn parse(text: &str, mode: StepMode) -> Option<Step> {
+        let text = text.trim();
+        let (mantissa, e) = match text.split_once(['e', 'E']) {
+            Some((m, e)) => (m, e.parse::<i32>().ok()?),
+            None => (text, 0),
+        };
+        let (int, frac) = mantissa.split_once('.').unwrap_or((mantissa, ""));
+        if int.is_empty() && frac.is_empty() || !int.chars().chain(frac.chars()).all(|c| c.is_ascii_digit()) {
+            return None;
+        }
+        let all = format!("{int}{frac}");
+        let trimmed = all.trim_start_matches('0');
+        let zeros = trimmed.len() - trimmed.trim_end_matches('0').len();
+        let significant = trimmed.trim_end_matches('0');
+        if significant.is_empty() || significant.len() > 6 {
+            return None;
+        }
+        let digits: u32 = significant.parse().ok()?;
+        let exp = e.checked_sub(i32::try_from(frac.len()).ok()?)?.checked_add(i32::try_from(zeros).ok()?)?;
+        let exp = i8::try_from(exp).ok().filter(|e| (-9..=9).contains(e))?;
+        Some(Step { digits, exp, mode })
+    }
+
+    /// The step as text: `0.05`, `5`, `2000`.
+    pub fn text(self) -> String {
+        if self.exp >= 0 {
+            format!("{}{}", self.digits, "0".repeat(usize::from(self.exp.unsigned_abs())))
+        } else {
+            let places = usize::from(self.exp.unsigned_abs());
+            let d = self.digits.to_string();
+            let d = if d.len() <= places { format!("{}{d}", "0".repeat(places - d.len() + 1)) } else { d };
+            let (int, frac) = d.split_at(d.len() - places);
+            format!("{int}.{frac}")
+        }
+    }
+
+    /// Decimal places of the step (`0.05` → 2, `5` → 0).
+    pub(crate) fn places(self) -> u8 {
+        if self.exp >= 0 { 0 } else { self.exp.unsigned_abs() }
+    }
+
+    /// `x` rounded to a multiple of the step, as the mode says. The quotient is snapped to a
+    /// rounding boundary when the difference is within floating-point error.
+    pub(crate) fn apply(self, x: f64) -> f64 {
+        if !x.is_finite() {
+            return x;
+        }
+        let ten = 10f64.powi(i32::from(self.exp.unsigned_abs()));
+        let size = f64::from(self.digits);
+        // x / (digits·10^exp), dividing or multiplying by an exact power of ten.
+        let mut q = if self.exp >= 0 { x / ten / size } else { x * ten / size };
+        let boundary = if self.mode == StepMode::Nearest { (q * 2.0).round() / 2.0 } else { q.round() };
+        let tolerance = (4.0 * f64::EPSILON * q.abs().max(1.0)).min(0.125);
+        if (q - boundary).abs() <= tolerance {
+            q = boundary;
+        }
+        let k = match self.mode {
+            StepMode::Nearest => q.round(),
+            StepMode::Up => q.ceil(),
+            StepMode::Down => q.floor(),
+        };
+        let kd = k * size;
+        let out = if self.exp >= 0 { kd * ten } else { kd / ten };
+        if out == 0.0 { 0.0 } else { out }
+    }
 }
 
 /// How a statement's result and solution steps are laid out (`docs/calc.md`, Layout).
@@ -88,6 +204,7 @@ impl Default for Options {
             steps: false,
             layout: Layout::Inline,
             uncertainty: crate::UncertaintyMode::Max,
+            step: None,
         }
     }
 }
@@ -213,14 +330,40 @@ impl Worksheet {
         if text.chars().count() > MAX_INPUT_CHARS {
             return Err(CalcError::TooLong { limit: MAX_INPUT_CHARS });
         }
-        let tokens = lex(text, self.opts.decimal_comma)?;
+        let tokens = self.with_scripted_names(lex(text, self.opts.decimal_comma)?);
         let expr = self.parse_expr(&tokens, text.chars().count())?;
         eval(&expr, &self.scope, Names::Worksheet)
     }
 
+    /// `tokens` with the names written with a subscript and a superscript (`Z_RT^S`) as one
+    /// token: a parameter of that name, or the name alone before the statement's first `=` or
+    /// `:=` when neither part is a parameter (`Z_RT^S = 120 cm³`; with `x_1` and `n` defined,
+    /// `x_1^n = 8` is still a power).
+    fn with_scripted_names(&self, tokens: Vec<Token>) -> Vec<Token> {
+        let defines = matches!(tokens.get(3).map(|t| &t.tok), Some(Tok::Equals | Tok::Define));
+        let left = defines.then(|| scripted_at(&tokens, 0)).flatten().filter(|name| {
+            let (a, b) = name.split_once('^').unwrap_or((name, ""));
+            self.scope.get(a).is_none() && self.scope.get(b).is_none()
+        });
+        scripted_names(tokens, &|n| self.scope.get(n).is_some() || left.as_deref() == Some(n))
+    }
+
+    /// [`Self::eval_expr`], formatted as results show it, with its unit: in the unit its
+    /// parameters were given or asked for (`T` given as `20 °C` is `20 °C`, not `293.15 K`; a
+    /// share asked for in % is `1 %`), else the automatic one.
+    pub fn show_expr(&self, text: &str) -> Result<String, CalcError> {
+        let v = self.eval_expr(text)?;
+        let tokens = self.with_scripted_names(lex(text, self.opts.decimal_comma)?);
+        let hint = self.parse_expr(&tokens, text.chars().count()).ok().and_then(|e| self.hint(&e));
+        let (number, unit) = self.auto_hinted(&v, hint.as_deref());
+        Ok(with_unit(&number, &unit))
+    }
+
     /// Parses an expression where the user functions defined so far are calls (`f(3)`).
     pub(crate) fn parse_expr(&self, tokens: &[Token], end_pos: usize) -> Result<Expr, CalcError> {
-        parse_env(tokens, end_pos, &|n| self.scope.function(n).is_some(), &|n| matches!(self.scope.get(n), Some(Value::Vector(_))))
+        parse_scope(tokens, end_pos, &|n| self.scope.function(n).is_some(), &|n| matches!(self.scope.get(n), Some(Value::Vector(_))), &|n| {
+            self.scope.get(n).is_some()
+        })
     }
 
     /// `f(x) = body` or `g(a, b) := body`: a name, then a list of distinct plain names in
@@ -287,7 +430,11 @@ impl Worksheet {
             return Some(failed(CalcError::syntax(t.pos, "a function definition has one = (call it later to show a value: f(3) =)")));
         }
         // The function's own name is a call in its body (recursion stops at MAX_CALL_DEPTH).
-        let parsed = parse_with(body, len, &|n| n == name || self.scope.function(n).is_some());
+        // A parameter after a unit is the parameter, as in any statement (not one of the
+        // function's own, which shadow it).
+        let parsed = parse_scope(body, len, &|n| n == name || self.scope.function(n).is_some(), &|_| false, &|n| {
+            self.scope.get(n).is_some() && !params.iter().any(|p| p == n)
+        });
         match parsed {
             Ok(body) => {
                 self.scope.set_function(Function { name: name.clone(), params, body });
@@ -697,6 +844,7 @@ impl Worksheet {
             },
             None => (text, tokens),
         };
+        let tokens = self.with_scripted_names(tokens);
         let len = text.chars().count();
         // `f(x) = 2·x + 1` defines a function; it is never an equation to solve.
         if let Some(result) = self.function_definition(&tokens, len, reduced.is_some()) {
@@ -891,7 +1039,11 @@ impl Worksheet {
                     _ => false,
                 }
             };
-        let shows = parts.len() >= 2 && units_only(last) && !parameter_alone && !powered_unknown;
+        let shows = parts.len() >= 2
+            && units_only(last)
+            && !parameter_alone
+            && !powered_unknown
+            && !(parts.len() == 2 && !matches!(part(0), [Token { tok: Tok::Ident(_), .. }]) && self.unit_named_unknown(last));
         match parts.len() - usize::from(shows) {
             1 => {
                 // `L = 4.5 m`, `x^2 + x = 6`, `x^2 + x·1 m = A`: a number or a parameter after `=`
@@ -1352,6 +1504,81 @@ impl Worksheet {
         }
     }
 
+    /// True when the units after the last `=` read as an expression of parameters with one
+    /// letter that is no parameter: `tan(α) = d/h` with `h` a height is an equation in `d`, not
+    /// "in days per hour". Units written after a number (`= 3 d/h`), a request with no
+    /// parameter in it (`= kN·m`), after a name alone (`v = m/s`) or after a result
+    /// (`v = d/t = m/s`) stay units.
+    fn unit_named_unknown(&self, last: &[Token]) -> bool {
+        if starts_with_number(last) {
+            return false;
+        }
+        let mut param = false;
+        let mut letter = false;
+        let mut prev_num = false;
+        for t in last {
+            if let Tok::Ident(n) = &t.tok {
+                if self.scope.get(n).is_some() {
+                    param = true;
+                } else if !prev_num && n.chars().count() == 1 && n.chars().all(char::is_alphabetic) {
+                    letter = true;
+                }
+            }
+            prev_num = matches!(t.tok, Tok::Num(_));
+        }
+        param && letter
+    }
+
+    /// A solved unknown's value and the unit hint it is shown with: a plain number asked for
+    /// in `%`, `‰`, `°`… (`asked`, the text after the result's `=`) keeps that unit wherever it
+    /// is shown (the results summary, a value in the text), else the hint of what it equals
+    /// (`other`); the value rounded to the format's step before it is defined, so later
+    /// statements read it so.
+    fn solved_value(
+        &self,
+        value: Result<Value, CalcError>,
+        other: Option<&Expr>,
+        asked: &[Token],
+        len: usize,
+    ) -> (Result<Value, CalcError>, Option<String>) {
+        let unit = match &value {
+            Ok(v) if !asked.is_empty() => self.asked_dimensionless(asked, v, len),
+            _ => None,
+        };
+        let hint = unit.or_else(|| other.and_then(|e| self.hint(e)));
+        // A datum defined without a result shown (`ν = 0.33`, `α = 0.0002/K`) is kept as given.
+        let datum = asked.is_empty() && other.is_some_and(|e| self.is_datum(e));
+        let value = if datum { value } else { self.stepped(value, asked, len, hint.as_deref()) };
+        (value, hint)
+    }
+
+    /// True when `e` is a datum, numbers and units only (`0.33`, `4.5 m`, `0.0002/K`): no
+    /// parameter, constant or function to work out. The rounding step leaves data alone unless
+    /// their result is shown.
+    fn is_datum(&self, e: &Expr) -> bool {
+        fn walk(e: &Expr, unit_name: &dyn Fn(&str) -> bool) -> bool {
+            match e {
+                Expr::Num(_) | Expr::Unit(_) => true,
+                Expr::Name(n) => unit_name(n),
+                Expr::Neg(a) => walk(a, unit_name),
+                Expr::Bin(_, a, b) => walk(a, unit_name) && walk(b, unit_name),
+                Expr::Vector(items) => items.iter().all(|i| walk(i, unit_name)),
+                _ => false,
+            }
+        }
+        walk(e, &|n| self.scope.get(n).is_none() && unit(n).is_some())
+    }
+
+    /// The dimensionless unit asked for after a result's `=` (`= %`, `= ‰`, `= °`, `= gon`) when
+    /// the value `v` is a plain number.
+    fn asked_dimensionless(&self, rhs: &[Token], v: &Value, len: usize) -> Option<String> {
+        if !v.dim().is_dimensionless() {
+            return None;
+        }
+        let asked = render(&requested_unit(rhs, len).ok()??);
+        unit(&asked).is_some_and(|q| q.dim.is_dimensionless()).then_some(asked)
+    }
+
     /// The names of an equation that have no value: not parameters, constants or units — except
     /// that a name alone on a side is unknown whenever it is not a parameter (`m = 3 kg` defines
     /// `m` although `m` is also the metre).
@@ -1367,6 +1594,16 @@ impl Worksheet {
             let function = Func::from_name(n).is_some() && !(alone(n) && unit(n).is_none());
             !defined(n) && !function && (alone(n) || (constant(n).is_none() && !self.element(n)))
         });
+        // `k = 0.0002/K`: the name alone is what is defined; another name that is a unit is that
+        // unit (`K`, per kelvin), not a second unknown — only when the other side is a datum,
+        // numbers and units: in `F = m·g` with `m` undefined, `m` is no metre but an unknown.
+        let datum = match (lhs, rhs) {
+            (Expr::Name(_), other) | (other, Expr::Name(_)) => self.is_datum(other),
+            _ => false,
+        };
+        if datum && names.len() > 1 && names.iter().any(|n| alone(n)) {
+            names.retain(|n| alone(n) || unit(n).is_none());
+        }
         names
     }
 
@@ -1446,7 +1683,10 @@ impl Worksheet {
                 // `h·r = A`: the unknown alone on the right of a formula is solved like `A = h·r`,
                 // the formula turned round first (`A = h·r`), as an isolation step.
                 let flipped = matches!(&rhs, Expr::Name(n) if n == x) && !matches!(&lhs, Expr::Name(n) if n == x) && self.reads_parameter(&lhs, x);
-                let alone = matches!(&lhs, Expr::Name(n) if n == x) || (matches!(&rhs, Expr::Name(n) if n == x) && !flipped);
+                // Alone only when the other side doesn't read it too: `cos(x) = x` is an equation
+                // to solve and show, not a definition of `x`.
+                let alone = (matches!(&lhs, Expr::Name(n) if n == x) && !reads(&rhs, x))
+                    || (matches!(&rhs, Expr::Name(n) if n == x) && !flipped && !reads(&lhs, x));
                 let (value, solution) = match self.solve_for(&lhs, &rhs, x, extra) {
                     (value, Solution::Direct(f)) if flipped => (value, Solution::Isolated(f.clone(), vec![(Expr::Name(x.clone()), f)])),
                     other => other,
@@ -1458,8 +1698,6 @@ impl Worksheet {
                     (Expr::Name(n), other) | (other, Expr::Name(n)) if n == x => Some(other.clone()),
                     _ => solution.form().cloned().or_else(|| isolate(&lhs, &rhs, x)),
                 };
-                let x_hint = other.as_ref().and_then(|e| self.hint(e));
-                let mut result = self.assign(kind, x, value.clone(), x_hint.clone());
                 // The unit of a stale `⇒ x = 2.5 m/s²` is kept (the last `=` of its working).
                 let tail_tokens = tail.and_then(|t| lex(t, self.opts.decimal_comma).ok()).unwrap_or_default();
                 let stale = match tail_tokens.as_slice() {
@@ -1469,12 +1707,14 @@ impl Worksheet {
                     }
                     _ => &[],
                 };
+                let asked = if shows { part(2) } else { stale };
+                let (value, x_hint) = self.solved_value(value, other.as_ref(), asked, len);
+                let mut result = self.assign(kind, x, value.clone(), x_hint.clone());
                 // With steps: the solution after the statement, laid out as the layout says.
                 if self.opts.steps
                     && !(shows && !alone)
                     && let Ok(v) = &value
-                    && let Some(lines) =
-                        self.solution_lines(x, &solution, (&lhs, &rhs), v, if shows { part(2) } else { stale }, len, x_hint.as_deref())
+                    && let Some(lines) = self.solution_lines(x, &solution, (&lhs, &rhs), v, asked, len, x_hint.as_deref())
                 {
                     result.numeric = matches!(solution, Solution::Numeric);
                     if shows {
@@ -1720,11 +1960,15 @@ impl Worksheet {
         {
             // An inverse function gives one value; keep it only if it satisfies the equation and
             // any active physical domain constraints on `x`.
-            let mut scope = self.scope.clone();
-            scope.set(x, v.clone());
-            let eq_ok = match (eval(lhs, &scope, Names::Worksheet), eval(rhs, &scope, Names::Worksheet)) {
-                (Ok(a), Ok(b)) => agree(&a, &b, &self.opts).is_ok() || cancels(&a, &b, lhs, rhs, &scope),
-                _ => false,
+            // A name alone equal to a formula without it holds by itself: no copy of the scope
+            // to check it (a plain definition `L = 4.5 m` would otherwise cost the whole sheet).
+            let eq_ok = matches!(solution, Solution::Direct(_)) || {
+                let mut scope = self.scope.clone();
+                scope.set(x, v.clone());
+                match (eval(lhs, &scope, Names::Worksheet), eval(rhs, &scope, Names::Worksheet)) {
+                    (Ok(a), Ok(b)) => agree(&a, &b, &self.opts).is_ok() || cancels(&a, &b, lhs, rhs, &scope),
+                    _ => false,
+                }
             };
             let dom_ok = match &v {
                 Value::Scalar(q) => self.scope.constraints_for(x).chain(extra.iter().filter(|c| c.var == x)).all(|c| c.accepts(*q).unwrap_or(false)),
@@ -1873,15 +2117,25 @@ impl Worksheet {
                     _ => (value, Some(display), error),
                 }
             }
-            _ => match self.parse_expr(body, body_end_pos).and_then(|e| eval(&e, &self.scope, Names::Worksheet)) {
-                Ok(v) => (Some(v), None, None),
-                Err(err) => (None, None, Some(err)),
-            },
+            // Not shown, but a result rounded to the format's step all the same (a datum stays
+            // as given).
+            _ => {
+                let parsed = self.parse_expr(body, body_end_pos);
+                let hint = parsed.as_ref().ok().and_then(|e| self.hint(e));
+                let datum = parsed.as_ref().is_ok_and(|e| self.is_datum(e));
+                let value = parsed.and_then(|e| eval(&e, &self.scope, Names::Worksheet));
+                let value = if datum { value } else { self.stepped(value, &[], len, hint.as_deref()) };
+                match value {
+                    Ok(v) => (Some(v), None, None),
+                    Err(err) => (None, None, Some(err)),
+                }
+            }
         };
         match &value {
             Some(v) => {
                 self.scope.set(&name, v.clone());
-                let hint = self.parse_expr(body, body_end_pos).ok().and_then(|e| self.hint(&e));
+                let asked = eq.and_then(|e| self.asked_dimensionless(tokens.get(e.saturating_add(1)..).unwrap_or_default(), v, len));
+                let hint = asked.or_else(|| self.parse_expr(body, body_end_pos).ok().and_then(|e| self.hint(&e)));
                 self.set_hint(&name, hint);
             }
             None => {
@@ -1932,14 +2186,16 @@ impl Worksheet {
         len: usize,
         hint: Option<String>,
     ) -> (Option<Value>, String, Option<CalcError>) {
+        let value = self.stepped(value, rhs, len, hint.as_deref());
         let request = requested_unit(rhs, len);
         let unit_text = match &request {
             Ok(Some(e)) => render(e),
             _ => String::new(),
         };
+        let opts = self.result_opts();
         let shown = value.clone().and_then(|v| {
             let request = request?;
-            self.in_unit(&v, request.as_ref(), &unit_text, hint.as_deref())
+            self.in_unit_in(&v, request.as_ref(), &unit_text, hint.as_deref(), &opts)
         });
         match shown {
             Ok((number, unit)) => (value.ok(), format!("{left_text} = {}", with_unit(&number, &unit)), None),
@@ -2008,14 +2264,65 @@ impl Worksheet {
 
     /// `v` as formatted numbers and unit text, in the requested unit or the automatic one.
     fn in_unit(&self, v: &Value, request: Option<&Expr>, unit_text: &str, hint: Option<&str>) -> Result<(String, String), CalcError> {
+        self.in_unit_in(v, request, unit_text, hint, &self.opts)
+    }
+
+    /// [`Self::in_unit`] with the number format `opts`.
+    fn in_unit_in(
+        &self,
+        v: &Value,
+        request: Option<&Expr>,
+        unit_text: &str,
+        hint: Option<&str>,
+        opts: &Options,
+    ) -> Result<(String, String), CalcError> {
         let Some(request) = request else {
-            return Ok(self.auto_hinted(v, hint));
+            return Ok(self.auto_hinted_in(v, hint, opts));
         };
         let u = eval_scalar(request, &self.scope, Names::UnitsOnly)?;
         // A temperature difference asked for in °C or °F is a difference: 60 K is 60 °C.
         let absolute = hint != Some(DIFFERENCE);
-        let number = in_unit_text_as(v, u, unit_text, &self.opts, absolute)?;
+        let number = in_unit_text_as(v, u, unit_text, opts, absolute)?;
         Ok((number, unit_text.to_string()))
+    }
+
+    /// A step needs at least its own decimal places, including when more places are requested.
+    /// Trailing zeros follow the number format.
+    fn result_opts(&self) -> Options {
+        match self.opts.step {
+            Some(step) => Options {
+                count: Count::Decimals,
+                digits: if self.opts.count == Count::Decimals { self.opts.digits.max(step.places()) } else { step.places() },
+                step: None,
+                ..self.opts
+            },
+            None => self.opts,
+        }
+    }
+
+    /// `value` rounded to the format's step ([`Options::step`]) in the unit it will be shown
+    /// in: the one asked for after `=` (`rhs`), else the automatic one (with its dimensionless
+    /// `hint`). Unchanged without a step, for a vector, a temperature in °C/°F (its offset
+    /// makes a step ambiguous) or a unit of another kind (which then fails as usual).
+    fn stepped(&self, value: Result<Value, CalcError>, rhs: &[Token], len: usize, hint: Option<&str>) -> Result<Value, CalcError> {
+        let Some(step) = self.opts.step else { return value };
+        let Ok(Value::Scalar(q)) = &value else { return value };
+        let unit = match requested_unit(rhs, len) {
+            Ok(Some(e)) => {
+                let text = render(&e);
+                eval_scalar(&e, &self.scope, Names::UnitsOnly).ok().map(|u| (u, text))
+            }
+            _ => {
+                let (_, text) = self.auto_hinted(&Value::Scalar(*q), hint);
+                if text.is_empty() { Some((Quantity::number(1.0), text)) } else { self.unit_quantity(&text).map(|u| (u, text)) }
+            }
+        };
+        let Some((u, text)) = unit else { return value };
+        if affine(&text).is_some() || u.dim != q.dim || u.value == 0.0 {
+            return value;
+        }
+        let rounded = step.apply(q.value / u.value) * u.value;
+        Ok(Value::Scalar(Quantity { value: finite(rounded)?, ..*q }))
     }
 
     /// Classifies text that could not be tokenised (or is too long) from its raw characters and
@@ -2226,7 +2533,9 @@ pub fn format_value(v: &Value, opts: &Options) -> String {
 /// returning `(number_text, number_with_unit)`.
 pub fn format_value_in(v: &Value, unit_text: &str, opts: &Options) -> Result<(String, String), CalcError> {
     let trimmed = unit_text.trim();
-    if trimmed.is_empty() {
+    // `1`: a plain number, whatever dimensionless unit the value was given in (`-> 1` shows
+    // 15 % as 0.15).
+    if trimmed.is_empty() || trimmed == "1" {
         if !v.dim().is_dimensionless() {
             return Err(CalcError::WrongUnit { result: dim_name(v.dim()), requested: String::new() });
         }
@@ -2318,6 +2627,12 @@ fn units_only(rhs: &[Token]) -> bool {
 /// `1.2·10^(-5)`), or `⚠`. A number
 /// directly followed by `/` is part of the unit (`= 1/s`).
 fn requested_unit(rhs: &[Token], len: usize) -> Result<Option<Expr>, CalcError> {
+    let unit = rhs.get(unit_start(rhs)..).unwrap_or_default();
+    if unit.is_empty() { Ok(None) } else { parse(unit, len).map(Some) }
+}
+
+/// Where the unit of [`requested_unit`] starts in `rhs`, after any stale result.
+fn unit_start(rhs: &[Token]) -> usize {
     let tok = |i: usize| rhs.get(i).map(|t| &t.tok);
     let mut start = stale_vector(rhs);
     if start > 0 {
@@ -2335,8 +2650,7 @@ fn requested_unit(rhs: &[Token], len: usize) -> Result<Option<Expr>, CalcError> 
             start = j;
         }
     }
-    let unit = rhs.get(start..).unwrap_or_default();
-    if unit.is_empty() { Ok(None) } else { parse(unit, len).map(Some) }
+    start
 }
 
 /// The index after the `·10^n` of our scientific form at `j` (`·10^9`, `·10^-5`, and with the

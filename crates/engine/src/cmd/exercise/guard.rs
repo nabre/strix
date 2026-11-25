@@ -44,8 +44,8 @@ fn redirect(p: &Paragraph, off: usize) -> Result<Option<usize>, CmdError> {
             None
         });
     }
-    // A problem's question: its text, then the points (generated) at the end.
-    if let Some((a, _)) = span(p, TAG_POINTS) {
+    // A problem's question keeps its generated settings and points after its text.
+    if let Some(a) = [TAG_POINTS, super::result_format::TAG].into_iter().filter_map(|tag| span(p, tag).map(|(a, _)| a)).min() {
         return Ok((off > a).then_some(a));
     }
     // A calculation's result line: generated whole.

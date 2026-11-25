@@ -451,6 +451,18 @@ just after it, Delete just before it, either key inside it, or a selection endin
 takes all of it (Undo brings it back). Values saved before they could be deleted are unlocked
 when the document is recalculated.
 
+An inline value shows what its names are worth **where it stands**: after `L = 2 m` it shows
+2 m even if `L := 5 m` comes later. A name the document defines only further on (a
+multiple-choice option recalling the result the solution works out) is read where it is defined.
+A template typed and turned into a value, or a value rewritten by a recalculation, leaves the
+caret where it was in the text, never inside the value.
+
+`exercise.insertExpr` replaces the selection, leaves the caret after the value (so the next
+insertion is a new value, not a change of this one), reads names copied in mathematical italic
+(`𝑅`) as plain letters, and returns what the value shows and its error at once
+(`{"expr", "shown", "error"}`). `calc.insert` likewise returns the statement as calculated
+(`shown`).
+
 Right-click on a value: **Inline Value** shows its expression (edit it, Enter applies), how it is
 shown — **Value and Unit** (`1.5 m`), **Symbol = Value** (`R = 1.5 m`, the symbol in italics) or
 **Number Only** (`1.5`) — and **Delete Value**. Scripts use `exercise.inlineValue`; the way it is
@@ -480,11 +492,21 @@ are split into one line each.)
 
 ## Results
 
-An equation in the solution is marked as the **result** of a question (Exercise tab › Calculation ›
-Result Of, `equation.answer {"question": n}`; without `question`, the question it is worked
-under), saved as `strix:answer="n"` on `m:oMath`). The
-summary lists, for every exercise, its label alone (*Esercizio 1*, as the exercises are numbered, never the title; the variant when there are several) and each question with the value of its result
-equations as calculations show it (`a) M = 30.375 kJ`: only the letter and the result, the question is in the exercise), or "risultato non indicato".
+By default, the last live calculation in each question's working gives its **result**. In a
+problem, **Result Of** (Exercise › Calculation, `equation.answer {"question": n}`) lets you
+select specific equations. The results summary copies the final value shown in the solution,
+including its unit and trailing zeros.
+
+Open the question in **Question Settings** to choose a result unit, decimal places, a rounding
+step in that unit and its direction. For example, `79 kN` with two decimal places is shown as
+`79.00 kN` in both places. A step of `0.05` in metres with upward rounding shows `2.5333 m` as
+`2.55 m`. If the step needs more places, the result keeps those places so the rounded value can
+be shown exactly. Empty fields inherit the calculation's format. Enter `none` to disable an
+inherited step. The settings follow the question if another calculation becomes its final one.
+
+The same settings can be written with
+`exercise.questions {"exercise": 1, "question": 1, "resultFormat": {"unit": "m", "decimals": 2, "step": "0.05", "stepMode": "up"}}`.
+Use `resultFormat: null` to restore the inherited format.
 
 The repeated questions and the summary are rebuilt after every command that changes the
 questions, titles, marks or results (with the automatic recalculation, `docs/calc.md`), and on
@@ -518,6 +540,7 @@ to the end.
 | `exercise.questionPoints` | set or clear a question's points, in quizzes and problems |
 | `exercise.blank` | Hide Words: an inline completion's hidden word ([question-modes.md](question-modes.md)) |
 | `exercise.insertExpr` | insert an inline value (`{{expr}}`) at the caret |
+| `exercise.goWorking` | the caret at the end of question n's working space in the solution (`{"question", "exercise"?}`; an empty paragraph is made when there is none) |
 | `exercise.generateVariants` | generate clean variants from domains and constraints (below) |
 | `exercise.totalScore` | the total score line (`{"on"?, "points"?}`) |
 | `exercise.grading` | the grading scale table and its settings (below) |
@@ -567,6 +590,8 @@ span `L`, two questions worked in the solution and the results summary. It is bu
 same commands the ribbon runs (`crates/engine/src/sample_calc.rs`), as the sample test is.
 
 ## Revision history
+
+- 2026-11-25: `exercise.goWorking {question}` puts the caret in a question's working space (scripts couldn't find it: the repeated question is read-only and its text appears twice). Inline values read their names where they stand (they read the end of the document, so a name redefined later showed its later value), a name defined only further on still read there; the caret no longer lands inside a value when `{{…}}` is turned into one or a value is rewritten. `exercise.insertExpr` replaces the selection, puts the caret after the value (the next one went into it, changing its formula: "no inline value" after), reads math-italic names and returns `shown`/`error`; a datum given in °C is recalled in °C, units like `1/K` and `1/m³` work in the data.
 
 - 2026-11-17: Docs brought up to date with the code: the status line, the Teaching tab's groups (Exercise with Exercise Tools, Archive, Scores, Assessment, Graph Paper), the commands table completed (`exercise.titleLine`, `questionPoints`, `blank`, `insertExpr`, `generateVariants`, `totalScore`, `grading`, `check`, `file.exportPack`, `view.gradingPane`, `view.checkPane`), the Next list (worked steps are calc's).
 

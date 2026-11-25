@@ -2,7 +2,7 @@
 //! band of uniform intensity across both sides of the cut, the member cut half way along it with a
 //! zigzag cut face, the part before the cut (the member's first end's side) drawn in full — its
 //! members, its loads with their names, its reactions by name (`H_A`, `V_A`) pointing the way they
-//! count positive, as the laws use them, even one that came out negative — and on
+//! act, as the laws use them (one that came out negative turned round: `H_A := -H_A`) — and on
 //! the cut the internal force(s) the rest of the structure puts on it (`N`, `T`, `M` together, or the single
 //! force [`Cut::action`](crate::Cut::action) asks for), pointing the way they count positive; any
 //! loads strictly inside the remainder of the stretch past the cut drawn faded without labels; the
@@ -174,7 +174,7 @@ impl Ctx<'_> {
         cx.loads_named(f, LOAD, false, qmax, &|k, _| pick(k, false), &names);
         self.pen = cx.pen;
 
-        let taken = self.unknowns_where(f, &in_left);
+        let taken = self.unknowns_where(f, &in_left, true);
         self.internal_forces(ps, pe, pn, &geo.tag, geo.action);
         self.node_names_clear_of(f, &in_left, &taken);
 
@@ -930,8 +930,8 @@ mod tests {
             ..Structure::default()
         };
         let t = names(&st);
-        // H_A, taken positive along +x, came out −10 kN: still named, as the laws use it
-        // (`N_1(x) = −H_A`), never by its size beside its name's arrow.
+        // H_A, taken positive along +x, came out −10 kN: drawn the way it acts and still named,
+        // as the laws use it (`N_1(x) = H_A`), never by its size beside its name's arrow.
         for name in ["H_A", "V_A", "M_A", "N_1", "T_1", "M_1", "x"] {
             assert!(t.iter().any(|p| p == name), "{name}: {t:?}");
         }
