@@ -561,10 +561,10 @@ fn result_menu(ui: &mut Ui, app: &mut WordApp) {
         return;
     };
     ui.menu_button(crate::tl!("Unit"), |ui| {
-        mi_check(ui, app, "Automatic", r.unit.is_none(), "calc.result", json!({"unit": "auto"}));
+        mi(ui, app, "Automatic", "calc.result", json!({"unit": "auto"}));
         ui.separator();
         for u in r.units.iter().filter(|u| !u.is_empty()) {
-            let chosen = r.unit.as_deref() == Some(u.as_str());
+            let chosen = r.shown == *u;
             // Unit symbols are not translated: `tl!` gives them back as they are.
             mi_check(ui, app, u, chosen, "calc.result", json!({"unit": u}));
         }

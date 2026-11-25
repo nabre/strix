@@ -41,7 +41,8 @@ fn a_results_unit_is_chosen_among_its_quantitys() {
     assert!(shown(&s)[0].ends_with("=7.5m³"), "{:?}", shown(&s));
     let info = run(&mut s, "calc.resultInfo", json!({}));
     assert_eq!(info["shown"], "m³");
-    assert_eq!(info["unit"], Value::Null);
+    // A result shown reads back in its unit, as a unit asked for.
+    assert_eq!(info["unit"], "m³");
     let units: Vec<&str> = info["units"].as_array().unwrap().iter().filter_map(Value::as_str).collect();
     for u in ["cm³", "L", "dm³", "m³"] {
         assert!(units.contains(&u), "{units:?}");
@@ -57,7 +58,7 @@ fn a_results_unit_is_chosen_among_its_quantitys() {
     assert!(shown(&s)[0].ends_with("=7500dm³"), "{:?}", shown(&s));
     // Back to the automatic unit.
     let r = run(&mut s, "calc.result", json!({"unit": "auto"}));
-    assert_eq!(r["unit"], Value::Null);
+    assert_eq!(r["shown"], "m³");
     assert!(shown(&s)[0].ends_with("=7.5m³"), "{:?}", shown(&s));
     // A unit of another quantity, or no unit, is refused and changes nothing.
     for bad in ["m²", "kN", "3 m", "("] {

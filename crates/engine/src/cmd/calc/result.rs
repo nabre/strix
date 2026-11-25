@@ -22,7 +22,8 @@ const NO_CALC: &str = "the equation at the caret isn't a calculation";
 /// The result of the calculation at the caret, as Math › Number Display › Result shows it.
 #[derive(Debug, Clone, PartialEq)]
 pub struct CaretResult {
-    /// The unit asked for after the result's `=`, `None` for the automatic one.
+    /// The unit written after the result's `=` (a result shown reads back in its unit, as one
+    /// asked for), `None` while there is none.
     pub unit: Option<String>,
     /// The unit the result is shown in now (empty for a plain number).
     pub shown: String,
@@ -121,7 +122,9 @@ pub(super) fn command(s: &mut Session, v: &Value) -> CmdResult {
         None => None,
         Some(Value::Null) => Some(None),
         Some(Value::String(d)) if d.trim() == "auto" => Some(None),
-        Some(d) => Some(Some(d.as_u64().map(|n| u8::try_from(n.min(15)).unwrap_or(15)).ok_or_else(|| CmdError::Params("decimals is 0–15 or \"auto\"".into()))?)),
+        Some(d) => Some(Some(
+            d.as_u64().map(|n| u8::try_from(n.min(15)).unwrap_or(15)).ok_or_else(|| CmdError::Params("decimals is 0–15 or \"auto\"".into()))?,
+        )),
     };
     let step = super::step_param(v)?;
     let step_mode = match p::str(v, "stepMode") {

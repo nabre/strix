@@ -613,8 +613,8 @@ or `calc.layout`.
   caret on a calculation that shows a result after `=`, its unit is chosen among those of its
   quantity (a volume: `mm³ cm³ mL dL L dm³ m³`; `calc.resultInfo` lists them) and written after
   the `=` as if typed: `V_e = (260 cm + 20 cm·2)·(1.0 m)·(230 cm + 20 cm) = 7.5 m³` becomes
-  `… = 7500 dm³`, read back and saved as any unit asked for; **Automatic** (`"unit": "auto"`)
-  takes it off again. A unit of another quantity is refused. The same menu gives the result its
+  `… = 7500 dm³`, read back and saved as any unit asked for; **Automatic** (`"unit": "auto"`) shows
+  it in the automatic unit again (a result shown keeps the unit it is in when read back). A unit of another quantity is refused. The same menu gives the result its
   own **decimal places** (`"decimals": 2`, or `"auto"` for the document's), **rounding step** in
   the unit shown (`"step": 0.05`, `"none"`) and **direction** (`"stepMode"`: nearest, up per
   eccesso, down per difetto): the equation's options, as `calc.options` with
