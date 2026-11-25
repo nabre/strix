@@ -2598,6 +2598,24 @@ fn results_rounded_to_a_step() {
     assert_eq!(ws.eval_statement("d =").display.as_deref(), Some("d = 2.05 m"));
 }
 
+#[test]
+fn step_rounding_at_boundaries_and_in_a_solved_units_request() {
+    let step = |t: &str, mode| Step::parse(t, mode).unwrap();
+    assert_eq!(step("0.1", StepMode::Nearest).apply(0.3 / 2.0), 0.2);
+    assert_eq!(step("1", StepMode::Up).apply(1_000_000_000.25), 1_000_000_001.0);
+    assert_eq!(step("1", StepMode::Down).apply(999_999_999.75), 999_999_999.0);
+    // A solved unknown uses the unit on the answer line for both rounding and display.
+    for steps in [false, true] {
+        let o = Options { step: Some(step("5", StepMode::Up)), steps, ..Options::default() };
+        let mut ws = Worksheet::new(o);
+        ws.eval_statement("A = 10.12 m²");
+        let result = ws.eval_statement("A = b·4 m ⇒ b = cm");
+        assert!(result.display.as_deref().is_some_and(|s| s.ends_with(" = 255 cm")), "{result:?}");
+        ws.set_options(Options::default());
+        assert_eq!(ws.eval_statement("b = m").display.as_deref(), Some("b = 2.55 m"));
+    }
+}
+
 /// Units and parameters of the same name (`m`, `h`, `s`): the parameter after a unit and `·`
 /// unless the unit makes a named quantity or is raised; a name beside parameters is an unknown.
 #[test]

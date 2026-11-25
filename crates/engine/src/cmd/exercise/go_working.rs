@@ -38,7 +38,12 @@ pub(super) fn command(s: &mut Session, v: &Value) -> CmdResult {
         s.touch();
         last = at;
     }
-    let end = s.doc.body.get(last).and_then(|b| b.as_para()).map_or(0, |p| p.text.len());
+    let end = s
+        .doc
+        .body
+        .get(last)
+        .and_then(|b| b.as_para())
+        .map_or(0, |p| p.text.len().saturating_sub(super::items::trailing_block_ends(p) * wordcraft_doc::para::OBJ.len_utf8()));
     s.sel = crate::Selection::caret(Pos::new(StoryRef::Body, Path::top(last), end));
     s.clamp_selection();
     Ok(json!({"exercise": ex + 1, "question": n + 1, "block": last}))

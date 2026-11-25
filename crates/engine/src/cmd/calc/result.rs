@@ -13,7 +13,7 @@ use strix_calc::{Dim, Worksheet, compatible_units};
 use wordcraft_doc::math::{Math, parse_linear, to_linear};
 use wordcraft_doc::{InlineObject, Pos, StoryRef};
 
-use super::{CalcOverrides, Item, Outcome, item_positions, items, parse_eq_overrides, run_sheet, values};
+use super::{CalcOverrides, Item, Outcome, item_positions, parse_eq_overrides, run_sheet, session_items, values};
 use crate::{CmdError, CmdResult, Selection, Session, p};
 
 /// Why `calc.result` can't run at the caret.
@@ -58,7 +58,7 @@ fn at_caret(s: &Session) -> Option<AtCaret> {
     if !math.calc {
         return None;
     }
-    let found = items(&s.doc.body);
+    let found = session_items(s);
     let index = item_positions(&s.doc.body).iter().position(|p| p.path == at.path && p.off == at.off)?;
     let Some(Item::Equation { text: Some(text), opts, .. }) = found.get(index) else { return None };
     let (text, opts) = (text.clone(), parse_eq_overrides(opts.as_deref()));
