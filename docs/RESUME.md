@@ -1,11 +1,11 @@
 # Resume notes
 
-Last updated 2026-11-24 (v0.28.1 prepared). Read **Current state**, **In progress** and
+Last updated 2026-11-25 (v0.29.0 prepared). Read **Current state**, **In progress** and
 **Next** first. The sections below Current state are the session notes up to 2026-10-28; what
 landed since is in the [progress log](../ROADMAP.md#progress-log), dated, one entry per change.
 
-## Current state (2026-11-24)
-- Version 0.28.1 on `main` (`[workspace.package] version`); releases go through Promote and the
+## Current state (2026-11-25)
+- Version 0.29.0 on `main` (`[workspace.package] version`); releases go through Promote and the
   Release workflow on the `release` branch ([releasing.md](releasing.md)).
 - Strix's own features, each with its document: calculations with units, calculated tables with
   their contextual tab, derivatives, integrals and the Equation tab's structures, Variables pane
