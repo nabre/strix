@@ -879,7 +879,7 @@ fn the_axial_force_joins_across_a_crosswise_varying_load() {
     assert!(has(&t, "N_1b(x)") && !has(&t, "N_1c(x)"), "{t}");
     // H_A came out negative (−3.882 kN): before the internal forces it is taken the way it acts
     // (`H_A := -H_A`, positive), the stretch draws it so by name, and its law follows the drawing.
-    assert!(has(&t, "H_A := -H_A = 3.882 kN"), "{t}");
+    assert!(t.lines().any(|l| has(l, "H_A := -H_A =") && has(l, "= 3.882 kN")), "{t}");
     assert!(has(&t, "N_1a(x) = H_A") && !has(&t, "N_1a(x) = -H_A") && !has(&t, "N_1a(x) = (3.8822857 kN)"), "{t}");
 }
 
@@ -887,8 +887,8 @@ fn the_axial_force_joins_across_a_crosswise_varying_load() {
 /// (`H_A := -H_A`), and the laws use them so: the values come out as the solution's.
 #[test]
 fn negative_reactions_are_turned_round_before_the_internal_forces() {
-    // A column fixed at its foot, pushed along +x at its top: H_A = −10 kN, M_A = −40 kN·m
-    // (counter-clockwise positive), V_A = 0.
+    // A column fixed at its foot, pushed along +x at its top: H_A = −10 kN, V_A = 0,
+    // M_A = 40 kN·m.
     let t = working_of(json!({
         "nodes": [{"id": "A", "x": 0, "y": 0}, {"id": "B", "x": 0, "y": 4}],
         "members": [{"id": "1", "a": "A", "b": "B"}],
@@ -896,11 +896,13 @@ fn negative_reactions_are_turned_round_before_the_internal_forces() {
         "loads": [{"type": "force", "node": "B", "value": 10, "angle": 0}]
     }))
     .unwrap();
-    assert!(has(&t, "H_A = -10 kN") || has(&t, "H_A = (-10 kN)"), "{t}");
-    assert!(has(&t, "H_A := -H_A = 10 kN") && has(&t, "M_A := -M_A = 40 kN·m") && !has(&t, "V_A := -V_A"), "{t}");
-    let forces = t.find("H_A := -H_A").unwrap_or(0);
-    assert!(t[..forces].contains("Internal forces"), "{t}");
-    assert!(has_value(&t, "M_1(0 m)", "40 kN·m") || has_value(&t, "M_1(0 m)", "-40 kN·m"), "{t}");
+    assert!(has(&t, "H_A&=-10 kN)"), "{t}");
+    let squeeze = |x: &str| x.chars().filter(|c| !c.is_whitespace()).collect::<String>();
+    let flipped: Vec<String> = t.lines().map(squeeze).filter(|l| l.contains(":=")).collect();
+    assert!(flipped.len() == 1 && flipped[0].starts_with("H_A:=-H_A=") && flipped[0].ends_with("=10kN"), "{t}");
+    let at = t.find("H_A:=").unwrap_or(0);
+    assert!(t[..at].contains("Internal forces") && has(&t, "T_1(x) = H_A") && has(&t, "M_1(x) = H_A·x - M_A"), "{t}");
+    assert!(has_value(&t, "M_1(0 m)", "-40 kN·m") && has_value(&t, "T_1(0 m)", "10 kN"), "{t}");
 }
 
 /// No reaction negative: no line turns one round.
