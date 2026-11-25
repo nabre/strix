@@ -16,6 +16,7 @@ use wordcraft_doc::{Block, InlineObject, Paragraph, Table};
 
 use crate::{CmdError, CmdResult, CommandSpec, Session, p};
 
+mod typed;
 mod values;
 
 /// Deepest table nesting searched for regions.
@@ -2662,13 +2663,27 @@ fn insert(s: &mut Session, v: &Value) -> CmdResult {
     if text.chars().count() > strix_calc::MAX_INPUT_CHARS {
         return Err(CmdError::Params(format!("a statement is at most {} characters", strix_calc::MAX_INPUT_CHARS)));
     }
+    let text = typed::tidy(&text);
     let mut eq = json!({"linear": text, "edit": false, "calc": true});
     if let Some(d) = p::bool(v, "display") {
         eq["display"] = json!(d);
     }
     s.run("insert.equation", &eq).map_err(|e| CmdError::Failed(e.to_string()))?;
     let report = recalculate(s, &options(s, v));
-    Ok(json!({"inserted": true, "recalculated": report}))
+    // What the statement shows once calculated (its result or `⚠`), at once.
+    let shown = equation_before_caret(s);
+    Ok(json!({"inserted": true, "shown": shown, "recalculated": report}))
+}
+
+/// The linear text of the equation just before the caret (the one just inserted).
+fn equation_before_caret(s: &Session) -> Option<String> {
+    let focus = &s.sel.focus;
+    let para = s.doc.para(focus.story, &focus.path)?;
+    let (_, o) = para.objects_with_offsets().filter(|(at, _)| *at < focus.off).last()?;
+    match o {
+        InlineObject::Equation { math, .. } => Some(to_linear(&math.nodes)),
+        _ => None,
+    }
 }
 
 /// Turns the equation at the caret into a calculation region or back, then recalculates.

@@ -150,3 +150,18 @@ fn a_built_up_inverse_sine_is_worked_out() {
     assert!(last.contains("=sin^(−1)\u{2061}(((3m)-(1m))/((3m)+(1m)))=30°"), "{last}");
     assert!(run(&mut plain, "calc.recalculate", json!({}))["errors"].as_array().unwrap().is_empty());
 }
+
+/// From a conversion report: spaces around `/` and `^` don't make empty fractions or powers, and
+/// the formula spells functions as its working does.
+#[test]
+fn spaces_around_fractions_and_powers_are_read_as_written() {
+    let mut plain = Session::new(Document::new());
+    for t in ["ε = atan(3 / 100) =", "r = 2 m", "A = r ^ 2·pi ="] {
+        let r = run(&mut plain, "calc.insert", json!({"text": t}));
+        assert!(r["shown"].is_string(), "{r}");
+        run(&mut plain, "text.insert", json!({"text": " "}));
+    }
+    let all = shown(&plain);
+    assert_eq!(all[0], "ε=tan⁻¹(3/100)=1.718°", "{all:?}");
+    assert_eq!(all[2], "A=r^2·pi=12.566m²", "{all:?}");
+}

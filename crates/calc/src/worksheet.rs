@@ -3,7 +3,7 @@
 use crate::eval::{DIFFERENCE, DomainConstraint, Function, Names, Scope, Temp, Value, eval, eval_scalar};
 use crate::format::{format_number, is_quantity, render, render_nodes};
 use crate::lexer::{Tok, Token, lex};
-use crate::parser::{BinOp, Expr, Func, parse, parse_env, parse_with};
+use crate::parser::{BinOp, Expr, Func, parse, parse_scope};
 use crate::quantity::{Dim, Quantity, finite};
 use crate::solve::{
     AbsPlan, QuadraticPlan, SymbolicKind, free_names, free_names_where, inline_calls, isolate, isolate_steps, numeric, solve_symbolic,
@@ -218,9 +218,22 @@ impl Worksheet {
         eval(&expr, &self.scope, Names::Worksheet)
     }
 
+    /// [`Self::eval_expr`], formatted as results show it, with its unit: in the unit its
+    /// parameters were given or asked for (`T` given as `20 °C` is `20 °C`, not `293.15 K`; a
+    /// share asked for in % is `1 %`), else the automatic one.
+    pub fn show_expr(&self, text: &str) -> Result<String, CalcError> {
+        let v = self.eval_expr(text)?;
+        let tokens = lex(text, self.opts.decimal_comma)?;
+        let hint = self.parse_expr(&tokens, text.chars().count()).ok().and_then(|e| self.hint(&e));
+        let (number, unit) = self.auto_hinted(&v, hint.as_deref());
+        Ok(with_unit(&number, &unit))
+    }
+
     /// Parses an expression where the user functions defined so far are calls (`f(3)`).
     pub(crate) fn parse_expr(&self, tokens: &[Token], end_pos: usize) -> Result<Expr, CalcError> {
-        parse_env(tokens, end_pos, &|n| self.scope.function(n).is_some(), &|n| matches!(self.scope.get(n), Some(Value::Vector(_))))
+        parse_scope(tokens, end_pos, &|n| self.scope.function(n).is_some(), &|n| matches!(self.scope.get(n), Some(Value::Vector(_))), &|n| {
+            self.scope.get(n).is_some()
+        })
     }
 
     /// `f(x) = body` or `g(a, b) := body`: a name, then a list of distinct plain names in
@@ -287,7 +300,11 @@ impl Worksheet {
             return Some(failed(CalcError::syntax(t.pos, "a function definition has one = (call it later to show a value: f(3) =)")));
         }
         // The function's own name is a call in its body (recursion stops at MAX_CALL_DEPTH).
-        let parsed = parse_with(body, len, &|n| n == name || self.scope.function(n).is_some());
+        // A parameter after a unit is the parameter, as in any statement (not one of the
+        // function's own, which shadow it).
+        let parsed = parse_scope(body, len, &|n| n == name || self.scope.function(n).is_some(), &|_| false, &|n| {
+            self.scope.get(n).is_some() && !params.iter().any(|p| p == n)
+        });
         match parsed {
             Ok(body) => {
                 self.scope.set_function(Function { name: name.clone(), params, body });
@@ -891,7 +908,11 @@ impl Worksheet {
                     _ => false,
                 }
             };
-        let shows = parts.len() >= 2 && units_only(last) && !parameter_alone && !powered_unknown;
+        let shows = parts.len() >= 2
+            && units_only(last)
+            && !parameter_alone
+            && !powered_unknown
+            && !(parts.len() == 2 && !matches!(part(0), [Token { tok: Tok::Ident(_), .. }]) && self.unit_named_unknown(last));
         match parts.len() - usize::from(shows) {
             1 => {
                 // `L = 4.5 m`, `x^2 + x = 6`, `x^2 + x·1 m = A`: a number or a parameter after `=`
@@ -1352,6 +1373,41 @@ impl Worksheet {
         }
     }
 
+    /// True when the units after the last `=` read as an expression of parameters with one
+    /// letter that is no parameter: `tan(α) = d/h` with `h` a height is an equation in `d`, not
+    /// "in days per hour". Units written after a number (`= 3 d/h`), a request with no
+    /// parameter in it (`= kN·m`), after a name alone (`v = m/s`) or after a result
+    /// (`v = d/t = m/s`) stay units.
+    fn unit_named_unknown(&self, last: &[Token]) -> bool {
+        if starts_with_number(last) {
+            return false;
+        }
+        let mut param = false;
+        let mut letter = false;
+        let mut prev_num = false;
+        for t in last {
+            if let Tok::Ident(n) = &t.tok {
+                if self.scope.get(n).is_some() {
+                    param = true;
+                } else if !prev_num && n.chars().count() == 1 && n.chars().all(char::is_alphabetic) {
+                    letter = true;
+                }
+            }
+            prev_num = matches!(t.tok, Tok::Num(_));
+        }
+        param && letter
+    }
+
+    /// The dimensionless unit asked for after a result's `=` (`= %`, `= ‰`, `= °`, `= gon`) when
+    /// the value `v` is a plain number.
+    fn asked_dimensionless(&self, rhs: &[Token], v: &Value, len: usize) -> Option<String> {
+        if !v.dim().is_dimensionless() {
+            return None;
+        }
+        let asked = render(&requested_unit(rhs, len).ok()??);
+        unit(&asked).is_some_and(|q| q.dim.is_dimensionless()).then_some(asked)
+    }
+
     /// The names of an equation that have no value: not parameters, constants or units — except
     /// that a name alone on a side is unknown whenever it is not a parameter (`m = 3 kg` defines
     /// `m` although `m` is also the metre).
@@ -1367,6 +1423,11 @@ impl Worksheet {
             let function = Func::from_name(n).is_some() && !(alone(n) && unit(n).is_none());
             !defined(n) && !function && (alone(n) || (constant(n).is_none() && !self.element(n)))
         });
+        // `k = 0.0002/K`: the name alone is what is defined; another name that is a unit is that
+        // unit (`K`, per kelvin), not a second unknown.
+        if names.len() > 1 && names.iter().any(|n| alone(n)) {
+            names.retain(|n| alone(n) || unit(n).is_none());
+        }
         names
     }
 
@@ -1458,7 +1519,13 @@ impl Worksheet {
                     (Expr::Name(n), other) | (other, Expr::Name(n)) if n == x => Some(other.clone()),
                     _ => solution.form().cloned().or_else(|| isolate(&lhs, &rhs, x)),
                 };
-                let x_hint = other.as_ref().and_then(|e| self.hint(e));
+                // A plain number asked for in `%`, `‰`, `°`… keeps that unit wherever it is shown
+                // (the results summary, a value in the text).
+                let asked = match (&value, shows) {
+                    (Ok(v), true) => self.asked_dimensionless(part(2), v, len),
+                    _ => None,
+                };
+                let x_hint = asked.or_else(|| other.as_ref().and_then(|e| self.hint(e)));
                 let mut result = self.assign(kind, x, value.clone(), x_hint.clone());
                 // The unit of a stale `⇒ x = 2.5 m/s²` is kept (the last `=` of its working).
                 let tail_tokens = tail.and_then(|t| lex(t, self.opts.decimal_comma).ok()).unwrap_or_default();
@@ -1720,11 +1787,15 @@ impl Worksheet {
         {
             // An inverse function gives one value; keep it only if it satisfies the equation and
             // any active physical domain constraints on `x`.
-            let mut scope = self.scope.clone();
-            scope.set(x, v.clone());
-            let eq_ok = match (eval(lhs, &scope, Names::Worksheet), eval(rhs, &scope, Names::Worksheet)) {
-                (Ok(a), Ok(b)) => agree(&a, &b, &self.opts).is_ok() || cancels(&a, &b, lhs, rhs, &scope),
-                _ => false,
+            // A name alone equal to a formula without it holds by itself: no copy of the scope
+            // to check it (a plain definition `L = 4.5 m` would otherwise cost the whole sheet).
+            let eq_ok = matches!(solution, Solution::Direct(_)) || {
+                let mut scope = self.scope.clone();
+                scope.set(x, v.clone());
+                match (eval(lhs, &scope, Names::Worksheet), eval(rhs, &scope, Names::Worksheet)) {
+                    (Ok(a), Ok(b)) => agree(&a, &b, &self.opts).is_ok() || cancels(&a, &b, lhs, rhs, &scope),
+                    _ => false,
+                }
             };
             let dom_ok = match &v {
                 Value::Scalar(q) => self.scope.constraints_for(x).chain(extra.iter().filter(|c| c.var == x)).all(|c| c.accepts(*q).unwrap_or(false)),
@@ -1881,7 +1952,8 @@ impl Worksheet {
         match &value {
             Some(v) => {
                 self.scope.set(&name, v.clone());
-                let hint = self.parse_expr(body, body_end_pos).ok().and_then(|e| self.hint(&e));
+                let asked = eq.and_then(|e| self.asked_dimensionless(tokens.get(e.saturating_add(1)..).unwrap_or_default(), v, len));
+                let hint = asked.or_else(|| self.parse_expr(body, body_end_pos).ok().and_then(|e| self.hint(&e)));
                 self.set_hint(&name, hint);
             }
             None => {
@@ -2226,7 +2298,9 @@ pub fn format_value(v: &Value, opts: &Options) -> String {
 /// returning `(number_text, number_with_unit)`.
 pub fn format_value_in(v: &Value, unit_text: &str, opts: &Options) -> Result<(String, String), CalcError> {
     let trimmed = unit_text.trim();
-    if trimmed.is_empty() {
+    // `1`: a plain number, whatever dimensionless unit the value was given in (`-> 1` shows
+    // 15 % as 0.15).
+    if trimmed.is_empty() || trimmed == "1" {
         if !v.dim().is_dimensionless() {
             return Err(CalcError::WrongUnit { result: dim_name(v.dim()), requested: String::new() });
         }

@@ -22,7 +22,23 @@ const MAX_EXPR_CHARS: usize = 200;
 const MAX_EXPRS_PER_PARA: usize = 64;
 
 fn clean_expr(raw: &str) -> String {
-    raw.chars().filter(|&c| !c.is_control() && c != OBJ).take(MAX_EXPR_CHARS).collect::<String>().trim().to_string()
+    raw.chars().filter(|&c| !c.is_control() && c != OBJ).map(plain_letter).take(MAX_EXPR_CHARS).collect::<String>().trim().to_string()
+}
+
+/// A mathematical letter (`𝑚`, `𝐹`, `ℎ`, as an equation's italic is sometimes copied) as the
+/// plain letter the data and the equations name (`m`, `F`, `h`).
+fn plain_letter(c: char) -> char {
+    let code = u32::from(c);
+    if c == '\u{210E}' {
+        return 'h';
+    }
+    // Mathematical Alphanumeric Symbols: 13 styles of A–Z then a–z.
+    if (0x1D400..0x1D400 + 13 * 52).contains(&code) {
+        let k = (code - 0x1D400) % 52;
+        let base = if k < 26 { u32::from(b'A') + k } else { u32::from(b'a') + k - 26 };
+        return char::from_u32(base).unwrap_or(c);
+    }
+    c
 }
 
 fn escape_xml(s: &str) -> String {
@@ -89,10 +105,13 @@ pub(crate) fn make_control(formula: &str) -> ContentControl {
 /// Evaluates `formula` (optionally ending in `-> unit` or `→ unit`) against `ws` without mutating it.
 pub(crate) fn eval_in_sheet(ws: &strix_calc::Worksheet, formula: &str) -> Result<String, String> {
     let (expr_part, unit_part) = split_target_unit(formula);
-    let val = ws.eval_expr(expr_part).map_err(|e| e.to_string())?;
     match unit_part {
-        Some(u) => strix_calc::format_value_in(&val, u, ws.options()).map(|(_, full)| full).map_err(|e| e.to_string()),
-        None => Ok(strix_calc::format_value(&val, ws.options())),
+        Some(u) => {
+            let val = ws.eval_expr(expr_part).map_err(|e| e.to_string())?;
+            strix_calc::format_value_in(&val, u, ws.options()).map(|(_, full)| full).map_err(|e| e.to_string())
+        }
+        // In the unit the worksheet shows it in (`20 °C` as given, a share asked for in %).
+        None => ws.show_expr(expr_part).map_err(|e| e.to_string()),
     }
 }
 
@@ -720,18 +739,30 @@ pub(crate) fn insert_command(s: &mut Session, v: &Value) -> CmdResult {
     if s.sel.focus.story != StoryRef::Body {
         return Err(CmdError::Disabled("inline expressions go in the document body".into()));
     }
+    // Typed over a selection, the value replaces it, as typing does.
+    let (a, b) = s.sel.ordered();
+    if a != b {
+        crate::cmd::delete_selection(s)?;
+    }
     let focus = s.sel.focus.clone();
+    // Which value of the paragraph is the new (or updated) one, to find it after recalculating.
+    let index;
     {
         let para = s.doc.para_mut(focus.story, &focus.path).map_err(|e| CmdError::Failed(e.to_string()))?;
         // If caret is already inside a `strix:expr`, update its formula in place.
-        if let Some(&(a, _)) = expr_spans(para).iter().find(|&&(a, b)| (a..=b + OBJ.len_utf8()).contains(&focus.off)) {
-            if let Some(InlineObject::ControlStart { control }) = para.object_at_mut(a) {
+        let spans = expr_spans(para);
+        if let Some(k) = spans.iter().position(|&(a, b)| a < focus.off && focus.off <= b) {
+            index = k;
+            if let Some(&(a, _)) = spans.get(k)
+                && let Some(InlineObject::ControlStart { control }) = para.object_at_mut(a)
+            {
                 control.title = formula.clone();
                 write_formula(control, &formula);
             }
             para.touch();
         } else {
             let at = focus.off.min(para.text.len());
+            index = spans.iter().filter(|&&(a, _)| a < at).count();
             let props = if at > 0 { para.props_of_char(at.saturating_sub(1)).clone() } else { CharProps::default() };
             let ctl = make_control(&formula);
             para.insert_object(at, InlineObject::ControlStart { control: Box::new(ctl) }, &props).map_err(|e| CmdError::Failed(e.to_string()))?;
@@ -739,13 +770,29 @@ pub(crate) fn insert_command(s: &mut Session, v: &Value) -> CmdResult {
             let _ = para.insert_text(inner, &formula, &props);
             let _ = para.insert_object(inner + formula.len(), InlineObject::ControlEnd, &props);
             para.touch();
-            s.sel = crate::Selection::caret(wordcraft_doc::Pos::new(focus.story, focus.path.clone(), inner + formula.len() + OBJ.len_utf8()));
         }
     }
     s.touch();
     let opts = super::super::calc::options_now(s);
-    super::super::calc::recalculate(s, &opts);
+    let report = super::super::calc::recalculate(s, &opts);
     super::update(s);
+    // The caret after the value (its text changed with the recalculation), so what is typed or
+    // inserted next goes after it, not into it.
+    let shown = s.doc.para(focus.story, &focus.path).and_then(|para| {
+        let &(a, b) = expr_spans(para).get(index)?;
+        let text = para.text.get(a + OBJ.len_utf8()..b).unwrap_or_default().to_string();
+        Some((b + OBJ.len_utf8(), text))
+    });
+    if let Some((after, _)) = &shown {
+        s.sel = crate::Selection::caret(wordcraft_doc::Pos::new(focus.story, focus.path.clone(), *after));
+    }
     s.clamp_selection();
-    Ok(json!({"expr": formula}))
+    let text = shown.map(|(_, t)| t).unwrap_or_default();
+    // The value or the error at once, without a recalculation after.
+    let error = report["errors"]
+        .as_array()
+        .and_then(|errs| errs.iter().find(|e| e["expr"].as_str() == Some(formula.as_str())))
+        .and_then(|e| e["error"].as_str())
+        .map(str::to_string);
+    Ok(json!({"expr": formula, "shown": text, "error": error}))
 }

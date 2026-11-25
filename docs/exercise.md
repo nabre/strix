@@ -451,6 +451,12 @@ just after it, Delete just before it, either key inside it, or a selection endin
 takes all of it (Undo brings it back). Values saved before they could be deleted are unlocked
 when the document is recalculated.
 
+`exercise.insertExpr` replaces the selection, leaves the caret after the value (so the next
+insertion is a new value, not a change of this one), reads names copied in mathematical italic
+(`𝑅`) as plain letters, and returns what the value shows and its error at once
+(`{"expr", "shown", "error"}`). `calc.insert` likewise returns the statement as calculated
+(`shown`).
+
 Right-click on a value: **Inline Value** shows its expression (edit it, Enter applies), how it is
 shown — **Value and Unit** (`1.5 m`), **Symbol = Value** (`R = 1.5 m`, the symbol in italics) or
 **Number Only** (`1.5`) — and **Delete Value**. Scripts use `exercise.inlineValue`; the way it is
@@ -567,6 +573,8 @@ span `L`, two questions worked in the solution and the results summary. It is bu
 same commands the ribbon runs (`crates/engine/src/sample_calc.rs`), as the sample test is.
 
 ## Revision history
+
+- 2026-11-25: `exercise.insertExpr` replaces the selection, puts the caret after the value (the next one went into it, changing its formula: "no inline value" after), reads math-italic names and returns `shown`/`error`; a datum given in °C is recalled in °C, units like `1/K` and `1/m³` work in the data.
 
 - 2026-11-17: Docs brought up to date with the code: the status line, the Teaching tab's groups (Exercise with Exercise Tools, Archive, Scores, Assessment, Graph Paper), the commands table completed (`exercise.titleLine`, `questionPoints`, `blank`, `insertExpr`, `generateVariants`, `totalScore`, `grading`, `check`, `file.exportPack`, `view.gradingPane`, `view.checkPane`), the Next list (worked steps are calc's).
 

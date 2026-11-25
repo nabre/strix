@@ -2475,3 +2475,40 @@ fn a_call_opened_with_its_working_reads_back() {
         assert!(r.last().is_some_and(|r| r.error.is_none()) && again.ends_with("= 45 kN·m"), "{text}: {again}");
     }
 }
+
+/// Results that came out wrong without a warning (a conversion report): each as the user wrote it.
+#[test]
+fn silent_wrong_results_from_a_conversion() {
+    // A plain number asked for in % keeps it wherever it is shown again (the results summary).
+    let mut ws = Worksheet::new(Options::default());
+    ws.eval_statement("p = 0.5 m/(50 m) = %");
+    assert_eq!(ws.shown("p").as_deref(), Some("1 %"));
+    assert_eq!(last(&["p = 0.5 m/(50 m) = %", "p ="]), "p = 1 %");
+    assert_eq!(last(&["p := 0.5 m/(50 m) = ‰", "p ="]), "p = 10 ‰");
+    assert_eq!(last(&["a = 50 gon/2 = gon", "a ="]), "a = 25 gon");
+    // A share written out of a number is a number; a parameter in % times a number stays in %.
+    assert_eq!(last(&["1835000·10% ="]), "1835000·10% = 183500");
+    assert_eq!(last(&["x = 1835000·10% =", "x ="]), "x = 183500");
+    assert_eq!(last(&["p = 15 %", "2 p ="]), "2 p = 30 %");
+    // A parameter after a unit and `·` is the parameter.
+    assert_eq!(last(&["s = 3 m", "2 m·s ="]), "2 m·s = 6 m²");
+    assert_eq!(last(&["2 kN·m ="]), "2 kN·m = 2 kN·m");
+    assert_eq!(last(&["s = 3 m", "2 m s ="]), "2 m s = 6 m²");
+    assert_eq!(last(&["s = 3 m", "f(x) = x·1 m·s", "f(1) ="]), "f(1) = 3 m²");
+    assert_eq!(last(&["m = 3 kg", "M = 2 (kN·m) = kN·m"]), "M = 2 (kN·m) = 2 kN·m");
+    // An unknown named like a unit, with parameters around it, is solved.
+    assert_eq!(last(&["h = 2 m", "α = 30°", "tan(α) = d/h"]), "tan(α) = d/h ⇒ d = 1.155 m");
+    // A unit request after a name alone stays one.
+    assert_eq!(last(&["v = 3 m/s", "m = 2 kg", "v = m/s"]), "v = 3 m/s");
+    // Per degree Celsius is per kelvin, not per 274.15 K.
+    assert_eq!(last(&["0.0002/(1 °C) ="]), "0.0002/(1 °C) = 2·10^-4 K^-1");
+    assert_eq!(last(&["T = 20 °C", "T ="]), "T = 20 °C");
+    // Reciprocal units: per kelvin after a number, written either way.
+    assert_eq!(last(&["k = 0.0002/K =", "k ="]), "k = 2·10^-4 K^-1");
+    assert_eq!(last(&["k = 0.0002 1/K ="]), "k = 0.0002 1/K = 2·10^-4 1/K");
+    assert_eq!(last(&["ρ = 2 1/m³ ="]), "ρ = 2 1/m³ = 2 1/m³");
+    // `1` asks for a plain number.
+    assert_eq!(format_value_in(&Value::Scalar(Quantity::number(0.15)), "1", &Options::default()).map(|(_, t)| t), Ok("0.15".to_string()));
+    // Still an unknown when nothing else is defined by the equation.
+    assert_eq!(last(&["5 = 10/t"]), "5 = 10/t ⇒ t = 2");
+}

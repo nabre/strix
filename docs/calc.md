@@ -310,6 +310,22 @@ common engineering units (`mm cm km`, `t`, `kN MN`, `kPa MPa GPa`, `min h`, `L`,
 `K`, `°C` and `°F` (see Temperatures). A unit typed in the wrong case gets a hint: "unknown name
 KN (did you mean kN?)".
 
+**Units or parameters.** Right after a number a name is a unit (`3 h`, `12 kN/m`, even with a
+parameter `m`). After that unit, `·` or a space followed by a defined parameter multiplies by the
+parameter: with `s = 3 m`, `2 m·s` and `2 m s` are 6 m² (also in a function's body); in brackets
+of units it stays the unit (`2 (kN·m)`), and so does a unit after `/` (`12 kN/m`). A reciprocal
+unit goes after a number either way: `0.0002/K` and `0.0002 1/K` are per kelvin, `3 1/m³` per
+cubic metre (`k = 0.0002/K` defines `k`; `K` is no second unknown). An equation whose last side
+reads parameters and one letter that is none (`tan(α) = d/h` with `h` defined) is an equation in
+that letter, not "in days per hour"; after a name alone (`v = m/s`) or after a result
+(`v = d/t = m/s`) the units stay a request.
+
+**Shares and dimensionless units.** A plain number asked for in `%`, `‰`, `°` or `gon`
+(`p = 0.5 m/(50 m) = %`) keeps that unit wherever it is shown again: `p =`, the results summary,
+an inline value (`1 %`, not 0.01). A share written out of a number is a number: `1835000·10%`
+is 183500; a parameter in % times a number stays in % (`2 p = 30 %`), an angle stays an angle.
+An inline value `{{p -> 1}}` shows a plain number.
+
 ### Temperatures
 
 `°C` and `°F` (also `℃` `℉`, and the ASCII spellings `degC` `degF`) sit beside the kelvin.
@@ -319,7 +335,8 @@ Temperatures are held in kelvin; the rules:
   offset: `20 °C` is 293.15 K, `68 °F` is 293.15 K (= 20 °C), `-40 °F` = `-40 °C`. Also a
   vector (`[0; 100] °C`) and a number in a `[°C]` table column.
 - **Inside a compound unit, or with no number, a degree is its size only**: `4.2 kJ/(kg·°C)` is
-  4200 J/(kg·K), `3 °C/min` is 0.05 K/s.
+  4200 J/(kg·K), `3 °C/min` is 0.05 K/s. So is a number in °C in a denominator:
+  `0.0002/(1 °C)` is 0.0002 K⁻¹, not divided by 274.15 K.
 - **Absolute − absolute is a difference**, shown in K: with `T_1 = 20 °C` and `T_2 = 80 °C`,
   `T_2 - T_1 = 60 K`. A difference times or over a number stays a difference (`2·ΔT = 120 K`).
 - **Absolute ± a difference (or a value in K) stays absolute**: `T_1 + ΔT = 80 °C`,
@@ -793,6 +810,8 @@ none of them.
    regions (pending equations solved together). Plots are done ([plot.md](plot.md)).
 
 ## Revision history
+
+- 2026-11-25: put right from a conversion report: a plain number asked for in `%`/`‰`/`°`/`gon` keeps it in `p =`, the results summary and inline values (it was 0.01 after `= %`); `1835000·10%` is 183500, no longer `1.835·10^7 %`; a parameter after a unit and `·` or a space is the parameter (`2 m·s` with `s = 3 m`), also in function bodies; `tan(α) = d/h` with `h` defined solves `d` (it showed the result "in days per hour"); a number in °C in a denominator is a step of one degree; `0.0002/K` and `0.0002 1/K` are per kelvin (the first was two unknowns, the second an error); inline values show temperatures in °C and shares in % as the worksheet does (they were 293.15 K and 0.01), `-> 1` a plain number; text inserted with spaces around `/` and `^` (`3 / 100`, `r ^ 2`) no longer builds empty fractions and powers, and `sqrt`, `asin`, `acos`, `atan` are written `√`, `sin⁻¹`, `cos⁻¹`, `tan⁻¹` as the working writes them; a plain `=` definition no longer copies the whole scope to check itself (4000 definitions took 4 s).
 
 - 2026-11-21: lines of math keep a quarter of the font size free above and below it (`crates/layout/src/para/math_leading.rs`): calculations under one another no longer look glued together. Put right in the review of pull request 107: only math beyond plain symbols takes that room (an `x` in a sentence left prose unevenly spaced); with Decimal Places a substituted value keeps its digits (`(0.001 kN/mm)` was written for 0.0005); the limit of the rounding rule noted.
 
