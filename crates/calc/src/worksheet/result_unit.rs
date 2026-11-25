@@ -74,6 +74,45 @@ impl Worksheet {
         text.get(at.unit_from..).map(|u| u.trim().to_string()).filter(|u| !u.is_empty())
     }
 
+    /// Prepare a final calculation to show its result. A bare equation with an unknown keeps
+    /// its two sides and asks for the unit on the solved line.
+    pub fn show_result_in(&self, text: &str, unit: Option<&str>) -> Option<String> {
+        if text.chars().count() > MAX_INPUT_CHARS {
+            return None;
+        }
+        let tokens = self.with_scripted_names(lex(text, self.opts.decimal_comma).ok()?);
+        let eqs = positions(&tokens, |t| matches!(t, Tok::Equals));
+        let defs = positions(&tokens, |t| matches!(t, Tok::Define));
+        if !text.contains('⇒')
+            && let ([eq], []) = (eqs.as_slice(), defs.as_slice())
+        {
+            let end = tokens.get(*eq)?;
+            let lhs = self.parse_expr(tokens.get(..*eq)?, end.pos).ok()?;
+            let rhs = self.parse_expr(tokens.get(eq + 1..)?, text.chars().count()).ok();
+            if let Some(rhs) = rhs {
+                let unknowns = self.unknowns(&lhs, &rhs);
+                if let [name] = unknowns.as_slice() {
+                    let left_def = matches!(&lhs, crate::parser::Expr::Name(n) if n == name) && !super::reads(&rhs, name);
+                    let right_def =
+                        matches!(&rhs, crate::parser::Expr::Name(n) if n == name) && !super::reads(&lhs, name) && !self.reads_parameter(&lhs, name);
+                    if left_def || right_def {
+                        return self.with_result_unit(&format!("{text} ="), unit);
+                    }
+                    if unit.is_some() {
+                        return self.with_result_unit(&format!("{text} ⇒ {name} ="), unit);
+                    }
+                }
+            }
+        }
+        if matches!((eqs.as_slice(), defs.as_slice()), ([], [_])) {
+            self.with_result_unit(&format!("{text} ="), unit)
+        } else if let Some(unit) = unit {
+            self.with_result_unit(text, Some(unit))
+        } else {
+            None
+        }
+    }
+
     /// `text` with its result asked in `unit` (`V = a·b·c = 7.5 m³` → `V = a·b·c = dm³`, worked
     /// again by the next calculation), or with no unit asked for when `unit` is `None` or empty:
     /// the stale number is kept (`= 7.5`), or a bare `=` left. `None` when `text` shows no

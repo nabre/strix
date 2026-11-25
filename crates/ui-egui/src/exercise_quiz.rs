@@ -86,8 +86,7 @@ pub(crate) fn pane(app: &mut WordApp, ui: &mut Ui) {
 }
 
 /// The questions of exercise `ex` (1-based), each with its own settings; `st` is
-/// `exercise.questions`' reply. `quiz`: an exercise answered in its own spaces (else a problem,
-/// whose questions have only points).
+/// `exercise.questions`' reply. `quiz`: an exercise answered in its own spaces.
 pub(crate) fn questions(app: &mut WordApp, ui: &mut Ui, ex: u64, st: &Value, quiz: bool) {
     let list = st["questions"].as_array().cloned().unwrap_or_default();
     if list.is_empty() {
@@ -137,7 +136,7 @@ fn question(app: &mut WordApp, ui: &mut Ui, ex: u64, k: usize, q: &Value, quiz: 
     let label = q["label"].as_str().unwrap_or_default();
     let text: String = q["text"].as_str().unwrap_or_default().chars().take(60).collect();
     let (text, written) = if text.is_empty() { (tl!("(question not written yet)").to_string(), false) } else { (text, true) };
-    let open = quiz && ui.data(|d| d.get_temp::<bool>(open_id(ex, k))).unwrap_or(false);
+    let open = ui.data(|d| d.get_temp::<bool>(open_id(ex, k))).unwrap_or(false);
     let indent = 14.0 * depth(label) as f32;
     let far = crate::rtl::far_side(ui, egui::Align::Center);
     let near = crate::rtl::row_layout(ui, egui::Align::Center);
@@ -150,7 +149,7 @@ fn question(app: &mut WordApp, ui: &mut Ui, ex: u64, k: usize, q: &Value, quiz: 
     // last, before what is on it is added: the points box and the type, added after, are above
     // it and keep their own clicks (taken after them, the row had every click on them too).
     let row_id = ui.scope_id().with(("exercise_quiz_row", ex, k));
-    if quiz && let Some(row) = ui.data(|d| d.get_temp::<egui::Rect>(row_id)) {
+    if let Some(row) = ui.data(|d| d.get_temp::<egui::Rect>(row_id)) {
         let r = ui.interact(row, row_id, egui::Sense::click());
         if r.on_hover_text(tl!("Show this question's settings")).clicked() {
             ui.data_mut(|d| d.insert_temp(open_id(ex, k), !open));
@@ -161,7 +160,7 @@ fn question(app: &mut WordApp, ui: &mut Ui, ex: u64, k: usize, q: &Value, quiz: 
         let row_h = ui.spacing().interact_size.y;
         let title = |ui: &mut Ui| {
             ui.add_space(indent);
-            if quiz {
+            {
                 let (rect, mut icon) = ui.allocate_exact_size(egui::vec2(12.0, row_h), egui::Sense::hover());
                 icon.rect = rect.shrink2(egui::vec2(1.0, (row_h - 10.0).max(0.0) / 2.0));
                 egui::collapsing_header::paint_default_icon(ui, if open { 1.0 } else { 0.0 }, &icon);
@@ -196,7 +195,7 @@ fn question(app: &mut WordApp, ui: &mut Ui, ex: u64, k: usize, q: &Value, quiz: 
         }
         row_bottom
     });
-    if quiz {
+    {
         // Where the row is, for its clicks in the next frame: not what is under it.
         let mut row = shown_frame.response.rect;
         row.max.y = row.max.y.min(shown_frame.inner + 3.0);
@@ -268,6 +267,7 @@ fn details(app: &mut WordApp, ui: &mut Ui, ex: u64, k: usize, q: &Value) {
     let set = |app: &mut WordApp, params: Value| set_question(app, ex, k, params);
     let q_type = q["type"].as_str().unwrap_or("open").to_string();
     match q_type.as_str() {
+        "problem" => calc_settings(app, ui, ex, k, q, &set),
         "choice" => choice_settings(app, ui, ex, k, q, &set),
         "matching" => {
             let pairs_label = sub(ui, tl!("Pairs"));
@@ -370,6 +370,10 @@ fn calc_settings(app: &mut WordApp, ui: &mut Ui, ex: u64, k: usize, q: &Value, s
         let _ = app.run("caret.set", json!({"pos": pos}));
         app.canvas.want_focus = true;
     }
+    result_format(app, ui, ex, k, q, set);
+    if q["type"] != "calc" {
+        return;
+    }
     ui.horizontal(|ui| {
         let tol_label = ui.label(tl!("Tolerance"));
         let cur = q["tolerance"].as_str().unwrap_or_default().to_string();
@@ -383,6 +387,58 @@ fn calc_settings(app: &mut WordApp, ui: &mut Ui, ex: u64, k: usize, q: &Value, s
     })
     .response
     .on_hover_text(tl!("How far an answer may be from the result and still be right: 2% or 0.1 cm"));
+}
+
+fn result_format(app: &mut WordApp, ui: &mut Ui, ex: u64, k: usize, q: &Value, set: &dyn Fn(&mut WordApp, Value)) {
+    let format = &q["resultFormat"];
+    let change = |app: &mut WordApp, key: &str, value: Value| {
+        let mut fields = format.as_object().cloned().unwrap_or_default();
+        fields.insert(key.to_string(), value);
+        set(app, json!({"resultFormat": fields}));
+    };
+    for (key, label) in [("unit", tl!("Unit")), ("step", tl!("Rounding Step"))] {
+        ui.horizontal(|ui| {
+            let label = ui.label(label);
+            let current = format[key].as_str().unwrap_or_default();
+            ui.scope(|ui| {
+                ui.set_width(90.0);
+                if let Some(text) = draft_box(ui, ("question_result", ex, k, key), label.id, current, true, false) {
+                    change(app, key, if text.trim().is_empty() { Value::Null } else { json!(text.trim()) });
+                }
+            });
+        });
+    }
+    ui.horizontal_wrapped(|ui| {
+        ui.label(tl!("Decimal Places"));
+        let current = format["decimals"].as_u64();
+        craft_ui::ComboBox::from_id_salt(("question_decimals", ex, k))
+            .selected_text(current.map_or_else(|| tl!("Automatic").to_string(), |n| n.to_string()))
+            .show_ui(ui, |ui| {
+                if ui.selectable_label(current.is_none(), tl!("Automatic")).clicked() {
+                    change(app, "decimals", Value::Null);
+                }
+                for n in 0..=15 {
+                    if ui.selectable_label(current == Some(n), n.to_string()).clicked() {
+                        change(app, "decimals", json!(n));
+                    }
+                }
+            });
+    });
+    let modes =
+        [(None, tl!("Automatic")), (Some("nearest"), tl!("Round to Nearest")), (Some("up"), tl!("Round Up")), (Some("down"), tl!("Round Down"))];
+    let mode = format["stepMode"].as_str();
+    craft_ui::ComboBox::from_id_salt(("question_rounding", ex, k))
+        .selected_text(modes.iter().find(|(key, _)| *key == mode).map_or_else(|| tl!("Automatic"), |(_, label)| *label))
+        .show_ui(ui, |ui| {
+            for (key, label) in modes {
+                if ui.selectable_label(key == mode, label).clicked() {
+                    change(app, "stepMode", json!(key));
+                }
+            }
+        });
+    if !format.is_null() && ui.small_button(tl!("Rounding as the Document")).clicked() {
+        set(app, json!({"resultFormat": null}));
+    }
 }
 
 /// A CAD drawing: its scale, and the drawing opened in the CAD editor.

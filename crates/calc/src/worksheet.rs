@@ -126,7 +126,7 @@ impl Step {
     }
 
     /// `x` rounded to a multiple of the step, as the mode says. The quotient is snapped to a
-    /// whole number when binary arithmetic only just misses one (`0.15/0.05` is 2.9999…).
+    /// rounding boundary when the difference is within floating-point error.
     pub(crate) fn apply(self, x: f64) -> f64 {
         if !x.is_finite() {
             return x;
@@ -135,9 +135,10 @@ impl Step {
         let size = f64::from(self.digits);
         // x / (digits·10^exp), dividing or multiplying by an exact power of ten.
         let mut q = if self.exp >= 0 { x / ten / size } else { x * ten / size };
-        let whole = q.round();
-        if (q - whole).abs() <= 1e-9 * q.abs().max(1.0) {
-            q = whole;
+        let boundary = if self.mode == StepMode::Nearest { (q * 2.0).round() / 2.0 } else { q.round() };
+        let tolerance = (4.0 * f64::EPSILON * q.abs().max(1.0)).min(0.125);
+        if (q - boundary).abs() <= tolerance {
+            q = boundary;
         }
         let k = match self.mode {
             StepMode::Nearest => q.round(),
@@ -1697,9 +1698,6 @@ impl Worksheet {
                     (Expr::Name(n), other) | (other, Expr::Name(n)) if n == x => Some(other.clone()),
                     _ => solution.form().cloned().or_else(|| isolate(&lhs, &rhs, x)),
                 };
-                let asked = if shows { part(2) } else { &[] };
-                let (value, x_hint) = self.solved_value(value, other.as_ref(), asked, len);
-                let mut result = self.assign(kind, x, value.clone(), x_hint.clone());
                 // The unit of a stale `⇒ x = 2.5 m/s²` is kept (the last `=` of its working).
                 let tail_tokens = tail.and_then(|t| lex(t, self.opts.decimal_comma).ok()).unwrap_or_default();
                 let stale = match tail_tokens.as_slice() {
@@ -1709,12 +1707,14 @@ impl Worksheet {
                     }
                     _ => &[],
                 };
+                let asked = if shows { part(2) } else { stale };
+                let (value, x_hint) = self.solved_value(value, other.as_ref(), asked, len);
+                let mut result = self.assign(kind, x, value.clone(), x_hint.clone());
                 // With steps: the solution after the statement, laid out as the layout says.
                 if self.opts.steps
                     && !(shows && !alone)
                     && let Ok(v) = &value
-                    && let Some(lines) =
-                        self.solution_lines(x, &solution, (&lhs, &rhs), v, if shows { part(2) } else { stale }, len, x_hint.as_deref())
+                    && let Some(lines) = self.solution_lines(x, &solution, (&lhs, &rhs), v, asked, len, x_hint.as_deref())
                 {
                     result.numeric = matches!(solution, Solution::Numeric);
                     if shows {
@@ -2286,11 +2286,16 @@ impl Worksheet {
         Ok((number, unit_text.to_string()))
     }
 
-    /// The number format of a statement's result: with a rounding step, as many decimals as the
-    /// step has (0.05: `0.15`, `1.2`→ `1.20` only with trailing zeros on).
+    /// A step needs at least its own decimal places, including when more places are requested.
+    /// Trailing zeros follow the number format.
     fn result_opts(&self) -> Options {
         match self.opts.step {
-            Some(step) => Options { count: Count::Decimals, digits: step.places(), step: None, ..self.opts },
+            Some(step) => Options {
+                count: Count::Decimals,
+                digits: if self.opts.count == Count::Decimals { self.opts.digits.max(step.places()) } else { step.places() },
+                step: None,
+                ..self.opts
+            },
             None => self.opts,
         }
     }

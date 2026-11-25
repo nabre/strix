@@ -253,7 +253,8 @@ pub fn teaching_sample(paper: Document) -> Result<Document, CmdError> {
 
     // The quiz: each question in its own mode, with its points; the calculation uses its data.
     after(&mut s, "b) Find the hypotenuse.")?;
-    let cart = "A cart starts from rest with the acceleration a. How far does it travel in the time t, and how fast is it going then?";
+    let distance = "A cart starts from rest with the acceleration a. How far does it travel in the time t?";
+    let speed = "How fast is the cart going after the time t?";
     run(
         &mut s,
         "exercise.insert",
@@ -263,7 +264,8 @@ pub fn teaching_sample(paper: Document) -> Result<Document, CmdError> {
             "questions": [
                 {"text": "Which of these are base units of the SI?", "choices": ["kilogram (kg)", "newton (N)", "second (s)", "kilometre per hour (km/h)"], "correct": ["A", "C"], "points": 1},
                 {"text": "Acceleration is measured in m/s².", "type": "trueFalse", "correct": 1, "points": 1},
-                {"text": cart, "type": "calc", "points": 2, "height": 2.5}
+                {"text": distance, "type": "calc", "points": 1, "height": 2.5},
+                {"text": speed, "type": "calc", "points": 1, "height": 2.5}
             ],
         }),
     )?;
@@ -279,17 +281,16 @@ pub fn teaching_sample(paper: Document) -> Result<Document, CmdError> {
             "active": 0
         }}),
     )?;
-    let question = s
-        .doc
-        .body
-        .iter()
-        .position(|b| matches!(&**b, Block::Para(p) if p.plain_text().starts_with(cart)))
-        .ok_or_else(|| CmdError::Failed("template: no calculation question".into()))?;
-    caret_at_end(&mut s, question + 1);
-    // Both values worked in the squared space, a line each (Shift+Enter keeps them in it).
-    calcs(&mut s, &["s = a·t^2/2 ="], None)?;
-    run(&mut s, "text.lineBreak", json!({}))?;
-    calcs(&mut s, &["v = a·t ="], None)?;
+    for (prompt, formula) in [(distance, "s = a·t^2/2 ="), (speed, "v = a·t =")] {
+        let question = s
+            .doc
+            .body
+            .iter()
+            .position(|b| matches!(&**b, Block::Para(p) if p.plain_text().starts_with(prompt)))
+            .ok_or_else(|| CmdError::Failed("template: no calculation question".into()))?;
+        caret_at_end(&mut s, question + 1);
+        calcs(&mut s, &[formula], None)?;
+    }
 
     // The scores table under the instructions: one row per exercise, the problems' points typed in.
     caret_at_end(&mut s, 2);
@@ -352,13 +353,14 @@ mod tests {
             "Motion and units",
             "a) A, C",
             "b) T",
-            "c) s = 20 m; v = 10 m/s",
+            "c) s = 20 m",
+            "d) v = 10 m/s",
         ] {
             assert!(t.iter().any(|x| x == want), "{want}: {t:?}");
         }
         // The calculation question's result line says it is the answer, not a stray result.
         assert!(t.iter().any(|x| x == "\tAnswer:\ts =\t20\tm"), "{t:?}");
-        assert!(t.iter().any(|x| x == "\t\tv =\t10\tm/s"), "{t:?}");
+        assert!(t.iter().any(|x| x == "\tAnswer:\tv =\t10\tm/s"), "{t:?}");
         assert!(!t.iter().any(|x| x == "s = 20 m"), "{t:?}");
         // The scores table: a row per exercise.
         assert!(t.iter().any(|x| x == "<table>"), "{t:?}");
