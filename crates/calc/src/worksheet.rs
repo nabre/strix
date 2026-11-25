@@ -33,6 +33,120 @@ pub struct Options {
     pub layout: Layout,
     /// How independent measurement uncertainties combine.
     pub uncertainty: crate::UncertaintyMode,
+    /// Results rounded to a step (`0.05`, up or down) in the unit they are shown in; the value
+    /// defined is the rounded one.
+    pub step: Option<Step>,
+}
+
+/// A rounding step, an exact decimal: `digits`·10^`exp` (0.05 is 5·10⁻²), and which way to round.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Step {
+    digits: u32,
+    exp: i8,
+    /// Which way a result goes to the step.
+    pub mode: StepMode,
+}
+
+/// Which way [`Step`] rounds.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum StepMode {
+    /// To the nearest multiple, halves away from zero.
+    #[default]
+    Nearest,
+    /// Up (towards +∞): per eccesso.
+    Up,
+    /// Down (towards −∞): per difetto.
+    Down,
+}
+
+impl StepMode {
+    /// The mode called `name`: `nearest`, `up` or `down`.
+    pub fn from_name(name: &str) -> Option<StepMode> {
+        match name {
+            "nearest" => Some(StepMode::Nearest),
+            "up" => Some(StepMode::Up),
+            "down" => Some(StepMode::Down),
+            _ => None,
+        }
+    }
+
+    /// The mode's name.
+    pub fn name(self) -> &'static str {
+        match self {
+            StepMode::Nearest => "nearest",
+            StepMode::Up => "up",
+            StepMode::Down => "down",
+        }
+    }
+}
+
+impl Step {
+    /// A step from its decimal text (`"0.05"`, `"5"`, `"2.5e-3"`): positive, at most 6
+    /// significant digits, between 10⁻⁹ and 10⁹. `None` otherwise.
+    pub fn parse(text: &str, mode: StepMode) -> Option<Step> {
+        let text = text.trim();
+        let (mantissa, e) = match text.split_once(['e', 'E']) {
+            Some((m, e)) => (m, e.parse::<i32>().ok()?),
+            None => (text, 0),
+        };
+        let (int, frac) = mantissa.split_once('.').unwrap_or((mantissa, ""));
+        if int.is_empty() && frac.is_empty() || !int.chars().chain(frac.chars()).all(|c| c.is_ascii_digit()) {
+            return None;
+        }
+        let all = format!("{int}{frac}");
+        let trimmed = all.trim_start_matches('0');
+        let zeros = trimmed.len() - trimmed.trim_end_matches('0').len();
+        let significant = trimmed.trim_end_matches('0');
+        if significant.is_empty() || significant.len() > 6 {
+            return None;
+        }
+        let digits: u32 = significant.parse().ok()?;
+        let exp = e.checked_sub(i32::try_from(frac.len()).ok()?)?.checked_add(i32::try_from(zeros).ok()?)?;
+        let exp = i8::try_from(exp).ok().filter(|e| (-9..=9).contains(e))?;
+        Some(Step { digits, exp, mode })
+    }
+
+    /// The step as text: `0.05`, `5`, `2000`.
+    pub fn text(self) -> String {
+        if self.exp >= 0 {
+            format!("{}{}", self.digits, "0".repeat(usize::from(self.exp.unsigned_abs())))
+        } else {
+            let places = usize::from(self.exp.unsigned_abs());
+            let d = self.digits.to_string();
+            let d = if d.len() <= places { format!("{}{d}", "0".repeat(places - d.len() + 1)) } else { d };
+            let (int, frac) = d.split_at(d.len() - places);
+            format!("{int}.{frac}")
+        }
+    }
+
+    /// Decimal places of the step (`0.05` → 2, `5` → 0).
+    pub(crate) fn places(self) -> u8 {
+        if self.exp >= 0 { 0 } else { self.exp.unsigned_abs() }
+    }
+
+    /// `x` rounded to a multiple of the step, as the mode says. The quotient is snapped to a
+    /// whole number when binary arithmetic only just misses one (`0.15/0.05` is 2.9999…).
+    pub(crate) fn apply(self, x: f64) -> f64 {
+        if !x.is_finite() {
+            return x;
+        }
+        let ten = 10f64.powi(i32::from(self.exp.unsigned_abs()));
+        let size = f64::from(self.digits);
+        // x / (digits·10^exp), dividing or multiplying by an exact power of ten.
+        let mut q = if self.exp >= 0 { x / ten / size } else { x * ten / size };
+        let whole = q.round();
+        if (q - whole).abs() <= 1e-9 * q.abs().max(1.0) {
+            q = whole;
+        }
+        let k = match self.mode {
+            StepMode::Nearest => q.round(),
+            StepMode::Up => q.ceil(),
+            StepMode::Down => q.floor(),
+        };
+        let kd = k * size;
+        let out = if self.exp >= 0 { kd * ten } else { kd / ten };
+        if out == 0.0 { 0.0 } else { out }
+    }
 }
 
 /// How a statement's result and solution steps are laid out (`docs/calc.md`, Layout).
@@ -88,6 +202,7 @@ impl Default for Options {
             steps: false,
             layout: Layout::Inline,
             uncertainty: crate::UncertaintyMode::Max,
+            step: None,
         }
     }
 }
@@ -1543,6 +1658,8 @@ impl Worksheet {
                     _ => None,
                 };
                 let x_hint = asked.or_else(|| other.as_ref().and_then(|e| self.hint(e)));
+                // Rounded to the format's step before it is defined: later statements read it so.
+                let value = self.stepped(value, if shows { part(2) } else { &[] }, len, x_hint.as_deref());
                 let mut result = self.assign(kind, x, value.clone(), x_hint.clone());
                 // The unit of a stale `⇒ x = 2.5 m/s²` is kept (the last `=` of its working).
                 let tail_tokens = tail.and_then(|t| lex(t, self.opts.decimal_comma).ok()).unwrap_or_default();
@@ -1961,10 +2078,15 @@ impl Worksheet {
                     _ => (value, Some(display), error),
                 }
             }
-            _ => match self.parse_expr(body, body_end_pos).and_then(|e| eval(&e, &self.scope, Names::Worksheet)) {
-                Ok(v) => (Some(v), None, None),
-                Err(err) => (None, None, Some(err)),
-            },
+            // Not shown, but rounded to the format's step all the same.
+            _ => {
+                let parsed = self.parse_expr(body, body_end_pos);
+                let hint = parsed.as_ref().ok().and_then(|e| self.hint(e));
+                match self.stepped(parsed.and_then(|e| eval(&e, &self.scope, Names::Worksheet)), &[], len, hint.as_deref()) {
+                    Ok(v) => (Some(v), None, None),
+                    Err(err) => (None, None, Some(err)),
+                }
+            }
         };
         match &value {
             Some(v) => {
@@ -2021,14 +2143,16 @@ impl Worksheet {
         len: usize,
         hint: Option<String>,
     ) -> (Option<Value>, String, Option<CalcError>) {
+        let value = self.stepped(value, rhs, len, hint.as_deref());
         let request = requested_unit(rhs, len);
         let unit_text = match &request {
             Ok(Some(e)) => render(e),
             _ => String::new(),
         };
+        let opts = self.result_opts();
         let shown = value.clone().and_then(|v| {
             let request = request?;
-            self.in_unit(&v, request.as_ref(), &unit_text, hint.as_deref())
+            self.in_unit_in(&v, request.as_ref(), &unit_text, hint.as_deref(), &opts)
         });
         match shown {
             Ok((number, unit)) => (value.ok(), format!("{left_text} = {}", with_unit(&number, &unit)), None),
@@ -2097,14 +2221,60 @@ impl Worksheet {
 
     /// `v` as formatted numbers and unit text, in the requested unit or the automatic one.
     fn in_unit(&self, v: &Value, request: Option<&Expr>, unit_text: &str, hint: Option<&str>) -> Result<(String, String), CalcError> {
+        self.in_unit_in(v, request, unit_text, hint, &self.opts)
+    }
+
+    /// [`Self::in_unit`] with the number format `opts`.
+    fn in_unit_in(
+        &self,
+        v: &Value,
+        request: Option<&Expr>,
+        unit_text: &str,
+        hint: Option<&str>,
+        opts: &Options,
+    ) -> Result<(String, String), CalcError> {
         let Some(request) = request else {
-            return Ok(self.auto_hinted(v, hint));
+            return Ok(self.auto_hinted_in(v, hint, opts));
         };
         let u = eval_scalar(request, &self.scope, Names::UnitsOnly)?;
         // A temperature difference asked for in °C or °F is a difference: 60 K is 60 °C.
         let absolute = hint != Some(DIFFERENCE);
-        let number = in_unit_text_as(v, u, unit_text, &self.opts, absolute)?;
+        let number = in_unit_text_as(v, u, unit_text, opts, absolute)?;
         Ok((number, unit_text.to_string()))
+    }
+
+    /// The number format of a statement's result: with a rounding step, as many decimals as the
+    /// step has (0.05: `0.15`, `1.2`→ `1.20` only with trailing zeros on).
+    fn result_opts(&self) -> Options {
+        match self.opts.step {
+            Some(step) => Options { count: Count::Decimals, digits: step.places(), step: None, ..self.opts },
+            None => self.opts,
+        }
+    }
+
+    /// `value` rounded to the format's step ([`Options::step`]) in the unit it will be shown
+    /// in: the one asked for after `=` (`rhs`), else the automatic one (with its dimensionless
+    /// `hint`). Unchanged without a step, for a vector, a temperature in °C/°F (its offset
+    /// makes a step ambiguous) or a unit of another kind (which then fails as usual).
+    fn stepped(&self, value: Result<Value, CalcError>, rhs: &[Token], len: usize, hint: Option<&str>) -> Result<Value, CalcError> {
+        let Some(step) = self.opts.step else { return value };
+        let Ok(Value::Scalar(q)) = &value else { return value };
+        let unit = match requested_unit(rhs, len) {
+            Ok(Some(e)) => {
+                let text = render(&e);
+                eval_scalar(&e, &self.scope, Names::UnitsOnly).ok().map(|u| (u, text))
+            }
+            _ => {
+                let (_, text) = self.auto_hinted(&Value::Scalar(*q), hint);
+                if text.is_empty() { Some((Quantity::number(1.0), text)) } else { self.unit_quantity(&text).map(|u| (u, text)) }
+            }
+        };
+        let Some((u, text)) = unit else { return value };
+        if affine(&text).is_some() || u.dim != q.dim || u.value == 0.0 {
+            return value;
+        }
+        let rounded = step.apply(q.value / u.value) * u.value;
+        Ok(Value::Scalar(Quantity { value: finite(rounded)?, ..*q }))
     }
 
     /// Classifies text that could not be tokenised (or is too long) from its raw characters and

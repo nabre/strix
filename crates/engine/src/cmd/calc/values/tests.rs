@@ -183,3 +183,69 @@ fn a_calculated_table_from_its_cells() {
     assert!(s2.run("calc.insertTable", &json!({"cells": [[{"a": 1}]]})).is_err());
     assert!(s2.run("calc.insertTable", &json!({"cells": []})).is_err());
 }
+
+/// A rounding step set on one equation: its result rounded up to it, the rounded value used
+/// after, kept with the document.
+#[test]
+fn a_rounding_step_on_one_equation() {
+    let mut s = Session::new(Document::new());
+    run(&mut s, "calc.insert", json!({"text": "t = 0.37 m/2 = m"}));
+    run(&mut s, "text.insert", json!({"text": " "}));
+    s.sel = crate::Selection::caret(Pos::new(StoryRef::Body, Path::top(0), 0));
+    let r = run(&mut s, "calc.options", json!({"scope": "equation", "step": 0.05, "stepMode": "up"}));
+    assert_eq!((r["step"].as_str(), r["stepMode"].as_str()), (Some("0.05"), Some("up")), "{r}");
+    assert_eq!(shown(&s)[0], "t=(0.37m)/2=0.2m");
+    let end = s.doc.body[0].as_para().map_or(0, |p| p.text.len());
+    s.sel = crate::Selection::caret(Pos::new(StoryRef::Body, Path::top(0), end));
+    run(&mut s, "calc.insert", json!({"text": "u = 2·t ="}));
+    assert_eq!(shown(&s)[1], "u=2·t=2·(0.2m)=0.4m", "the next equation reads the rounded value");
+    // Down, by its mode alone.
+    s.sel = crate::Selection::caret(Pos::new(StoryRef::Body, Path::top(0), 0));
+    run(&mut s, "calc.options", json!({"scope": "equation", "stepMode": "down"}));
+    assert_eq!(shown(&s)[0], "t=(0.37m)/2=0.15m");
+    // Saved and opened again.
+    let bytes = crate::io::save_bytes("w.docx", &s.doc).unwrap();
+    let mut s2 = Session::new(crate::io::open_bytes("w.docx", &bytes).unwrap());
+    run(&mut s2, "calc.recalculate", json!({}));
+    assert_eq!(shown(&s2)[0], "t=(0.37m)/2=0.15m");
+    // Refused: a bad step, a step in preferences.
+    assert!(s.run("calc.options", &json!({"scope": "equation", "step": -1})).is_err());
+    assert!(s.run("calc.options", &json!({"scope": "equation", "step": "abc"})).is_err());
+    assert!(s.run("calc.options", &json!({"scope": "equation", "stepMode": "sideways"})).is_err());
+    assert!(s.run("calc.options", &json!({"scope": "prefs", "step": 0.05})).is_err());
+    // `none` takes it off.
+    run(&mut s, "calc.options", json!({"scope": "equation", "step": "none"}));
+    assert_eq!(shown(&s)[0], "t=(0.37m)/2=0.185m");
+}
+
+/// A calculation hidden with `calc.hide`: still calculated, its line wholly hidden (so it is
+/// neither laid out nor printed while hidden text isn't shown), kept hidden in a saved file.
+#[test]
+fn a_hidden_calculation_still_counts() {
+    let mut s = Session::new(Document::new());
+    run(&mut s, "calc.insert", json!({"text": "k = 1.25"}));
+    run(&mut s, "calc.hide", json!({}));
+    run(&mut s, "text.newParagraph", json!({}));
+    run(&mut s, "format.hidden", json!({"value": false}));
+    run(&mut s, "calc.insert", json!({"text": "x = 2·k ="}));
+    assert_eq!(shown(&s)[1], "x=2·k=2·1.25=2.5");
+    let hidden = |s: &Session| {
+        let p = s.doc.body[0].as_para().unwrap();
+        p.mark.hidden == Some(true) && p.runs.iter().all(|r| r.props.hidden == Some(true))
+    };
+    assert!(hidden(&s));
+    assert!(s.doc.body[1].as_para().unwrap().runs.iter().all(|r| r.props.hidden != Some(true)));
+    let bytes = crate::io::save_bytes("w.docx", &s.doc).unwrap();
+    let mut s2 = Session::new(crate::io::open_bytes("w.docx", &bytes).unwrap());
+    // The equation keeps the choice; recalculating puts the hidden text back.
+    run(&mut s2, "calc.recalculate", json!({}));
+    assert!(hidden(&s2), "hidden after reopening");
+    assert_eq!(shown(&s2)[1], "x=2·k=2·1.25=2.5");
+    // Shown again by the same command.
+    s.sel = crate::Selection::caret(Pos::new(StoryRef::Body, Path::top(0), 0));
+    let r = run(&mut s, "calc.hide", json!({}));
+    assert_eq!(r["hidden"], false);
+    assert!(s.doc.body[0].as_para().unwrap().runs.iter().all(|r| r.props.hidden.is_none()));
+    // Nothing to hide without an equation.
+    assert!(Session::new(Document::new()).run("calc.hide", &json!({})).is_err());
+}

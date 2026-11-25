@@ -16,6 +16,7 @@ use wordcraft_doc::{Block, InlineObject, Paragraph, Table};
 
 use crate::{CmdError, CmdResult, CommandSpec, Session, p};
 
+mod hide;
 mod typed;
 mod values;
 
@@ -49,8 +50,11 @@ pub fn specs() -> Vec<CommandSpec> {
             .params(r#"{"value"?: bool (default: toggle), "scope"?: "equation"|"exercise"|"document"|"prefs", "exercise"?: 1-based, "reset"?: bool} → formulas, solved equations and checks show their solution steps, laid out as calc.layout says"#),
         CommandSpec::new("calc.layout", "Result Layout", "Math › Number Display", set_layout)
             .params(r#"{"value"?: "inline" | "lines" (default: toggle), "scope"?: "equation"|"exercise"|"document"|"prefs", "exercise"?: 1-based, "reset"?: bool} → where results and steps go: inline (after ⇒ and = on the statement's line) or lines (one line each under the statement aligned at =); then recalculates"#),
+        CommandSpec::new("calc.hide", "Hide Calculation", "Math › Calculation", hide::command)
+            .when(|s| if super::equation::equation_at_caret(s).is_none() { Some("no equation at the caret") } else { hide::disabled(s) })
+            .params(r#"{"value"?: bool (default: toggle)} → {"hidden", "recalculated"}: the calculation at the caret stays in the calculation but isn't printed (hidden text on it, and on its paragraph when it is alone there; Show All shows it)"#),
         CommandSpec::new("calc.options", "Number Format", "Math › Number Display", set_options)
-            .params(r#"{"digits"?: 0–15, "count"?: "auto|decimals|significant", "zeros"?: bool, "steps"?: bool, "layout"?: "inline|lines", "uncertainty"?: "max|rss", "scope"?: "equation"|"exercise"|"document"|"prefs", "exercise"?: 1-based, "reset"?: bool} → the format: how results are rounded and laid out (resolved as equation > exercise > document > prefs), then recalculates"#),
+            .params(r#"{"digits"?: 0–15, "count"?: "auto|decimals|significant", "zeros"?: bool, "steps"?: bool, "layout"?: "inline|lines", "uncertainty"?: "max|rss", "step"?: number|"none" (results rounded to a multiple of it in their shown unit, e.g. 0.05; not in prefs), "stepMode"?: "nearest|up|down" (up: per eccesso, down: per difetto), "scope"?: "equation"|"exercise"|"document"|"prefs", "exercise"?: 1-based, "reset"?: bool} → the format: how results are rounded and laid out (resolved as equation > exercise > document > prefs), then recalculates"#),
         CommandSpec::new("table.calc", "Calculated Table", "Calculated Table › Calculation", toggle_table)
             .when(|s| match calc_table_place(s) {
                 Some(_) if caret_table_is_calc(s) => None,
@@ -124,6 +128,16 @@ pub struct CalcOverrides {
     /// written by every later calculation. Document scope only.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub decimal_comma: Option<bool>,
+    /// Results rounded to this step (`"0.05"`) in their shown unit, or `"none"` to cancel a wider
+    /// scope's step ([`strix_calc::Step`]).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub step: Option<String>,
+    /// Which way the step rounds: `nearest`, `up` (per eccesso), `down` (per difetto).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub step_mode: Option<String>,
+    /// The calculation stays in the calculation but isn't printed (`calc.hide`; equation scope).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub hidden: Option<bool>,
 }
 
 impl CalcOverrides {
@@ -135,9 +149,18 @@ impl CalcOverrides {
             && self.layout.is_none()
             && self.uncertainty.is_none()
             && self.decimal_comma.is_none()
+            && self.step.is_none()
+            && self.step_mode.is_none()
+            && self.hidden.is_none()
     }
 
     pub fn sanitize(&mut self) {
+        if self.step.as_deref().is_some_and(|st| st != "none" && strix_calc::Step::parse(st, strix_calc::StepMode::Nearest).is_none()) {
+            self.step = None;
+        }
+        if self.step_mode.as_deref().is_some_and(|m| strix_calc::StepMode::from_name(m).is_none()) {
+            self.step_mode = None;
+        }
         if self.uncertainty.as_deref().is_some_and(|u| strix_calc::UncertaintyMode::from_name(u).is_none()) {
             self.uncertainty = None;
         }
@@ -164,6 +187,9 @@ impl CalcOverrides {
             steps: Some(prefs.calc_steps),
             layout: Some(Layout::from_name(&prefs.calc_layout).unwrap_or_default().name().to_string()),
             decimal_comma: None,
+            step: None,
+            step_mode: None,
+            hidden: None,
         }
     }
 
@@ -175,6 +201,7 @@ impl CalcOverrides {
             && self.layout.as_deref().unwrap_or("inline") == "inline"
             && self.uncertainty.as_deref().unwrap_or("max") == "max"
             && self.decimal_comma.is_none()
+            && self.step.as_deref().is_none_or(|st| st == "none")
     }
 
     pub fn apply_to(&self, o: &mut Options) {
@@ -198,6 +225,23 @@ impl CalcOverrides {
         }
         if let Some(c) = self.decimal_comma {
             o.decimal_comma = c;
+        }
+        // The mode alone changes a wider scope's step's direction; a step takes this scope's
+        // mode, else the wider one's.
+        let mode = self.step_mode.as_deref().and_then(strix_calc::StepMode::from_name);
+        match self.step.as_deref() {
+            Some("none") => o.step = None,
+            Some(st) => {
+                let mode = mode.or(o.step.map(|w| w.mode)).unwrap_or_default();
+                if let Some(step) = strix_calc::Step::parse(st, mode) {
+                    o.step = Some(step);
+                }
+            }
+            None => {
+                if let (Some(m), Some(step)) = (mode, o.step.as_mut()) {
+                    step.mode = m;
+                }
+            }
         }
     }
 }
@@ -289,6 +333,11 @@ fn call_overrides(v: &Value) -> CalcOverrides {
         layout: p::str(v, "layout").and_then(Layout::from_name).map(|l| l.name().to_string()),
         // Never for one call only: what is written with commas is read with them afterwards.
         decimal_comma: None,
+        // A step changes the values defined: it is set on an equation, an exercise or the
+        // document (`calc.options`), so it stays with them.
+        step: None,
+        step_mode: None,
+        hidden: None,
     }
 }
 
@@ -441,6 +490,34 @@ fn set_options(s: &mut Session, v: &Value) -> CmdResult {
     };
     let zeros = p::bool(v, "zeros");
     let steps = p::bool(v, "steps");
+    // A step: a positive number (or its text), or "none"/null/0 to take a wider scope's off.
+    let step = match v.get("step") {
+        None => None,
+        Some(Value::Null) => Some("none".to_string()),
+        Some(Value::String(t)) if t.trim() == "none" => Some("none".to_string()),
+        Some(value) => {
+            let text = match value {
+                Value::Number(n) => n.to_string(),
+                Value::String(t) => t.trim().to_string(),
+                _ => String::new(),
+            };
+            if text == "0" {
+                Some("none".to_string())
+            } else {
+                let parsed = strix_calc::Step::parse(&text, strix_calc::StepMode::Nearest).ok_or_else(|| {
+                    CmdError::Params("step: a positive number such as 0.05 (at most 6 significant digits, 1e-9 to 1e9), or none".into())
+                })?;
+                Some(parsed.text())
+            }
+        }
+    };
+    let step_mode = match p::str(v, "stepMode") {
+        Some(m) => Some(strix_calc::StepMode::from_name(m).ok_or_else(|| CmdError::Params("stepMode is nearest, up or down".into()))?),
+        None => None,
+    };
+    if (step.is_some() || step_mode.is_some()) && p::str(v, "scope") == Some("prefs") {
+        return Err(CmdError::Params("a rounding step is set for an equation, an exercise or the document, not in preferences".into()));
+    }
     let layout = match p::str(v, "layout") {
         Some(name) => Some(Layout::from_name(name).ok_or_else(|| CmdError::Params("layout is inline or lines".into()))?),
         None => None,
@@ -466,6 +543,12 @@ fn set_options(s: &mut Session, v: &Value) -> CmdResult {
             }
             if let Some(l) = layout {
                 c.layout = Some(l.name().to_string());
+            }
+            if let Some(st) = &step {
+                c.step = Some(st.clone());
+            }
+            if let Some(m) = step_mode {
+                c.step_mode = Some(m.name().to_string());
             }
         },
         |pr, _| {
@@ -498,6 +581,8 @@ fn set_options(s: &mut Session, v: &Value) -> CmdResult {
         "zeros": eff.zeros,
         "steps": eff.steps,
         "layout": eff.layout.name(),
+        "step": eff.step.map(strix_calc::Step::text),
+        "stepMode": eff.step.map(|st| st.mode.name()),
         "scope": scope,
         "recalculated": report
     }))
@@ -1372,6 +1457,10 @@ pub(crate) fn recalculate(s: &mut Session, opts: &Options) -> Value {
 
 /// `from_commas`: the document was calculated with decimal commas until now and no longer is.
 fn recalculate_scoped(s: &mut Session, opts: &Options, call_opts: &CalcOverrides, from_commas: bool) -> Value {
+    // Hidden calculations take their hidden text back (a saved file may have lost it).
+    if hide::apply(s) {
+        s.touch();
+    }
     let converted_templates = super::exercise::expr::convert_all_templates(s);
     let mut found = items(&s.doc.body);
     if from_commas {

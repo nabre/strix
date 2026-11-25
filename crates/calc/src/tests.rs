@@ -516,6 +516,7 @@ fn hostile_input_never_panics() {
             steps: round % 2 == 1,
             layout: if round % 4 < 2 { Layout::Inline } else { Layout::Lines },
             uncertainty: crate::UncertaintyMode::Max,
+            step: [None, Step::parse("0.05", StepMode::Up), Step::parse("5e-9", StepMode::Down), Step::parse("2e9", StepMode::Nearest)][round % 4],
         };
         let mut statements = Vec::new();
         for _ in 0..4 {
@@ -2537,4 +2538,44 @@ fn an_unknown_on_both_sides_is_shown() {
     assert_eq!(last(&["y = cos(y)"]), "y = cos(y) ⇒ y = 0.739");
     // A plain definition stays one.
     assert_eq!(run(&["L = 4.5 m"]).pop().unwrap().kind, RegionKind::Definition);
+}
+
+/// Results rounded to a step in the unit they are shown in; the rounded value is what is defined.
+#[test]
+fn results_rounded_to_a_step() {
+    let step = |t: &str, mode| Step::parse(t, mode).unwrap();
+    assert_eq!(step("0.05", StepMode::Nearest).text(), "0.05");
+    assert_eq!(step("5", StepMode::Nearest).text(), "5");
+    assert_eq!(step("2.5e-3", StepMode::Nearest).text(), "0.0025");
+    assert_eq!(step("2000", StepMode::Nearest).text(), "2000");
+    for bad in ["0", "-1", "abc", "1e40", "", ".", "1234567"] {
+        assert!(Step::parse(bad, StepMode::Up).is_none(), "{bad}");
+    }
+    let with = |mode, statements: &[&str]| {
+        let o = Options { step: Some(step("0.05", mode)), ..Options::default() };
+        evaluate(statements, &o).pop().and_then(|r| r.display).unwrap_or_default()
+    };
+    assert_eq!(with(StepMode::Nearest, &["t = 0.37 m/2 = m"]), "t = 0.37 m/2 = 0.2 m");
+    assert_eq!(with(StepMode::Up, &["t = 0.37 m/2 = m"]), "t = 0.37 m/2 = 0.2 m");
+    assert_eq!(with(StepMode::Down, &["t = 0.37 m/2 = m"]), "t = 0.37 m/2 = 0.15 m");
+    // A multiple stays itself, whatever the binary arithmetic gives.
+    assert_eq!(with(StepMode::Down, &["t = 0.45 m/3 = m"]), "t = 0.45 m/3 = 0.15 m");
+    assert_eq!(with(StepMode::Up, &["t = 0.45 m/3 = m"]), "t = 0.45 m/3 = 0.15 m");
+    // In the unit shown: 0.05 cm.
+    assert_eq!(with(StepMode::Up, &["t = 1.234 cm = cm"]), "t = 1.234 cm = 1.25 cm");
+    // The rounded value is the one defined.
+    let o = Options { step: Some(step("0.05", StepMode::Up)), ..Options::default() };
+    let mut ws = Worksheet::new(o);
+    ws.eval_statement("t = 0.37 m/2 = m");
+    ws.set_options(Options::default());
+    assert_eq!(ws.eval_statement("2·t =").display.as_deref(), Some("2·t = 0.4 m"));
+    // A share in %, a solved unknown.
+    assert_eq!(with(StepMode::Nearest, &["p = 0.123 = %"]), "p = 0.123 = 12.3 %");
+    let o = Options { step: Some(step("0.5", StepMode::Up)), ..Options::default() };
+    assert_eq!(evaluate(&["A = 10 m²", "A = b·4 m"], &o).pop().and_then(|r| r.display).as_deref(), Some("A = b·4 m ⇒ b = 2.5 m"));
+    assert_eq!(evaluate(&["A = 10.2 m²", "A = b·4 m"], &o).pop().and_then(|r| r.display).as_deref(), Some("A = b·4 m ⇒ b = 3 m"));
+    // Temperatures in °C are left alone; negative values go up towards +∞.
+    let o = Options { step: Some(step("5", StepMode::Up)), ..Options::default() };
+    assert_eq!(evaluate(&["T = 21 °C", "T ="], &o).pop().and_then(|r| r.display).as_deref(), Some("T = 21 °C"));
+    assert_eq!(evaluate(&["x = -12 ="], &o).pop().and_then(|r| r.display).as_deref(), Some("x = -12 = -10"));
 }
