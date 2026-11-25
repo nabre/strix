@@ -1589,6 +1589,11 @@ fn paint_view_and_tables(pen: &Pen, name: &str) -> bool {
             pen.text(9.5, 10.0, 7.0, "=", c, false);
         }
         "numberFormat" => pen.text(10.0, 10.0, 9.0, "0.00", a, false),
+        // The result of one calculation: its `=` and its unit.
+        "calcResult" => {
+            pen.text(5.0, 10.0, 9.0, "=", c, false);
+            pen.text(13.0, 10.0, 8.5, "m³", a, false);
+        }
         "moreDigits" => {
             pen.text(8.0, 7.0, 8.0, ".0", c, false);
             pen.text(11.0, 15.0, 8.0, ".00", a, false);

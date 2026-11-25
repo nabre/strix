@@ -17,6 +17,8 @@ use wordcraft_doc::{Block, InlineObject, Paragraph, Table};
 use crate::{CmdError, CmdResult, CommandSpec, Session, p};
 
 mod hide;
+mod result;
+pub use result::{CaretResult, caret_result};
 mod typed;
 mod values;
 
@@ -53,6 +55,13 @@ pub fn specs() -> Vec<CommandSpec> {
         CommandSpec::new("calc.hide", "Hide Calculation", "Math › Calculation", hide::command)
             .when(|s| if super::equation::equation_at_caret(s).is_none() { Some("no equation at the caret") } else { hide::disabled(s) })
             .params(r#"{"value"?: bool (default: toggle)} → {"hidden", "recalculated"}: the calculation at the caret stays in the calculation but isn't printed (hidden text on it, and on its paragraph when it is alone there; Show All shows it)"#),
+        CommandSpec::new("calc.result", "Result", "Math › Number Display", result::command)
+            .when(result::disabled)
+            .params(r#"{"unit"?: string (a unit of the result's quantity as written after =: "dm³", "L", "kN·m"; "auto" for the automatic one), "decimals"?: 0–15 | "auto", "step"?: number|"none" (rounded to a multiple of it in the shown unit), "stepMode"?: "nearest|up|down", "reset"?: bool (rounding back to the document's)} → {"unit", "shown", "units", "decimals", "step", "stepMode", "recalculated"}: the result of the calculation at the caret: the unit written after its = and its own rounding (the equation's options), then recalculates"#),
+        CommandSpec::new("calc.resultInfo", "Result Info", "Math › Number Display", result::info)
+            .pure()
+            .when(result::disabled)
+            .params(r#"→ {"unit": asked or null, "shown", "units": [units of its quantity], "decimals", "step", "stepMode"}: the result of the calculation at the caret and the units it can be shown in"#),
         CommandSpec::new("calc.options", "Number Format", "Math › Number Display", set_options)
             .params(r#"{"digits"?: 0–15, "count"?: "auto|decimals|significant", "zeros"?: bool, "steps"?: bool, "layout"?: "inline|lines", "uncertainty"?: "max|rss", "step"?: number|"none" (results rounded to a multiple of it in their shown unit, e.g. 0.05; not in prefs), "stepMode"?: "nearest|up|down" (up: per eccesso, down: per difetto), "scope"?: "equation"|"exercise"|"document"|"prefs", "exercise"?: 1-based, "reset"?: bool} → the format: how results are rounded and laid out (resolved as equation > exercise > document > prefs), then recalculates"#),
         CommandSpec::new("table.calc", "Calculated Table", "Calculated Table › Calculation", toggle_table)
@@ -490,27 +499,7 @@ fn set_options(s: &mut Session, v: &Value) -> CmdResult {
     };
     let zeros = p::bool(v, "zeros");
     let steps = p::bool(v, "steps");
-    // A step: a positive number (or its text), or "none"/null/0 to take a wider scope's off.
-    let step = match v.get("step") {
-        None => None,
-        Some(Value::Null) => Some("none".to_string()),
-        Some(Value::String(t)) if t.trim() == "none" => Some("none".to_string()),
-        Some(value) => {
-            let text = match value {
-                Value::Number(n) => n.to_string(),
-                Value::String(t) => t.trim().to_string(),
-                _ => String::new(),
-            };
-            if text == "0" {
-                Some("none".to_string())
-            } else {
-                let parsed = strix_calc::Step::parse(&text, strix_calc::StepMode::Nearest).ok_or_else(|| {
-                    CmdError::Params("step: a positive number such as 0.05 (at most 6 significant digits, 1e-9 to 1e9), or none".into())
-                })?;
-                Some(parsed.text())
-            }
-        }
-    };
+    let step = step_param(v)?;
     let step_mode = match p::str(v, "stepMode") {
         Some(m) => Some(strix_calc::StepMode::from_name(m).ok_or_else(|| CmdError::Params("stepMode is nearest, up or down".into()))?),
         None => None,
@@ -586,6 +575,32 @@ fn set_options(s: &mut Session, v: &Value) -> CmdResult {
         "scope": scope,
         "recalculated": report
     }))
+}
+
+/// The `step` of `calc.options` and `calc.result`: a positive number (or its text) as
+/// [`strix_calc::Step::text`] writes it, or `"none"` (from `"none"`, null or 0) to take a wider
+/// scope's step off; `None` when not given.
+fn step_param(v: &Value) -> Result<Option<String>, CmdError> {
+    Ok(match v.get("step") {
+        None => None,
+        Some(Value::Null) => Some("none".to_string()),
+        Some(Value::String(t)) if t.trim() == "none" => Some("none".to_string()),
+        Some(value) => {
+            let text = match value {
+                Value::Number(n) => n.to_string(),
+                Value::String(t) => t.trim().to_string(),
+                _ => String::new(),
+            };
+            if text == "0" {
+                Some("none".to_string())
+            } else {
+                let parsed = strix_calc::Step::parse(&text, strix_calc::StepMode::Nearest).ok_or_else(|| {
+                    CmdError::Params("step: a positive number such as 0.05 (at most 6 significant digits, 1e-9 to 1e9), or none".into())
+                })?;
+                Some(parsed.text())
+            }
+        }
+    })
 }
 
 /// The statement of a calculated equation as every reader takes it: [`equation_text`] with a

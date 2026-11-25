@@ -11,6 +11,7 @@ use crate::solve::{
 use crate::units::{TEMPERATURE_DIM, affine, auto_unit, constant, dim_name, unit};
 use crate::{CalcError, MAX_INPUT_CHARS};
 
+mod result_unit;
 mod values;
 
 /// Evaluation and number-format options (`docs/calc.md`, Number format).
@@ -1544,8 +1545,27 @@ impl Worksheet {
             _ => None,
         };
         let hint = unit.or_else(|| other.and_then(|e| self.hint(e)));
-        let value = self.stepped(value, asked, len, hint.as_deref());
+        // A datum defined without a result shown (`ν = 0.33`, `α = 0.0002/K`) is kept as given.
+        let datum = asked.is_empty() && other.is_some_and(|e| self.is_datum(e));
+        let value = if datum { value } else { self.stepped(value, asked, len, hint.as_deref()) };
         (value, hint)
+    }
+
+    /// True when `e` is a datum, numbers and units only (`0.33`, `4.5 m`, `0.0002/K`): no
+    /// parameter, constant or function to work out. The rounding step leaves data alone unless
+    /// their result is shown.
+    fn is_datum(&self, e: &Expr) -> bool {
+        fn walk(e: &Expr, unit_name: &dyn Fn(&str) -> bool) -> bool {
+            match e {
+                Expr::Num(_) | Expr::Unit(_) => true,
+                Expr::Name(n) => unit_name(n),
+                Expr::Neg(a) => walk(a, unit_name),
+                Expr::Bin(_, a, b) => walk(a, unit_name) && walk(b, unit_name),
+                Expr::Vector(items) => items.iter().all(|i| walk(i, unit_name)),
+                _ => false,
+            }
+        }
+        walk(e, &|n| self.scope.get(n).is_none() && unit(n).is_some())
     }
 
     /// The dimensionless unit asked for after a result's `=` (`= %`, `= ‰`, `= °`, `= gon`) when
@@ -1574,8 +1594,13 @@ impl Worksheet {
             !defined(n) && !function && (alone(n) || (constant(n).is_none() && !self.element(n)))
         });
         // `k = 0.0002/K`: the name alone is what is defined; another name that is a unit is that
-        // unit (`K`, per kelvin), not a second unknown.
-        if names.len() > 1 && names.iter().any(|n| alone(n)) {
+        // unit (`K`, per kelvin), not a second unknown — only when the other side is a datum,
+        // numbers and units: in `F = m·g` with `m` undefined, `m` is no metre but an unknown.
+        let datum = match (lhs, rhs) {
+            (Expr::Name(_), other) | (other, Expr::Name(_)) => self.is_datum(other),
+            _ => false,
+        };
+        if datum && names.len() > 1 && names.iter().any(|n| alone(n)) {
             names.retain(|n| alone(n) || unit(n).is_none());
         }
         names
@@ -2092,11 +2117,15 @@ impl Worksheet {
                     _ => (value, Some(display), error),
                 }
             }
-            // Not shown, but rounded to the format's step all the same.
+            // Not shown, but a result rounded to the format's step all the same (a datum stays
+            // as given).
             _ => {
                 let parsed = self.parse_expr(body, body_end_pos);
                 let hint = parsed.as_ref().ok().and_then(|e| self.hint(e));
-                match self.stepped(parsed.and_then(|e| eval(&e, &self.scope, Names::Worksheet)), &[], len, hint.as_deref()) {
+                let datum = parsed.as_ref().is_ok_and(|e| self.is_datum(e));
+                let value = parsed.and_then(|e| eval(&e, &self.scope, Names::Worksheet));
+                let value = if datum { value } else { self.stepped(value, &[], len, hint.as_deref()) };
+                match value {
                     Ok(v) => (Some(v), None, None),
                     Err(err) => (None, None, Some(err)),
                 }
@@ -2593,6 +2622,12 @@ fn units_only(rhs: &[Token]) -> bool {
 /// `1.2·10^(-5)`), or `⚠`. A number
 /// directly followed by `/` is part of the unit (`= 1/s`).
 fn requested_unit(rhs: &[Token], len: usize) -> Result<Option<Expr>, CalcError> {
+    let unit = rhs.get(unit_start(rhs)..).unwrap_or_default();
+    if unit.is_empty() { Ok(None) } else { parse(unit, len).map(Some) }
+}
+
+/// Where the unit of [`requested_unit`] starts in `rhs`, after any stale result.
+fn unit_start(rhs: &[Token]) -> usize {
     let tok = |i: usize| rhs.get(i).map(|t| &t.tok);
     let mut start = stale_vector(rhs);
     if start > 0 {
@@ -2610,8 +2645,7 @@ fn requested_unit(rhs: &[Token], len: usize) -> Result<Option<Expr>, CalcError> 
             start = j;
         }
     }
-    let unit = rhs.get(start..).unwrap_or_default();
-    if unit.is_empty() { Ok(None) } else { parse(unit, len).map(Some) }
+    start
 }
 
 /// The index after the `·10^n` of our scientific form at `j` (`·10^9`, `·10^-5`, and with the
