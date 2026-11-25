@@ -1527,6 +1527,27 @@ impl Worksheet {
         param && letter
     }
 
+    /// A solved unknown's value and the unit hint it is shown with: a plain number asked for
+    /// in `%`, `‰`, `°`… (`asked`, the text after the result's `=`) keeps that unit wherever it
+    /// is shown (the results summary, a value in the text), else the hint of what it equals
+    /// (`other`); the value rounded to the format's step before it is defined, so later
+    /// statements read it so.
+    fn solved_value(
+        &self,
+        value: Result<Value, CalcError>,
+        other: Option<&Expr>,
+        asked: &[Token],
+        len: usize,
+    ) -> (Result<Value, CalcError>, Option<String>) {
+        let unit = match &value {
+            Ok(v) if !asked.is_empty() => self.asked_dimensionless(asked, v, len),
+            _ => None,
+        };
+        let hint = unit.or_else(|| other.and_then(|e| self.hint(e)));
+        let value = self.stepped(value, asked, len, hint.as_deref());
+        (value, hint)
+    }
+
     /// The dimensionless unit asked for after a result's `=` (`= %`, `= ‰`, `= °`, `= gon`) when
     /// the value `v` is a plain number.
     fn asked_dimensionless(&self, rhs: &[Token], v: &Value, len: usize) -> Option<String> {
@@ -1651,15 +1672,8 @@ impl Worksheet {
                     (Expr::Name(n), other) | (other, Expr::Name(n)) if n == x => Some(other.clone()),
                     _ => solution.form().cloned().or_else(|| isolate(&lhs, &rhs, x)),
                 };
-                // A plain number asked for in `%`, `‰`, `°`… keeps that unit wherever it is shown
-                // (the results summary, a value in the text).
-                let asked = match (&value, shows) {
-                    (Ok(v), true) => self.asked_dimensionless(part(2), v, len),
-                    _ => None,
-                };
-                let x_hint = asked.or_else(|| other.as_ref().and_then(|e| self.hint(e)));
-                // Rounded to the format's step before it is defined: later statements read it so.
-                let value = self.stepped(value, if shows { part(2) } else { &[] }, len, x_hint.as_deref());
+                let asked = if shows { part(2) } else { &[] };
+                let (value, x_hint) = self.solved_value(value, other.as_ref(), asked, len);
                 let mut result = self.assign(kind, x, value.clone(), x_hint.clone());
                 // The unit of a stale `⇒ x = 2.5 m/s²` is kept (the last `=` of its working).
                 let tail_tokens = tail.and_then(|t| lex(t, self.opts.decimal_comma).ok()).unwrap_or_default();
