@@ -2669,6 +2669,15 @@ paper	Envelope DL	Enveloppe DL
 	Steps	les étapes
 	Show Steps	Afficher les étapes
 	Show Trailing Zeros	Afficher les zéros de fin
+	The result of the calculation at the caret: its unit, decimal places and rounding step	Le résultat du calcul au curseur : unité, décimales et pas d'arrondi
+	The calculation at the caret shows no result after =	Le calcul au curseur n'affiche pas de résultat après =
+	As the Document	Comme le document
+	Rounding Step	Pas d'arrondi
+	No Step	Aucun pas
+	Round to Nearest	Arrondir au plus proche
+	Round Up	Arrondir par excès
+	Round Down	Arrondir par défaut
+	Rounding as the Document	Arrondi comme le document
 	Show every cell as an equation: names in italics, subscripts, units in the Unit style	Afficher chaque cellule comme une équation : noms en italique, indices, unités dans le style Unité
 	Show every file as it is on disk, discarding edits made here	Afficher chaque fichier tel qu’il est sur le disque, en abandonnant les modifications faites ici
 	Show one digit less in results	Afficher un chiffre de moins dans les résultats

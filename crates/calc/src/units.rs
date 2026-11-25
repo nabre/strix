@@ -219,6 +219,14 @@ const PREFERRED: &[(Dim, &str)] = &[
     (ACCELERATION, "m/s²"),
 ];
 
+/// True when `dim`, a product of units, is a quantity with a name of its own: one with a
+/// preferred unit (`kN·m` and `kW·h` are energies, `A·h` a charge, `V·A` a power), an impulse
+/// (`N·s`) or a dynamic viscosity (`Pa·s`).
+pub(crate) fn named_product(dim: Dim) -> bool {
+    let product = |a: &str, b: &str| unit(a).zip(unit(b)).and_then(|(a, b)| a.dim.try_mul(b.dim).ok());
+    PREFERRED.iter().any(|(d, _)| *d == dim) || [product("N", "s"), product("Pa", "s")].contains(&Some(dim))
+}
+
 /// The coherent SI unit a result of dimension `dim` is shown in when no unit is asked for:
 /// empty for a plain number, a preferred named unit (`N`, `Pa`, `J`, `m/s²` …) when there is
 /// one, else a product of base units in canonical order with positive exponents first

@@ -650,17 +650,31 @@ impl Parser<'_> {
         self.unit_chain_from(e)
     }
 
-    /// True when token `i` is a defined parameter that a unit chain stops before: after `·` or
-    /// a space (`2 m·s`, `2 m s`), outside brackets of units (`2 m·s` with `s = 3 m`; `(kN·m)` is always the unit).
-    fn param_at(&self, i: usize) -> bool {
-        self.unit_group == 0 && matches!(self.toks.get(i).map(|t| &t.tok), Some(Tok::Ident(name)) if (self.is_param)(name))
+    /// True when token `i` is a defined parameter that a unit chain `chain` stops before: after
+    /// `·` or a space (`2 m·s` with `s = 3 m`), outside brackets of units (`(kN·m)` is always the
+    /// unit). The unit stays the unit when it is raised or divided (`m·s^-1`, `m·s²`) or when it
+    /// makes a named quantity with the units before it (`kN·m`, `kW·h`, `A·h`, `N·s`), whatever
+    /// parameters `m`, `h` or `s` there are.
+    fn param_at(&self, i: usize, chain: &Expr) -> bool {
+        let Some(Tok::Ident(name)) = self.toks.get(i).map(|t| &t.tok) else { return false };
+        if self.unit_group > 0 || !(self.is_param)(name) {
+            return false;
+        }
+        if matches!(self.toks.get(i + 1).map(|t| &t.tok), Some(Tok::Sup(_) | Tok::Caret | Tok::Slash)) {
+            return false;
+        }
+        let named = units_dim(chain)
+            .zip(crate::units::unit(name).map(|u| u.dim))
+            .and_then(|(a, b)| a.try_mul(b).ok())
+            .is_some_and(crate::units::named_product);
+        !named
     }
 
     /// [`Self::unit_chain`] after its first factor `e`.
     fn unit_chain_from(&mut self, mut e: Expr) -> R<Expr> {
         loop {
             match self.peek() {
-                Some(Tok::Star) if self.unit_at(self.i + 1) && !self.param_at(self.i + 1) => {
+                Some(Tok::Star) if self.unit_at(self.i + 1) && !self.param_at(self.i + 1, &e) => {
                     self.bump();
                     let f = self.unit_factor()?;
                     e = self.bin(BinOp::Mul, e, f)?;
@@ -670,7 +684,7 @@ impl Parser<'_> {
                     let f = self.unit_factor()?;
                     e = self.bin(BinOp::Div, e, f)?;
                 }
-                Some(Tok::Ident(_)) if self.unit_at(self.i) && !self.param_at(self.i) => {
+                Some(Tok::Ident(_)) if self.unit_at(self.i) && !self.param_at(self.i, &e) => {
                     let f = self.unit_factor()?;
                     e = self.bin(BinOp::Mul, e, f)?;
                 }
@@ -1099,6 +1113,27 @@ fn without_leading_percent(e: &Expr) -> Option<Expr> {
         Expr::Unit(n) if n == "%" => Some(Expr::Num(1.0)),
         Expr::Bin(BinOp::Mul, l, r) if matches!(&**l, Expr::Unit(n) if n == "%") => Some((**r).clone()),
         Expr::Bin(op @ (BinOp::Mul | BinOp::Div), l, r) => without_leading_percent(l).map(|u| Expr::Bin(*op, Box::new(u), r.clone())),
+        _ => None,
+    }
+}
+
+/// The dimension of a chain of units (`kN·m`, `m/s²`), `None` when a part isn't a unit.
+fn units_dim(e: &Expr) -> Option<crate::quantity::Dim> {
+    match e {
+        Expr::Unit(n) | Expr::Name(n) => crate::units::unit(n).map(|u| u.dim),
+        Expr::Bin(BinOp::Mul, a, b) => units_dim(a)?.try_mul(units_dim(b)?).ok(),
+        Expr::Bin(BinOp::Div, a, b) => units_dim(a)?.try_div(units_dim(b)?).ok(),
+        Expr::Bin(BinOp::Pow, a, p) => {
+            let p = match &**p {
+                Expr::Num(v) => *v,
+                Expr::Neg(inner) => match &**inner {
+                    Expr::Num(v) => -*v,
+                    _ => return None,
+                },
+                _ => return None,
+            };
+            units_dim(a)?.try_pow(p).ok()
+        }
         _ => None,
     }
 }

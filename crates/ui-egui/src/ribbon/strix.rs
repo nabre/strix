@@ -506,6 +506,18 @@ Table",
                     mi_check(ui, app, "Line by Line", lines, "calc.layout", json!({"value": "lines"}));
                 },
             );
+            menu_button(
+                ui,
+                app,
+                crate::widgets::MenuButtonOptions::new(
+                    "calcResult",
+                    Some("Result"),
+                    "The result of the calculation at the caret: its unit, decimal places and rounding step",
+                    false,
+                    "calc.result",
+                ),
+                result_menu,
+            );
         });
     });
     group(ui, "Drawing", None, app, |ui, app| {
@@ -536,6 +548,49 @@ Drawing",
         let plot_pane = app.session.view.plot_pane;
         big_toggle(ui, app, "plotProperties", "Plot\nProperties", "view.plotPane", plot_pane);
     });
+}
+
+/// Rounding steps offered for one result (in its shown unit).
+const RESULT_STEPS: &[&str] = &["0.001", "0.01", "0.05", "0.1", "0.5", "1", "5", "10", "50", "100"];
+
+/// Math › Number Display › Result: the unit of the result at the caret, among those of its
+/// quantity, and its own decimal places, rounding step and rounding direction (`calc.result`).
+fn result_menu(ui: &mut Ui, app: &mut WordApp) {
+    let Some(r) = wordcraft_engine::cmd::calc::caret_result(&app.session) else {
+        ui.label(crate::tl!("The calculation at the caret shows no result after ="));
+        return;
+    };
+    ui.menu_button(crate::tl!("Unit"), |ui| {
+        mi(ui, app, "Automatic", "calc.result", json!({"unit": "auto"}));
+        ui.separator();
+        for u in r.units.iter().filter(|u| !u.is_empty()) {
+            let chosen = r.shown == *u;
+            // Unit symbols are not translated: `tl!` gives them back as they are.
+            mi_check(ui, app, u, chosen, "calc.result", json!({"unit": u}));
+        }
+    });
+    ui.menu_button(crate::tl!("Decimal Places"), |ui| {
+        mi_check(ui, app, "As the Document", r.decimals.is_none(), "calc.result", json!({"decimals": "auto"}));
+        ui.separator();
+        for d in 0u8..=6 {
+            mi_check(ui, app, &d.to_string(), r.decimals == Some(d), "calc.result", json!({"decimals": d}));
+        }
+    });
+    ui.menu_button(crate::tl!("Rounding Step"), |ui| {
+        mi_check(ui, app, "No Step", r.step.as_deref() == Some("none"), "calc.result", json!({"step": "none"}));
+        ui.separator();
+        for st in RESULT_STEPS {
+            let label = if r.shown.is_empty() { (*st).to_string() } else { format!("{st} {}", r.shown) };
+            mi_check(ui, app, &label, r.step.as_deref() == Some(*st), "calc.result", json!({"step": st}));
+        }
+    });
+    let mode = r.step_mode.as_deref();
+    ui.separator();
+    mi_check(ui, app, "Round to Nearest", mode == Some("nearest"), "calc.result", json!({"stepMode": "nearest"}));
+    mi_check(ui, app, "Round Up", mode == Some("up"), "calc.result", json!({"stepMode": "up"}));
+    mi_check(ui, app, "Round Down", mode == Some("down"), "calc.result", json!({"stepMode": "down"}));
+    ui.separator();
+    mi(ui, app, "Rounding as the Document", "calc.result", json!({"reset": true}));
 }
 
 /// Draws the Picture Format tab's Adjust, Picture Styles, Accessibility (Alt Text), Arrange and

@@ -587,9 +587,11 @@ impl<'a> Ctx<'a> {
                 self.absolute(v, scale, u)
             }
             // Per degree: `0.0002/(1 °C)` divides by a step of one degree, as by kelvin, not by
-            // the absolute temperature 274.15 K.
+            // the absolute temperature 274.15 K. Only one degree: `p·V/(25 °C)` is still divided
+            // by the temperature 298.15 K.
             Expr::Bin(BinOp::Div, left, right)
                 if let Expr::Bin(BinOp::Mul, number, u) = &**right
+                    && matches!(&**number, Expr::Num(n) if (*n - 1.0).abs() < f64::EPSILON)
                     && self.affine_unit(u).is_some() =>
             {
                 let a = self.eval(left)?;
