@@ -74,7 +74,7 @@ impl Ctx<'_> {
         }
         self.supports_where(f, lighter(GREY, 0.45), &|id| pivot.has_node(st, id));
         let (_, mut taken) = self.resultants_named(f, &|l| pivot.has_load(st, l));
-        taken.extend(self.unknowns_where(f, &|id| pivot.has_node(st, id)));
+        taken.extend(self.unknowns_where(f, &|id| pivot.has_node(st, id), false));
         self.node_names_clear_of(f, &|id| pivot.has_node(st, id) || id == pivot.node, &taken);
         // The point the moments are taken about.
         let po = f.p(o.0, o.1);

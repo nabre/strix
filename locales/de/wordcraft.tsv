@@ -4087,6 +4087,7 @@ structure	Positive counter-clockwise	Positiv gegen den Uhrzeigersinn
 structure	Positive clockwise	Positiv im Uhrzeigersinn
 structure	The reactions are taken positive so and the equilibrium equations sum so; the free body shows the symbol.	Die Auflagerreaktionen werden so positiv angenommen und die Gleichgewichtsbedingungen so summiert; das Freikörperbild zeigt das Symbol.
 structure	Reactions are taken positive the way their arrows point in the free body: a negative one acts the other way.	Auflagerreaktionen werden in Richtung ihrer Pfeile im Freikörperbild positiv angenommen: Eine negative wirkt in die Gegenrichtung.
+structure	From here on the negative reactions are taken the way they act, as the drawings show them, with positive values:	Von hier an werden die negativen Auflagerreaktionen in ihrer wirklichen Richtung angenommen, wie in den Zeichnungen, mit positiven Werten:
 structure	Right	Rechts
 structure	Left	Links
 structure	Up	Nach oben

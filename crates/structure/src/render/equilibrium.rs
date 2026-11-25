@@ -221,13 +221,14 @@ impl Ctx<'_> {
     /// counts positive (along x, along y, along a roller's direction; a couple turning the way a
     /// rotation counts positive), as the structure's [`Positive`](crate::Positive) says.
     fn unknowns(&mut self, f: &Frame) -> Vec<(P, P)> {
-        self.unknowns_where(f, &|_| true)
+        self.unknowns_where(f, &|_| true, false)
     }
 
-    /// [`Ctx::unknowns`] of the supports at the nodes `at` picks. The stretches draw their known reactions so too, by name the way they count positive, as
-    /// the laws use them (one that came out negative too: its value enters when substituted).
+    /// [`Ctx::unknowns`] of the supports at the nodes `at` picks. With `acting` (the stretches,
+    /// once the reactions are known) each points the way it acts: one that came out negative the
+    /// other way, as the laws take it from the internal forces on (`H_A := -H_A`).
     /// Returns each node's point with the paper directions its arrows and names take from it.
-    pub(super) fn unknowns_where(&mut self, f: &Frame, at: &dyn Fn(&str) -> bool) -> Vec<(P, P)> {
+    pub(super) fn unknowns_where(&mut self, f: &Frame, at: &dyn Fn(&str) -> bool, acting: bool) -> Vec<(P, P)> {
         let mut out: Vec<(P, P)> = Vec::new();
         let an = self.an;
         let pos = self.st.positive;
@@ -242,6 +243,8 @@ impl Ctx<'_> {
             let below = (phi.sin(), phi.cos());
             // Each component along the way it counts positive.
             let mut comps: Vec<((f64, f64), &str)> = Vec::new();
+            // The reactions' size, against which a negative one is more than round-off.
+            let scale = an.reactions.iter().map(|q| q.fx.abs().max(q.fy.abs())).fold(1e-12, f64::max);
             match r.kind {
                 SupportKind::Fixed | SupportKind::Pin => {
                     comps.push(((sx, 0.0), "H"));
@@ -263,6 +266,9 @@ impl Ctx<'_> {
             for (axis, letter) in comps {
                 // The arrow stands on the side the positive way picks, as the reactions' result.
                 let side = self.arrow_side(&r.node, pd(axis), below);
+                // The way it acts, when asked: a negative one turned round.
+                let v = r.fx * axis.0 + r.fy * axis.1;
+                let axis = if acting && v < -1e-9 * scale { (-axis.0, -axis.1) } else { axis };
                 let ap = pd(axis);
                 taken.push(side);
                 let far = add(p, mul(side, ARROW + 2.0));
@@ -277,7 +283,9 @@ impl Ctx<'_> {
                 self.pen.subscripted(lat, ldir, letter, &s, REACTION);
             }
             if matches!(r.kind, SupportKind::Fixed | SupportKind::Slider) {
-                self.pen.couple(p, 5.0, pos.sr() > 0.0, REACTION, 0.4);
+                let mscale = an.reactions.iter().map(|q| q.m.abs()).fold(1e-12, f64::max);
+                let ccw = if acting && r.m * pos.sr() < -1e-9 * mscale { r.m > 0.0 } else { pos.sr() > 0.0 };
+                self.pen.couple(p, 5.0, ccw, REACTION, 0.4);
                 let free = self.free_side_avoiding(&r.node, &taken);
                 self.pen.subscripted(add(p, mul(free, 6.5)), free, "M", &s, REACTION);
                 taken.push(free);

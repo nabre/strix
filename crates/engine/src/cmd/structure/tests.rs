@@ -877,9 +877,43 @@ fn the_axial_force_joins_across_a_crosswise_varying_load() {
     s.run("structure.exercise", &json!({"structure": st})).unwrap();
     let t = text_of(&s);
     assert!(has(&t, "N_1b(x)") && !has(&t, "N_1c(x)"), "{t}");
-    // H_A came out negative (−3.882 kN): the stretch draws it by name, the way it was taken
-    // positive, and its law follows the drawing (its value enters when substituted).
-    assert!(has(&t, "N_1a(x) = -H_A") && !has(&t, "N_1a(x) = (3.8822857 kN)"), "{t}");
+    // H_A came out negative (−3.882 kN): before the internal forces it is taken the way it acts
+    // (`H_A := -H_A`, positive), the stretch draws it so by name, and its law follows the drawing.
+    assert!(has(&t, "H_A := -H_A = 3.882 kN"), "{t}");
+    assert!(has(&t, "N_1a(x) = H_A") && !has(&t, "N_1a(x) = -H_A") && !has(&t, "N_1a(x) = (3.8822857 kN)"), "{t}");
+}
+
+/// A whole working takes the negative reactions the way they act before the internal forces
+/// (`H_A := -H_A`), and the laws use them so: the values come out as the solution's.
+#[test]
+fn negative_reactions_are_turned_round_before_the_internal_forces() {
+    // A column fixed at its foot, pushed along +x at its top: H_A = −10 kN, M_A = −40 kN·m
+    // (counter-clockwise positive), V_A = 0.
+    let t = working_of(json!({
+        "nodes": [{"id": "A", "x": 0, "y": 0}, {"id": "B", "x": 0, "y": 4}],
+        "members": [{"id": "1", "a": "A", "b": "B"}],
+        "supports": [{"node": "A", "kind": "fixed"}],
+        "loads": [{"type": "force", "node": "B", "value": 10, "angle": 0}]
+    }))
+    .unwrap();
+    assert!(has(&t, "H_A = -10 kN") || has(&t, "H_A = (-10 kN)"), "{t}");
+    assert!(has(&t, "H_A := -H_A = 10 kN") && has(&t, "M_A := -M_A = 40 kN·m") && !has(&t, "V_A := -V_A"), "{t}");
+    let forces = t.find("H_A := -H_A").unwrap_or(0);
+    assert!(t[..forces].contains("Internal forces"), "{t}");
+    assert!(has_value(&t, "M_1(0 m)", "40 kN·m") || has_value(&t, "M_1(0 m)", "-40 kN·m"), "{t}");
+}
+
+/// No reaction negative: no line turns one round.
+#[test]
+fn positive_reactions_are_left_as_they_are() {
+    let t = working_of(json!({
+        "nodes": [{"id": "A", "x": 0, "y": 0}, {"id": "B", "x": 6, "y": 0}],
+        "members": [{"id": "1", "a": "A", "b": "B"}],
+        "supports": [{"node": "A", "kind": "pin"}, {"node": "B", "kind": "roller"}],
+        "loads": [{"type": "distributed", "member": "1", "q1": -10}]
+    }))
+    .unwrap();
+    assert!(!t.contains(":= -"), "{t}");
 }
 
 /// The working and the reactions the stiffness solution gives (`structure.get`).
