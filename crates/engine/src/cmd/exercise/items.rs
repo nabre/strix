@@ -561,16 +561,18 @@ pub(super) fn question_text(p: &Paragraph) -> Option<String> {
     Some(t.chars().filter(|&c| c != OBJ).collect::<String>().trim().to_string())
 }
 
-/// Plain text of a problem's question paragraph, omitting any inline `TAG_POINTS` control suffix.
+/// Plain text of a problem's question paragraph, omitting its points and result format.
 pub(super) fn problem_question_text(p: &Paragraph) -> Option<String> {
-    let raw = match span(p, TAG_POINTS) {
-        Some((a, b)) => {
-            let head = p.text.get(..a).unwrap_or_default();
-            let tail = p.text.get((b + OBJ.len_utf8()).min(p.text.len())..).unwrap_or_default();
-            format!("{head}{tail}")
+    let mut raw = p.text.clone();
+    // The generated suffixes, the last one first so the earlier offsets stay valid.
+    let mut cuts: Vec<(usize, usize)> = [TAG_POINTS, super::result_format::TAG].into_iter().filter_map(|tag| span(p, tag)).collect();
+    cuts.sort_unstable();
+    for (a, b) in cuts.into_iter().rev() {
+        let end = (b + OBJ.len_utf8()).min(raw.len());
+        if raw.is_char_boundary(a) && raw.is_char_boundary(end) && a <= end {
+            raw.replace_range(a..end, "");
         }
-        None => p.text.clone(),
-    };
+    }
     let text = raw.chars().filter(|&c| c != OBJ).collect::<String>().trim().to_string();
     (!text.is_empty()).then_some(text)
 }
@@ -2013,9 +2015,10 @@ pub(crate) fn command(s: &mut Session, v: &Value) -> CmdResult {
         return Err(CmdError::Disabled("result format needs a problem question or a calculation question".into()));
     }
     if let Some(format) = &format {
+        let (w, comma) = (super::exercise_words(s, &layout, e), super::scores::comma(s));
         let block = s.doc.body.get_mut(it.question).ok_or_else(|| CmdError::Failed("question vanished".into()))?;
         let Block::Para(p) = Arc::make_mut(block) else { return Err(CmdError::Failed("question vanished".into())) };
-        super::result_format::write(p, format.as_ref())?;
+        super::result_format::write(p, format.as_ref(), w, comma)?;
         s.touch();
     }
     if !changes {

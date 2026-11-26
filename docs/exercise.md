@@ -504,6 +504,13 @@ step in that unit and its direction. For example, `79 kN` with two decimal place
 be shown exactly. Empty fields inherit the calculation's format. Enter `none` to disable an
 inherited step. The settings follow the question if another calculation becomes its final one.
 
+The question shows what its settings ask, in brackets after its text and before its points:
+*determine how far the deck rises above the water (in cm, 2 decimal places, rounded up to 0.05)*,
+in the exercise's language and with the document's decimal sign. Strix writes this part and
+keeps it current; the solution's copy of the question and `exercise.questions`' `text` leave it
+out. A solved unknown (`(2.8 m − t)·3 m·… = F_p ⇒ t = 2.53 m`) is shown in the question's unit
+too, also when the unit is set after the calculation.
+
 The same settings can be written with
 `exercise.questions {"exercise": 1, "question": 1, "resultFormat": {"unit": "m", "decimals": 2, "step": "0.05", "stepMode": "up"}}`.
 Use `resultFormat: null` to restore the inherited format.

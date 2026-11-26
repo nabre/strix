@@ -80,12 +80,14 @@ impl Worksheet {
         if text.chars().count() > MAX_INPUT_CHARS {
             return None;
         }
+        // Already solved (`… = F_p ⇒ t = 2.533 m`): the unit goes on the solved line.
+        if text.contains('⇒') {
+            return unit.and_then(|u| self.with_result_unit(text, Some(u)));
+        }
         let tokens = self.with_scripted_names(lex(text, self.opts.decimal_comma).ok()?);
         let eqs = positions(&tokens, |t| matches!(t, Tok::Equals));
         let defs = positions(&tokens, |t| matches!(t, Tok::Define));
-        if !text.contains('⇒')
-            && let ([eq], []) = (eqs.as_slice(), defs.as_slice())
-        {
+        if let ([eq], []) = (eqs.as_slice(), defs.as_slice()) {
             let end = tokens.get(*eq)?;
             let lhs = self.parse_expr(tokens.get(..*eq)?, end.pos).ok()?;
             let rhs = self.parse_expr(tokens.get(eq + 1..)?, text.chars().count()).ok();

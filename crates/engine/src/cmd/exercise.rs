@@ -2018,6 +2018,8 @@ pub(crate) fn update(s: &mut Session) -> bool {
     changed |= title_line::quiz_statements(s);
     // Every exercise letters its own questions, a pasted copy included.
     changed |= own_lists::conform(s);
+    // A question's result format written after it, in its words.
+    changed |= result_format::sync(s);
     placeholders(s);
     // A series: every exercise has its first one's page breaks, parts shown and graph paper.
     changed |= series::conform(s);
@@ -2484,6 +2486,34 @@ mod tests {
         check(&mut s);
         s.run("exercise.questions", &json!({"exercise": 1, "question": 1, "resultFormat": null})).unwrap();
         assert!(texts(&s).iter().any(|t| t == "a) t = 253.33 cm"), "{:?}", texts(&s));
+    }
+
+    /// Found in use: a solved unknown in metres kept `t = 2.53 m` with the question asking cm.
+    #[test]
+    fn question_unit_converts_a_solved_unknown() {
+        let mut s = session();
+        s.run("exercise.insert", &json!({"questions": ["Sporgenza"]})).unwrap();
+        s.run("calc.options", &json!({"scope": "document", "layout": "lines", "steps": true})).unwrap();
+        s.run("exercise.goWorking", &json!({"exercise": 1, "question": 1})).unwrap();
+        for t in ["ρ_liq = 10 kN/m^3", "F_p = 8 kN"] {
+            s.run("calc.insert", &json!({"text": t})).unwrap();
+            s.run("text.newParagraph", &json!({})).unwrap();
+        }
+        s.run("calc.insert", &json!({"text": "(2.8 m − t)·3 m·(1 m)·ρ_liq = F_p"})).unwrap();
+        let st = s.run("exercise.questions", &json!({"exercise": 1})).unwrap();
+        assert_eq!(st["questions"][0]["result"], "t = 2.533 m", "{st}");
+        s.run("exercise.questions", &json!({"exercise": 1, "question": 1, "resultFormat": {"unit": "cm", "decimals": 2}})).unwrap();
+        let st = s.run("exercise.questions", &json!({"exercise": 1})).unwrap();
+        assert_eq!(st["questions"][0]["result"], "t = 253.33 cm", "{st}");
+        // The format is written after the question, not in its text nor in the solution's copy.
+        assert_eq!(st["questions"][0]["text"], "Sporgenza", "{st}");
+        let t = texts(&s);
+        assert_eq!(t.iter().filter(|x| x.contains("Sporgenza (in cm, 2 decimali)")).count(), 1, "{t:?}");
+        assert!(t.iter().any(|x| x.ends_with("Sporgenza")), "{t:?}");
+        s.run("exercise.questions", &json!({"exercise": 1, "question": 1, "resultFormat": {"step": "0.05", "stepMode": "up"}})).unwrap();
+        assert!(texts(&s).iter().any(|x| x.ends_with("Sporgenza (arrotondato per eccesso a 0,05)")), "{:?}", texts(&s));
+        s.run("exercise.questions", &json!({"exercise": 1, "question": 1, "resultFormat": null})).unwrap();
+        assert!(!texts(&s).iter().any(|x| x.contains('(')), "{:?}", texts(&s));
     }
 
     #[test]
