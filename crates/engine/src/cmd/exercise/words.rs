@@ -48,6 +48,21 @@ pub(super) struct Words {
     pub pack_teacher_name: &'static str,
     pub synoptic_heading: &'static str,
     pub question_col: &'static str,
+    /// What a question's result format asks, written in brackets after the question.
+    pub result_hint: ResultHint,
+}
+
+/// The words of a question's result format (`cmd/exercise/result_format.rs`): `{}` stands for the
+/// unit, the number of decimal places or the rounding step.
+pub(super) struct ResultHint {
+    pub unit: &'static str,
+    pub decimal: &'static str,
+    pub decimals: &'static str,
+    pub no_decimals: &'static str,
+    pub rounded: &'static str,
+    pub rounded_up: &'static str,
+    pub rounded_down: &'static str,
+    pub to_step: &'static str,
 }
 
 /// The words of language tag `lang` (`it-IT`, `fr`, `ita`, `gsw-CH`…), from its primary subtag
@@ -104,6 +119,16 @@ pub(super) const IT: Words = Words {
     pack_teacher_name: "Correttore_Docente",
     synoptic_heading: "Tabella sinottica delle varianti",
     question_col: "Domanda",
+    result_hint: ResultHint {
+        unit: "in {}",
+        decimal: "{} decimale",
+        decimals: "{} decimali",
+        no_decimals: "senza decimali",
+        rounded: "arrotondato",
+        rounded_up: "arrotondato per eccesso",
+        rounded_down: "arrotondato per difetto",
+        to_step: "a {}",
+    },
 };
 
 pub(super) const EN: Words = Words {
@@ -140,6 +165,16 @@ pub(super) const EN: Words = Words {
     pack_teacher_name: "Teacher_Key",
     synoptic_heading: "Multi-variant answer key",
     question_col: "Question",
+    result_hint: ResultHint {
+        unit: "in {}",
+        decimal: "{} decimal place",
+        decimals: "{} decimal places",
+        no_decimals: "no decimal places",
+        rounded: "rounded",
+        rounded_up: "rounded up",
+        rounded_down: "rounded down",
+        to_step: "to {}",
+    },
 };
 
 const FR: Words = Words {
@@ -176,6 +211,16 @@ const FR: Words = Words {
     pack_teacher_name: "Corrige_Enseignant",
     synoptic_heading: "Tableau synoptique des variantes",
     question_col: "Question",
+    result_hint: ResultHint {
+        unit: "en {}",
+        decimal: "{} décimale",
+        decimals: "{} décimales",
+        no_decimals: "sans décimales",
+        rounded: "arrondi",
+        rounded_up: "arrondi par excès",
+        rounded_down: "arrondi par défaut",
+        to_step: "à {}",
+    },
 };
 
 const DE: Words = Words {
@@ -212,6 +257,16 @@ const DE: Words = Words {
     pack_teacher_name: "Korrekturschluessel",
     synoptic_heading: "Variantenübersicht",
     question_col: "Frage",
+    result_hint: ResultHint {
+        unit: "in {}",
+        decimal: "{} Nachkommastelle",
+        decimals: "{} Nachkommastellen",
+        no_decimals: "ohne Nachkommastellen",
+        rounded: "gerundet",
+        rounded_up: "aufgerundet",
+        rounded_down: "abgerundet",
+        to_step: "auf {}",
+    },
 };
 
 #[cfg(test)]
@@ -247,7 +302,7 @@ mod tests {
     /// without its own).
     #[test]
     fn every_set_is_complete_and_distinct() {
-        let fields = |w: &Words| -> [&str; 33] {
+        let fields = |w: &Words| -> [&str; 41] {
             [
                 w.exercise,
                 w.total,
@@ -282,6 +337,14 @@ mod tests {
                 w.pack_teacher_name,
                 w.synoptic_heading,
                 w.question_col,
+                w.result_hint.unit,
+                w.result_hint.decimal,
+                w.result_hint.decimals,
+                w.result_hint.no_decimals,
+                w.result_hint.rounded,
+                w.result_hint.rounded_up,
+                w.result_hint.rounded_down,
+                w.result_hint.to_step,
             ]
         };
         let shown = |w: &Words| [w.exercise, w.title_part, w.statement, w.questions, w.solution, w.prompt, w.title, w.text, w.question];
