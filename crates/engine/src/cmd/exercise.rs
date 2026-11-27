@@ -68,6 +68,8 @@ mod tests_expr;
 #[cfg(test)]
 mod tests_phase3;
 #[cfg(test)]
+mod tests_units;
+#[cfg(test)]
 mod tests_phase4;
 #[cfg(test)]
 mod tests_phase5;
@@ -916,13 +918,131 @@ pub struct ExerciseData {
 pub struct DataItem {
     pub symbol: String,
     pub description: String,
+    /// The unit, shared by the variants; while they differ ([`DataItem::units`]), variant A's.
     pub unit: String,
+    /// The unit in each variant, while the variants give the datum in different units of the
+    /// same quantity (`450 cm` in A, `4.5 m` in B); empty while they all share [`DataItem::unit`].
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub units: Vec<String>,
     /// The value in each variant, as typed (`4.5`, `2·10^3`).
     pub values: Vec<String>,
     /// The datum written whole for the active variant (`L = 4.5 m`, [`data_line::parse_datum`]):
     /// given to `exercise.setData`, it sets the symbol, the unit and the active variant's value.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub equation: Option<String>,
+}
+
+impl DataItem {
+    /// The unit of the datum in variant `v`.
+    pub fn unit_in(&self, v: usize) -> &str {
+        self.units.get(v).map(String::as_str).filter(|u| !u.is_empty()).unwrap_or(&self.unit)
+    }
+
+    /// The definition of the datum in variant `v` (`L = 4.5 m`), empty without a symbol or value.
+    pub fn statement_in(&self, v: usize) -> String {
+        let value = self.values.get(v).map(String::as_str).unwrap_or_default();
+        if self.symbol.is_empty() || value.is_empty() {
+            return String::new();
+        }
+        format!("{} = {value} {}", self.symbol, self.unit_in(v)).trim().to_string()
+    }
+
+    /// Writes the datum as `value unit` in variant `v` of `n` (the datum typed whole in the
+    /// Exercise Data pane or on the page). Only variant `v` changes, and the variants with no value
+    /// yet take its unit. Only the unit changed, to another unit of the same physical quantity
+    /// (`100 m` written `100 cm`): the value is converted so the quantity stays (`10000 cm`). A
+    /// unit of another quantity (or one the calculations don't know) never touches the other
+    /// variants: the datum is reported until they agree ([`DataItem::unit_conflict`]).
+    pub fn set_datum(&mut self, v: usize, n: usize, value: &str, unit: &str) {
+        let (value, unit) = (value.trim(), unit.trim());
+        if self.values.len() < n {
+            self.values.resize(n, String::new());
+        }
+        let old_unit = self.unit_in(v).to_string();
+        let old_value = self.values.get(v).map(|x| x.trim().to_string()).unwrap_or_default();
+        let mut value = value.to_string();
+        if unit != old_unit && value == old_value && same_quantity(&old_unit, unit)
+            && let Some(converted) = convert_value(&value, &old_unit, unit)
+        {
+            value = converted;
+        }
+        if unit != old_unit {
+            let empty = |k: usize| self.values.get(k).is_none_or(|x| x.trim().is_empty());
+            let all: Vec<String> = (0..n).map(|k| if k == v || empty(k) { unit.to_string() } else { self.unit_in(k).to_string() }).collect();
+            self.units = all;
+        }
+        if let Some(slot) = self.values.get_mut(v) {
+            *slot = value;
+        }
+        self.normalize_units(n);
+    }
+
+    /// The datum's error while its variants give it in units of different quantities (`m` in A,
+    /// `kg` in B: `variants` names them) or in a unit the calculations don't know beside others.
+    pub fn unit_conflict(&self, variants: &[String]) -> Option<String> {
+        if self.units.is_empty() {
+            return None;
+        }
+        let given: Vec<usize> = (0..self.values.len()).filter(|&k| self.values.get(k).is_some_and(|x| !x.trim().is_empty())).collect();
+        let first = self.unit_in(*given.first()?);
+        if given.iter().all(|&k| same_quantity(first, self.unit_in(k))) {
+            return None;
+        }
+        let list: Vec<String> = given
+            .iter()
+            .map(|&k| format!("{}: {}", variants.get(k).map_or_else(|| (k + 1).to_string(), Clone::clone), self.unit_in(k)))
+            .collect();
+        Some(format!("{}: the variants give units of different quantities ({})", self.symbol, list.join(", ")))
+    }
+
+    /// One unit per variant of `n` while they differ (the shared unit filling the gaps, `unit`
+    /// then variant A's); none while they are all the same.
+    fn normalize_units(&mut self, n: usize) {
+        if self.units.is_empty() {
+            return;
+        }
+        let shared = self.unit.clone();
+        self.units.resize(n, String::new());
+        for u in &mut self.units {
+            if u.trim().is_empty() {
+                u.clone_from(&shared);
+            }
+        }
+        if let Some(first) = self.units.first() {
+            self.unit.clone_from(first);
+        }
+        if self.units.iter().all(|u| *u == self.unit) {
+            self.units.clear();
+        }
+    }
+}
+
+/// Whether two units measure the same physical quantity (`m` and `cm`, `kN` and `N`, `°C` and
+/// `K`, no unit and no unit); never for a unit the calculations don't know.
+pub fn same_quantity(a: &str, b: &str) -> bool {
+    let dim = |u: &str| -> Option<strix_calc::Dim> {
+        let u = u.trim();
+        if u.is_empty() {
+            return Some(strix_calc::Dim::NONE);
+        }
+        let mut ws = strix_calc::Worksheet::new(strix_calc::Options::default());
+        ws.eval_expr(&format!("1 {u}")).ok().map(|v| v.dim())
+    };
+    matches!((dim(a), dim(b)), (Some(x), Some(y)) if x == y)
+}
+
+/// `value` given in `from` written in `to`, the same quantity (`100`, `m`, `cm` → `10000`), with
+/// the value's decimal sign; `None` when it isn't a number in `from` or can't be written in `to`.
+pub fn convert_value(value: &str, from: &str, to: &str) -> Option<String> {
+    let comma = value.contains(',') && !value.contains('.');
+    let opts = strix_calc::Options { decimal_comma: comma, digits: 12, count: strix_calc::Count::Significant, zeros: false, ..strix_calc::Options::default() };
+    let ws = strix_calc::Worksheet::new(opts);
+    let q = ws.eval_expr(&format!("{value} {from}").trim().to_string()).ok()?;
+    if !matches!(q, strix_calc::Value::Scalar(_)) {
+        return None;
+    }
+    let (number, _) = strix_calc::format_value_in(&q, to, &opts).ok()?;
+    (!number.contains('⚠') && !number.is_empty()).then_some(number)
 }
 
 /// Data text as stored: no control or object characters (the unit marker and U+FFFC are
@@ -945,17 +1065,17 @@ impl ExerciseData {
         let active = self.active.min(n.saturating_sub(1));
         for item in &mut self.items {
             item.values.resize(n, String::new());
+            item.unit = clip(&item.unit);
+            item.units.truncate(n);
+            item.units.iter_mut().for_each(|u| *u = clip(u));
+            item.normalize_units(n);
             if let Some(eq) = item.equation.take() {
                 let d = data_line::parse_datum(&eq, false).unwrap_or_default();
                 item.symbol = d.symbol;
-                item.unit = d.unit;
-                if let Some(v) = item.values.get_mut(active) {
-                    *v = d.value;
-                }
+                item.set_datum(active, n, &clip(&d.value), &clip(&d.unit));
             }
             item.symbol = clip(&item.symbol);
             item.description = clip(&item.description);
-            item.unit = clip(&item.unit);
             item.values.resize(n, String::new());
             item.values.iter_mut().for_each(|v| *v = clip(v));
         }
@@ -966,13 +1086,7 @@ impl ExerciseData {
 
     /// The definitions of the active variant: `L = 4.5 m`.
     pub fn statements(&self) -> Vec<String> {
-        self.items
-            .iter()
-            .filter_map(|i| {
-                let value = i.values.get(self.active)?;
-                (!i.symbol.is_empty() && !value.is_empty()).then(|| format!("{} = {} {}", i.symbol, value, i.unit).trim().to_string())
-            })
-            .collect()
+        self.items.iter().map(|i| i.statement_in(self.active)).filter(|s| !s.is_empty()).collect()
     }
 
     /// The items the data part lists, in order: those with a symbol the exercise doesn't
@@ -997,7 +1111,8 @@ impl ExerciseData {
             .map(|i| {
                 let value = i.values.get(self.active).map(String::as_str).unwrap_or_default();
                 // The unit follows a marker: it is set in the Unit style.
-                let unit = if i.unit.is_empty() { String::new() } else { format!(" {UNIT_MARK}{}", i.unit) };
+                let unit = i.unit_in(self.active);
+                let unit = if unit.is_empty() { String::new() } else { format!(" {UNIT_MARK}{unit}") };
                 let value = if value.is_empty() { String::new() } else { format!(" {value}") };
                 (i.description.clone(), format!("{} ={value}{unit}", i.symbol))
             })
@@ -1140,11 +1255,13 @@ fn variant_errors_map(s: &Session, layout: &Layout, ex: usize, e: &Exercise) -> 
         let mut ws_check = strix_calc::Worksheet::new(z_opts);
         let mut stmts = Vec::new();
         for item in &e.data.items {
-            let val = item.values.get(vi).cloned().unwrap_or_default();
-            if item.symbol.is_empty() || val.is_empty() {
+            let stmt = item.statement_in(vi);
+            if stmt.is_empty() {
                 continue;
             }
-            let stmt = format!("{} = {val} {}", item.symbol, item.unit).trim().to_string();
+            if let Some(msg) = item.unit_conflict(&e.data.variants) {
+                errs.push(msg);
+            }
             let r = ws_check.eval_statement(&stmt);
             if r.error.is_none() && r.name.as_deref() != Some(item.symbol.as_str()) {
                 errs.push(format!("{} is not a name", item.symbol));
@@ -1196,15 +1313,16 @@ fn data_info(s: &mut Session, v: &Value) -> CmdResult {
         .items
         .iter()
         .map(|i| {
-            let value = i.values.get(e.data.active).cloned().unwrap_or_default();
-            if i.symbol.is_empty() || value.is_empty() {
+            let stmt = i.statement_in(e.data.active);
+            if stmt.is_empty() {
                 return Value::Null;
             }
-            let r = ws.eval_statement(&format!("{} = {} {}", i.symbol, value, i.unit));
+            let r = ws.eval_statement(&stmt);
             match (r.error, r.name.as_deref() == Some(i.symbol.as_str())) {
                 (Some(e), _) => json!(e.to_string()),
                 (None, false) => json!(format!("{} is not a name", i.symbol)),
-                (None, true) => Value::Null,
+                // Units of different quantities in the variants: one datum, one quantity.
+                (None, true) => i.unit_conflict(&e.data.variants).map_or(Value::Null, Value::from),
             }
         })
         .collect();

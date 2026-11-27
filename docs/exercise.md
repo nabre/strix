@@ -1,6 +1,6 @@
 # Exercises
 
-> **Status:** done: three kinds (problem, open answer, multiple choice) and question modes ([question-modes.md](question-modes.md)), structure, sandbox, repeated questions, result marks, one results summary, page breaks, parts shown, graph paper per exercise, frontispiece, the series rules every exercise; the contextual Exercise and Series tabs with the Question Settings and Exercise Data panes beside the document; data as equations, variants, inline values, the variant generator; scores table, total score, grading scale, pre-flight check and assessment pack · **Last updated:** 2026-11-17 · **Change:** docs brought up to date with the code (status, the Teaching tab's groups, the commands table, Next); the history of earlier changes is under [Revision history](#revision-history)
+> **Status:** done: three kinds (problem, open answer, multiple choice) and question modes ([question-modes.md](question-modes.md)), structure, sandbox, repeated questions, result marks, one results summary, page breaks, parts shown, graph paper per exercise, frontispiece, the series rules every exercise; the contextual Exercise and Series tabs with the Question Settings and Exercise Data panes beside the document; data as equations, variants, inline values, the variant generator; scores table, total score, grading scale, pre-flight check and assessment pack · **Last updated:** 2026-11-27 · **Change:** a datum's unit per variant, within its physical quantity (`d = 100 m` in A, `d = 10000 cm` in B); the history of earlier changes is under [Revision history](#revision-history)
 
 An **exercise** (Teaching › Exercise › New Exercise, `exercise.insert`) is a worked problem with a
 rigid structure, the core of Strix as a tool for solving problems. (Working name in the brief:
@@ -420,8 +420,8 @@ its button again or Esc closes it.
 
 - **Data**: each datum is an equation, `L = 4.5 m`, with a description (`luce`), written whole
   in the Exercise Data pane and in the exercise's data part on the page: the symbol, the value in the
-  active variant and the unit are told apart from it (the unit is shared by the variants, a value
-  that isn't a number, `2*a`, stays whole). They are the first parameters of the exercise's
+  active variant and the unit are told apart from it (a value that isn't a number, `2*a`, stays
+  whole). They are the first parameters of the exercise's
   sandbox, so the solution uses `L` without defining it; each datum is checked as the sandbox
   reads it and its error is shown under it. `exercise.setData` takes `"equation"` on an item.
 - **Editing on the page**: the data part (`luce: L = 4.5 m`, one line per datum) can be typed
@@ -437,6 +437,20 @@ its button again or Esc closes it.
   the active one), **−** removes the active one. Choosing a variant recalculates the exercise:
   data, results and summary follow; the summary names the variant, and the exercise's tab on the
   page shows it while designing.
+- **Units per variant**: a datum's unit is shared by the variants, but a variant may give it in
+  another unit of the **same physical quantity**: `d = 100 m` in A, `d = 10000 cm` in B. Writing
+  the datum (in the Exercise Data pane or on the page) changes the active variant only (and the
+  variants with no value yet). Changing **only the unit** keeps the quantity: `d = 100 m`
+  rewritten `d = 100 cm` becomes `d = 10000 cm`, and every result stays the same; a new value
+  typed with the unit is taken as written (`d = 30000 cm`). The sandbox reads each variant in
+  its own unit. A unit of another quantity (`kg` for `m`) or one the calculations don't know
+  (a typo) changes the active variant only, never the others: the datum is reported (its error
+  in the pane, ⚠ on the variants, `data_units_conflict` in Check Assessment) until the variants
+  agree. Back to one unit in every variant, the datum has one unit again. A new variant copies
+  the active one's unit with its value; the variant generator draws a datum given in several
+  units with each value's own unit. `exercise.data` gives the units per variant in `"units"`
+  (absent while they are all `"unit"`, which is then variant A's); `exercise.setData` takes
+  them, and units of different quantities given there are reported the same way.
 
 Data and variants are kept on the exercise control, in a `strix:exerciseData` element of its
 properties (JSON) that Word ignores; `exercise.data`, `exercise.setData` and `exercise.variant`
@@ -598,6 +612,7 @@ same commands the ribbon runs (`crates/engine/src/sample_calc.rs`), as the sampl
 
 ## Revision history
 
+- 2026-11-27: units per variant: a variant may give a datum in another unit of the same physical quantity (`DataItem::units`, `set_datum`, `same_quantity`, `convert_value`); changing only the unit converts the value so the quantity stays; the data part, the sandbox, the checks, the variant generator (value and unit kept together by index) and the Exercise Data pane (add/remove variant, values on hover) follow each variant's unit; a unit of another quantity or a typo changes only the active variant and is reported (`unit_conflict`, `data_units_conflict`).
 - 2026-11-25: `exercise.goWorking {question}` puts the caret in a question's working space (scripts couldn't find it: the repeated question is read-only and its text appears twice). Inline values read their names where they stand (they read the end of the document, so a name redefined later showed its later value), a name defined only further on still read there; the caret no longer lands inside a value when `{{…}}` is turned into one or a value is rewritten. `exercise.insertExpr` replaces the selection, puts the caret after the value (the next one went into it, changing its formula: "no inline value" after), reads math-italic names and returns `shown`/`error`; a datum given in °C is recalled in °C, units like `1/K` and `1/m³` work in the data.
 
 - 2026-11-17: Docs brought up to date with the code: the status line, the Teaching tab's groups (Exercise with Exercise Tools, Archive, Scores, Assessment, Graph Paper), the commands table completed (`exercise.titleLine`, `questionPoints`, `blank`, `insertExpr`, `generateVariants`, `totalScore`, `grading`, `check`, `file.exportPack`, `view.gradingPane`, `view.checkPane`), the Next list (worked steps are calc's).

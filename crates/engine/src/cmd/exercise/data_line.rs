@@ -1,7 +1,8 @@
 //! Data as equations (docs/exercise.md, Data and variants): a datum is written whole, `L = 4.5 m`,
 //! in the Data panel and in the exercise's data part on the page, never as separate symbol,
 //! value and unit. The text is split here into the datum's symbol, its value in the active
-//! variant and its unit (shared by the variants and kept apart for the variant generator).
+//! variant and its unit (shared by the variants, or one per variant while they give the datum in
+//! different units of the same quantity; kept apart for the variant generator).
 //!
 //! The data part on the page is editable: a line typed there (`luce: L = 6 m`, a new line, a line
 //! deleted) goes into the exercise's data once the caret leaves the part, and the part is then
@@ -52,10 +53,11 @@ pub fn parse_datum(text: &str, with_description: bool) -> Option<Datum> {
 /// datum.
 pub fn equation(item: &DataItem, active: usize) -> String {
     let value = item.values.get(active).map(String::as_str).unwrap_or_default();
-    if item.symbol.is_empty() && value.is_empty() && item.unit.is_empty() {
+    let unit = item.unit_in(active);
+    if item.symbol.is_empty() && value.is_empty() && unit.is_empty() {
         return String::new();
     }
-    format!("{} = {value} {}", item.symbol, item.unit).split_whitespace().collect::<Vec<_>>().join(" ")
+    format!("{} = {value} {unit}", item.symbol).split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
 /// A character that may continue a number: digits, separators, signs, exponents, operators.
@@ -224,13 +226,9 @@ fn merge(data: &mut ExerciseData, shown_items: &[usize], lines: &[Datum]) {
     let apply = |item: &mut DataItem, d: &Datum| {
         item.symbol = d.symbol.clone();
         item.description = d.description.clone();
-        item.unit = d.unit.clone();
-        if item.values.len() < n {
-            item.values.resize(n, String::new());
-        }
-        if let Some(v) = item.values.get_mut(active) {
-            *v = d.value.clone();
-        }
+        // The active variant's value and unit: only the unit changed, within its quantity, the
+        // value is converted (`100 m` → `10000 cm`); the other variants keep theirs.
+        item.set_datum(active, n, &d.value, &d.unit);
     };
     let mut fresh: Vec<&Datum> = Vec::new();
     let mut gone: Vec<usize> = Vec::new();
@@ -273,7 +271,7 @@ fn merge(data: &mut ExerciseData, shown_items: &[usize], lines: &[Datum]) {
             description: d.description.clone(),
             unit: d.unit.clone(),
             values: vec![d.value.clone(); n],
-            equation: None,
+            ..DataItem::default()
         });
     }
     if data.variants.is_empty() && !data.items.is_empty() {

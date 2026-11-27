@@ -191,16 +191,33 @@ fn build_item_domains(existing: &[DataItem], v: &Value) -> Result<Vec<(DataItem,
             if let Some(u) = dom.unit {
                 updated.unit = u;
             }
+            // The generated values share one unit: variant A's, unless the domain names one.
+            updated.units.clear();
             if let Some(desc) = dom.description {
                 updated.description = desc;
             }
             out.push((updated, dom.values));
         } else {
-            let mut vals = distinct(item.values.iter().map(|s| clip(s)).filter(|s| !s.is_empty()).collect());
-            if vals.is_empty() {
-                vals.push("1".into());
+            // Values in different units of one quantity (`450 cm`, `4.5 m`) are drawn with their
+            // unit: the kept item's `units` then holds the unit of each domain value, by index,
+            // never split again from text.
+            let mut kept = item.clone();
+            kept.units.clear();
+            let mut pairs: Vec<(String, String)> = Vec::new();
+            for (k, v) in item.values.iter().enumerate() {
+                let pair = (clip(v), item.unit_in(k).to_string());
+                if !pair.0.is_empty() && !pairs.contains(&pair) {
+                    pairs.push(pair);
+                }
             }
-            out.push((item.clone(), vals));
+            if pairs.is_empty() {
+                pairs.push(("1".into(), item.unit.clone()));
+            }
+            let (vals, units): (Vec<String>, Vec<String>) = pairs.into_iter().unzip();
+            if !item.units.is_empty() {
+                kept.units = units;
+            }
+            out.push((kept, vals));
         }
     }
     for dom in parsed {
@@ -211,8 +228,7 @@ fn build_item_domains(existing: &[DataItem], v: &Value) -> Result<Vec<(DataItem,
             symbol: dom.symbol,
             description: dom.description.unwrap_or_default(),
             unit: dom.unit.unwrap_or_default(),
-            values: Vec::new(),
-            equation: None,
+            ..DataItem::default()
         };
         out.push((item, dom.values));
     }
@@ -424,16 +440,21 @@ pub(crate) fn command(s: &mut Session, v: &Value) -> CmdResult {
     let lengths: Vec<usize> = item_domains.iter().map(|(_, vals)| vals.len()).collect();
     let candidates = candidate_order(&lengths, seed);
 
-    let mut chosen: Vec<Vec<String>> = Vec::with_capacity(count);
+    let mut chosen: Vec<Vec<(String, String)>> = Vec::with_capacity(count);
     let mut seen_finals: BTreeSet<String> = BTreeSet::new();
     let mut evaluated = 0usize;
     let mut last_rejection = String::from("domain exhausted");
 
     for tuple in candidates.into_iter().take(MAX_CANDIDATE_EVALS) {
         evaluated += 1;
-        let values_vec: Vec<String> = tuple.iter().enumerate().map(|(idx, &vi)| item_domains[idx].1.get(vi).cloned().unwrap_or_default()).collect();
+        // Each datum's value and unit (a datum given in several units has one per domain value).
+        let values_vec: Vec<(String, String)> = tuple
+            .iter()
+            .zip(&item_domains)
+            .map(|(&vi, (it, vals))| (vals.get(vi).cloned().unwrap_or_default(), it.unit_in(vi).to_string()))
+            .collect();
         let stmts: Vec<String> =
-            item_domains.iter().zip(&values_vec).map(|((it, _), val)| format!("{} = {val} {}", it.symbol, it.unit).trim().to_string()).collect();
+            item_domains.iter().zip(&values_vec).map(|((it, _), (val, unit))| format!("{} = {val} {unit}", it.symbol).trim().to_string()).collect();
         match validate_candidate(s, &layout, ex, &stmts, &constraints, &seen_finals) {
             Ok(sig) => {
                 if !sig.is_empty() {
@@ -456,7 +477,12 @@ pub(crate) fn command(s: &mut Session, v: &Value) -> CmdResult {
     }
 
     let mut generated = item_domains.into_iter().enumerate().map(|(item_idx, (mut it, _))| {
-        it.values = chosen.iter().map(|row| row.get(item_idx).cloned().unwrap_or_default()).collect();
+        let (values, units): (Vec<String>, Vec<String>) = chosen.iter().map(|row| row.get(item_idx).cloned().unwrap_or_default()).unzip();
+        it.values = values;
+        // A datum drawn with its units gives each variant the unit of its value, exactly as validated.
+        if !it.units.is_empty() {
+            it.units = units;
+        }
         it
     });
     // A datum without a symbol (a line of the data part that is no equation yet) is nothing to
