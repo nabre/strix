@@ -52,6 +52,11 @@ pub(crate) fn add_variant(data: &mut Value) {
             if let Some(values) = item["values"].as_array_mut() {
                 values.push(copy);
             }
+            // Its unit too, while the variants give the datum in different units.
+            let unit = json!(unit_in(item, active));
+            if let Some(units) = item["units"].as_array_mut() {
+                units.push(unit);
+            }
         }
     }
     data["active"] = json!(variants.len().max(1));
@@ -76,9 +81,21 @@ pub(crate) fn remove_variant(data: &mut Value) {
             {
                 values.remove(active);
             }
+            if let Some(units) = item["units"].as_array_mut()
+                && active < units.len()
+            {
+                units.remove(active);
+            }
         }
     }
     data["active"] = json!(active.saturating_sub(1));
+}
+
+/// A datum's unit in variant `v` (`item`, from `exercise.data`): its own while the variants give
+/// it in different units of one quantity (`units`), otherwise the shared one.
+fn unit_in(item: &Value, v: usize) -> String {
+    let own = item["units"].get(v).and_then(Value::as_str).filter(|u| !u.is_empty());
+    own.or_else(|| item["unit"].as_str()).unwrap_or_default().to_string()
 }
 
 /// The name an exercise's tab shows on the page (`ctl`, the exercise control): "Exercise", and
@@ -216,7 +233,7 @@ fn data_panel(app: &mut WordApp, ui: &mut Ui, info: &Value) {
         for row in 0..rows {
             let item = &data["items"][row];
             let text = |v: &Value| v.as_str().unwrap_or_default().to_string();
-            let (symbol, unit) = (text(&item["symbol"]), text(&item["unit"]));
+            let (symbol, unit) = (text(&item["symbol"]), unit_in(item, active));
             let value = text(&item["values"][active]);
             let eq = if symbol.is_empty() && value.is_empty() && unit.is_empty() {
                 String::new()
@@ -241,7 +258,10 @@ fn data_panel(app: &mut WordApp, ui: &mut Ui, info: &Value) {
                 let all: Vec<String> = names
                     .iter()
                     .enumerate()
-                    .map(|(k, n)| format!("{n}: {} {unit}", data["items"][row]["values"][k].as_str().unwrap_or("—")).trim().to_string())
+                    .map(|(k, n)| {
+                        let item = &data["items"][row];
+                        format!("{n}: {} {}", item["values"][k].as_str().unwrap_or("—"), unit_in(item, k)).trim().to_string()
+                    })
                     .collect();
                 r.response.on_hover_text(all.join("\n"));
             }
@@ -463,5 +483,24 @@ mod tests {
         h.get_by_label(tl!("Put the cursor in an exercise to see its data and variants."));
         h.state_mut().run("view.dataPane", json!({})).unwrap();
         assert!(!crate::panes::open(h.state()).contains(&crate::panes::Pane::Data));
+    }
+
+    /// A datum given in different units per variant: a new variant copies the active one's
+    /// unit with its value, a removed variant takes its unit away.
+    #[test]
+    fn variants_added_and_removed_keep_each_unit() {
+        let mut data = json!({
+            "items": [{"symbol": "d", "unit": "m", "units": ["m", "cm"], "values": ["100", "10000"]}],
+            "variants": ["A", "B"],
+            "active": 1
+        });
+        add_variant(&mut data);
+        assert_eq!(data["items"][0]["units"], json!(["m", "cm", "cm"]));
+        assert_eq!(data["items"][0]["values"], json!(["100", "10000", "10000"]));
+        assert_eq!(unit_in(&data["items"][0], 2), "cm");
+        data["active"] = json!(1);
+        remove_variant(&mut data);
+        assert_eq!(data["items"][0]["units"], json!(["m", "cm"]));
+        assert_eq!(unit_in(&json!({"unit": "s"}), 1), "s");
     }
 }

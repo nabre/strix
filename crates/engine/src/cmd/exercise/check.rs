@@ -32,14 +32,7 @@ fn body_pos(s: &Session, block_idx: usize) -> Pos {
 }
 
 fn variant_statements_at(ex: &Exercise, v_idx: usize) -> Vec<String> {
-    ex.data
-        .items
-        .iter()
-        .filter_map(|i| {
-            let val = i.values.get(v_idx)?;
-            (!i.symbol.is_empty() && !val.is_empty()).then(|| format!("{} = {val} {}", i.symbol, i.unit).trim().to_string())
-        })
-        .collect()
+    ex.data.items.iter().map(|i| i.statement_in(v_idx)).filter(|s| !s.is_empty()).collect()
 }
 
 fn check_subdocuments(s: &Session, out: &mut Vec<CheckIssue>) {
@@ -104,6 +97,20 @@ fn check_exercise_variants_and_choices(s: &Session, layout: &Layout, e_idx: usiz
                     pos: body_pos(s, it.question),
                 });
             }
+        }
+    }
+
+    // A datum given in units of different quantities by its variants.
+    for item in &ex.data.items {
+        if let Some(msg) = item.unit_conflict(&ex.data.variants) {
+            out.push(CheckIssue {
+                kind: "error",
+                code: "data_units_conflict",
+                message: format!("Exercise {}: {msg}", e_idx + 1),
+                exercise: Some(e_idx + 1),
+                variant: None,
+                pos: body_pos(s, ex.data_blocks.map_or(ex.start, |(a, _)| a)),
+            });
         }
     }
 
