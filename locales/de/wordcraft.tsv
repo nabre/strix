@@ -4109,3 +4109,22 @@ structure	Values at the ends of the stretch and at M's extremes:	Werte an den En
 	Dictionary file:	Wörterbuchdatei:
 	Not set: custom-dictionary.txt in the settings folder	Nicht festgelegt: custom-dictionary.txt im Einstellungsordner
 	A custom-word dictionary file (.dic or plain text) used with the main dictionary.	Eine Datei mit eigenen Wörtern (.dic oder Nur-Text), die zusammen mit dem Hauptwörterbuch verwendet wird.
+	Answered in the problem's solution; here the format of its result.	Wird in der Lösung des Problems beantwortet; hier das Format seines Ergebnisses.
+	The student ticks the options' boxes; the corrected copy ticks the correct ones. Write the options in the exercise, one per line under the question.	Die Schüler kreuzen die Kästchen der Optionen an; die korrigierte Fassung kreuzt die richtigen an. Schreibe die Optionen in die Aufgabe, eine pro Zeile unter der Frage.
+	The student ticks True or False on the statement's line; the corrected copy ticks the right one.	Die Schüler kreuzen auf der Zeile der Aussage Wahr oder Falsch an; die korrigierte Fassung kreuzt die richtige Antwort an.
+	The student works it out in the squared space and writes the result on the answer line; the corrected copy shows your working and its result, calculated with the exercise's data.	Die Schüler rechnen im karierten Feld und schreiben das Ergebnis auf die Antwortzeile; die korrigierte Fassung zeigt deinen Lösungsweg und sein Ergebnis, berechnet mit den Daten der Aufgabe.
+	The student draws in the squared space; the corrected copy shows your CAD drawing in it.	Die Schüler zeichnen im karierten Feld; die korrigierte Fassung zeigt dort deine CAD-Zeichnung.
+	A solved example: its working is always shown, also in the students' copy, and it gives no points.	Ein gelöstes Beispiel: sein Lösungsweg ist immer sichtbar, auch in der Fassung der Schüler, und es gibt keine Punkte.
+	The student writes the hidden words on the lines in the text: type [[word]] in the question, or select words and use Exercise › Hide Words.	Die Schüler schreiben die ausgeblendeten Wörter auf die Linien im Text: tippe [[Wort]] in die Frage oder markiere Wörter und nutze Aufgabe › Wörter ausblenden.
+	The student matches each item on the left with one on the right; the corrected copy shows the pairs.	Die Schüler ordnen jedem Element links eines rechts zu; die korrigierte Fassung zeigt die Paare.
+	The student writes the answer in the space under the question; the corrected copy shows the answer you write there.	Die Schüler schreiben die Antwort in das Feld unter der Frage; die korrigierte Fassung zeigt die Antwort, die du dort schreibst.
+	No points	Keine Punkte
+	A worked example gives no points	Ein durchgerechnetes Beispiel gibt keine Punkte
+	The question's type: how the student answers it	Der Fragetyp: wie die Schüler antworten
+	Result Format	Ergebnisformat
+	Correct Answer	Richtige Antwort
+	True	Wahr
+	False	Falsch
+	Round the result to a multiple of this: 0.05, 0.5 cm; empty: by the decimal places	Rundet das Ergebnis auf ein Vielfaches dieses Werts: 0,05, 0,5 cm; leer: nach den Dezimalstellen
+	The student works it out in the blank answer space and writes the result on the answer line; the corrected copy shows your working and its result, calculated with the exercise's data.	Die Schüler rechnen im leeren Antwortfeld und schreiben das Ergebnis auf die Antwortzeile; die korrigierte Fassung zeigt deinen Lösungsweg und sein Ergebnis, berechnet mit den Daten der Aufgabe.
+	The student draws in the blank answer space; the corrected copy shows your CAD drawing in it.	Die Schüler zeichnen im leeren Antwortfeld; die korrigierte Fassung zeigt dort deine CAD-Zeichnung.

@@ -4188,3 +4188,22 @@ structure	Values at the ends of the stretch and at M's extremes:	Valori agli est
 	Dictionary file:	File del dizionario:
 	Not set: custom-dictionary.txt in the settings folder	Non impostato: custom-dictionary.txt nella cartella delle impostazioni
 	A custom-word dictionary file (.dic or plain text) used with the main dictionary.	Un file di parole personalizzate (.dic o testo semplice) usato insieme al dizionario principale.
+	Answered in the problem's solution; here the format of its result.	Si risponde nello svolgimento del problema; qui il formato del suo risultato.
+	The student ticks the options' boxes; the corrected copy ticks the correct ones. Write the options in the exercise, one per line under the question.	Lo studente spunta le caselle delle opzioni; la copia corretta spunta quelle giuste. Scrivi le opzioni nell'esercizio, una per riga sotto la domanda.
+	The student ticks True or False on the statement's line; the corrected copy ticks the right one.	Lo studente spunta Vero o Falso sulla riga dell'affermazione; la copia corretta spunta quella giusta.
+	The student works it out in the squared space and writes the result on the answer line; the corrected copy shows your working and its result, calculated with the exercise's data.	Lo studente svolge il calcolo nello spazio quadrettato e scrive il risultato sulla riga della risposta; la copia corretta mostra il tuo svolgimento e il suo risultato, calcolato con i dati dell'esercizio.
+	The student draws in the squared space; the corrected copy shows your CAD drawing in it.	Lo studente disegna nello spazio quadrettato; la copia corretta vi mostra il tuo disegno CAD.
+	A solved example: its working is always shown, also in the students' copy, and it gives no points.	Un esempio risolto: il suo svolgimento si vede sempre, anche nella copia dello studente, e non dà punti.
+	The student writes the hidden words on the lines in the text: type [[word]] in the question, or select words and use Exercise › Hide Words.	Lo studente scrive le parole nascoste sulle righe nel testo: scrivi [[parola]] nella domanda, oppure seleziona le parole e usa Esercizio › Nascondi parole.
+	The student matches each item on the left with one on the right; the corrected copy shows the pairs.	Lo studente collega ogni elemento a sinistra con uno a destra; la copia corretta mostra le coppie.
+	The student writes the answer in the space under the question; the corrected copy shows the answer you write there.	Lo studente scrive la risposta nello spazio sotto la domanda; la copia corretta mostra la risposta che scrivi lì.
+	No points	Senza punti
+	A worked example gives no points	Un esempio svolto non dà punti
+	The question's type: how the student answers it	Il tipo di domanda: come risponde lo studente
+	Result Format	Formato del risultato
+	Correct Answer	Risposta corretta
+	True	Vero
+	False	Falso
+	Round the result to a multiple of this: 0.05, 0.5 cm; empty: by the decimal places	Arrotonda il risultato a un multiplo di questo valore: 0,05, 0,5 cm; vuoto: secondo le cifre decimali
+	The student works it out in the blank answer space and writes the result on the answer line; the corrected copy shows your working and its result, calculated with the exercise's data.	Lo studente svolge il calcolo nello spazio bianco e scrive il risultato sulla riga della risposta; la copia corretta mostra il tuo svolgimento e il suo risultato, calcolato con i dati dell'esercizio.
+	The student draws in the blank answer space; the corrected copy shows your CAD drawing in it.	Lo studente disegna nello spazio bianco; la copia corretta vi mostra il tuo disegno CAD.
