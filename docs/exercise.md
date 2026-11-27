@@ -384,15 +384,20 @@ unless the exercise has a question of such a type (the commands stay on for scri
   a problem's questions have no type), **Add Sub-question**, **Add Note**, and **Question
   Settings**, which shows or hides the Question Settings pane beside the document
   (`view.questionsPane`; it follows the cursor from exercise to exercise and stays open while
-  you write) with one row per question (label, the start of its text) carrying **its own
-  settings on the row** — a quiz question's type and every question's and sub-question's
-  points, each editable where it is listed; sub-questions are indented under their question
-  and the question the cursor is in is highlighted. A quiz question has more under its row,
-  shown or hidden with a click on the row and opened for the question the cursor moves into
-  (answer space height, squared, square
-  size; correct options as check boxes with their text, shuffling, teacher notes; a
-  calculation's result, Go to working and tolerance; a drawing's scale and Open in CAD editor;
-  matching pairs).
+  you write) with one row per question carrying **its own settings on the row**: the label,
+  the start of its text and, at the far end, its points (in a column down the pane; a worked
+  example says *No points*, since it gives none), and for a quiz question its **type** always on
+  the line under its text. Sub-questions are indented under their question and the question the
+  cursor is in is highlighted. A click on the row shows or hides what its type uses, and only
+  that (opened for the question the cursor moves into): first a line saying what the student
+  does and what the corrected copy shows, then headed sections whose labels and boxes have the
+  same widths everywhere — **Result** and **Result Format** (unit, decimal places, rounding,
+  rounding step, a calculation's tolerance; Go to working) for a calculation or a problem's
+  question; **Answer Space** (height, squared, square size, style, colour) for an open answer,
+  a calculation, a drawing or a worked example; **Correct Options** with **Options**
+  (shuffling) and the teacher notes for a multiple choice; **Correct Answer** (one of the two)
+  for a true or false question; **Drawing** (scale, Open in CAD editor); **Pairs** for a
+  matching. An inline completion has nothing more than its explanation (no answer space).
 - **Layout** (a lone exercise; in a series **Series Settings** brings up the Series tab):
   **Show** (solution, results, graph paper), **Page Breaks**, **Frontispiece** and **Graph
   Paper**, a panel with the graph paper's settings.
@@ -598,6 +603,7 @@ same commands the ribbon runs (`crates/engine/src/sample_calc.rs`), as the sampl
 
 ## Revision history
 
+- 2026-11-27: the Question Settings pane reorganised: the points always at the far end of the row and a quiz question's type always on the line under its text (no longer moving with the pane's width); under the row only the sections its type uses, after a line saying what the student does and what the corrected copy shows; labels and boxes of one width in every section; the result's format in its own Result Format section with every setting labelled (Rounding had none); a true or false question's right answer chosen out of two (no shuffling, which it ignores), a worked example's row without a points box, an inline completion without answer space settings. In a narrow pane the type list and the boxes shrink and move in less to fit, and the pane scrolls sideways for anything still wider; a calculation's or drawing's explanation says the space is blank when it is not squared.
 - 2026-11-25: `exercise.goWorking {question}` puts the caret in a question's working space (scripts couldn't find it: the repeated question is read-only and its text appears twice). Inline values read their names where they stand (they read the end of the document, so a name redefined later showed its later value), a name defined only further on still read there; the caret no longer lands inside a value when `{{…}}` is turned into one or a value is rewritten. `exercise.insertExpr` replaces the selection, puts the caret after the value (the next one went into it, changing its formula: "no inline value" after), reads math-italic names and returns `shown`/`error`; a datum given in °C is recalled in °C, units like `1/K` and `1/m³` work in the data.
 
 - 2026-11-17: Docs brought up to date with the code: the status line, the Teaching tab's groups (Exercise with Exercise Tools, Archive, Scores, Assessment, Graph Paper), the commands table completed (`exercise.titleLine`, `questionPoints`, `blank`, `insertExpr`, `generateVariants`, `totalScore`, `grading`, `check`, `file.exportPack`, `view.gradingPane`, `view.checkPane`), the Next list (worked steps are calc's).
