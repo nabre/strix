@@ -38,7 +38,7 @@ jobs:
     needs: [scope]
     if: needs.scope.outputs.run != 'false'
     # Immutable supporting workflow revision until the new install contract lands upstream.
-    uses: storytold/craft-common-actions/.github/workflows/windows-arm64.yml@4ec2a14646b538253fd5ebe109bf463a3d31b061
+    uses: storytold/craft-common-actions/.github/workflows/windows-arm64.yml@f94a43818dabb2e85f2f4d5cd768bb8e5662600a
     with:
       app-name: strix
       app-dir: Strix
